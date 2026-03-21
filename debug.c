@@ -18,19 +18,9 @@ static void vdebugf_at(const char *loc, const char *fmt, va_list ap) {
   debugf("%*s^ ", col, ""); vdebugf(fmt, ap); debugf("\n");
 }
 
-void debugf_at(const char *loc, const char *fmt, ...) {
-  va_list ap; va_start(ap, fmt);
-  vdebugf_at(loc, fmt, ap);
-}
-
 void debugf_loc(const char *fmt, ...) {
   va_list ap; va_start(ap, fmt);
   vdebugf_at(ctx.lexer.loc, fmt, ap);
-}
-
-void debugf_at_tok(const Token *tok, const char *fmt, ...) {
-  va_list ap; va_start(ap, fmt);
-  vdebugf_at(tok->lexeme.loc, fmt, ap);
 }
 
 void debugf_tok(const char *fmt, ...) {
@@ -77,21 +67,9 @@ void errorf(const char *fmt, ...) {
   exit(1);
 }
 
-void errorf_at(const char *loc, const char *fmt, ...) {
-  va_list ap; va_start(ap, fmt);
-  vdebugf_at(loc, fmt, ap);
-  exit(1);
-}
-
 void errorf_loc(const char *fmt, ...) {
   va_list ap; va_start(ap, fmt);
   vdebugf_at(ctx.lexer.loc, fmt, ap);
-  exit(1);
-}
-
-void errorf_at_tok(const Token *tok, const char *fmt, ...) {
-  va_list ap; va_start(ap, fmt);
-  vdebugf_at(tok->lexeme.loc, fmt, ap);
   exit(1);
 }
 

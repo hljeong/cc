@@ -92,14 +92,8 @@ struct Token {
   StringView lexeme;
 };
 
-// debug print at given loc
-void debugf_at(const char *loc, const char *fmt, ...);
-
 // debug print at current loc
 void debugf_loc(const char *fmt, ...);
-
-// lex error at given loc
-[[noreturn]] void errorf_at(const char *loc, const char *fmt, ...);
 
 // lex error at current loc
 [[noreturn]] void errorf_loc(const char *fmt, ...);
@@ -146,14 +140,8 @@ struct Node {
   Node *next;
 };
 
-// debug log at given token
-void debugf_at_tok(const Token *tok, const char *fmt, ...);
-
 // debug log at current tok
 void debugf_tok(const char *fmt, ...);
-
-// parse error at given token
-[[noreturn]] void errorf_at_tok(const Token *tok, const char *fmt, ...);
 
 // parse error at current tok
 [[noreturn]] void errorf_tok(const char *fmt, ...);
@@ -175,7 +163,7 @@ Node *parse();
 
 // code generator
 
-// todo: debugf_at_node(), debugf_node()
+// todo: debugf_node()
 
 void codegen();
 
