@@ -4,20 +4,22 @@
 #include <string.h>
 
 const char *node_kind_to_str(const NodeKind kind) {
-  if      (kind == NodeKind_NUM)  return "num";
-  else if (kind == NodeKind_ADD)  return "+";
-  else if (kind == NodeKind_SUB)  return "-";
-  else if (kind == NodeKind_MUL)  return "*";
-  else if (kind == NodeKind_DIV)  return "/";
-  else if (kind == NodeKind_NEG)  return "-";
-  else if (kind == NodeKind_EQ)   return "==";
-  else if (kind == NodeKind_NEQ)  return "!=";
-  else if (kind == NodeKind_LT)   return "<";
-  else if (kind == NodeKind_LEQ)  return "<=";
-  else if (kind == NodeKind_EXPR) return "expr";
-  else if (kind == NodeKind_PROG) return "prog";
-  else                           failf("not implemented: %u",
-                                       (uint32_t) kind);
+  if      (kind == NodeKind_NUM)    return "num";
+  else if (kind == NodeKind_VAR)    return "var";
+  else if (kind == NodeKind_ADD)    return "+";
+  else if (kind == NodeKind_SUB)    return "-";
+  else if (kind == NodeKind_MUL)    return "*";
+  else if (kind == NodeKind_DIV)    return "/";
+  else if (kind == NodeKind_NEG)    return "-";
+  else if (kind == NodeKind_EQ)     return "==";
+  else if (kind == NodeKind_NEQ)    return "!=";
+  else if (kind == NodeKind_LT)     return "<";
+  else if (kind == NodeKind_LEQ)    return "<=";
+  else if (kind == NodeKind_ASSIGN) return "assign";
+  else if (kind == NodeKind_EXPR)   return "expr";
+  else if (kind == NodeKind_PROG)   return "prog";
+  else                              failf("not implemented: %u",
+                                          (uint32_t) kind);
 }
 
 static void _debug_ast(const Node *node, const char *prefix, const bool last) {
@@ -29,6 +31,10 @@ static void _debug_ast(const Node *node, const char *prefix, const bool last) {
 
   if (node->kind == NodeKind_NUM) {
     debugf("%s%snum(%d)\n", prefix, branch, node->num);
+  }
+
+  else if (node->kind == NodeKind_VAR) {
+    debugf("%s%snum("sv_fmt")\n", prefix, branch, sv_arg(node->name));
   }
 
   else if (node_kind_is_variant(node->kind)) {
@@ -83,7 +89,8 @@ bool node_kind_is_binop(const NodeKind kind) {
          (kind == NodeKind_EQ)  ||
          (kind == NodeKind_NEQ) ||
          (kind == NodeKind_LEQ) ||
-         (kind == NodeKind_LT);
+         (kind == NodeKind_LT)  ||
+         (kind == NodeKind_ASSIGN);
 }
 
 bool node_kind_is_list(const NodeKind kind) {
@@ -124,6 +131,12 @@ static Node *new_num(const int num) {
   return node;
 }
 
+static Node *new_var(const StringView name) {
+  Node *node = new_node(NodeKind_VAR);
+  node->name = name;
+  return node;
+}
+
 static Node *new_variant(const NodeKind kind, Node *variant) {
   assertf(node_kind_is_variant(kind),
           "bad invocation: new_variant(%s)", node_kind_to_str(kind));
@@ -161,6 +174,7 @@ static Node *new_list(const NodeKind kind, Node *head) {
 static Node *prog();
 static Node *stmt();
 static Node *expr();
+static Node *assign();
 static Node *equality();
 static Node *relational();
 static Node *add();
@@ -185,15 +199,22 @@ static Node *stmt() {
   return node;
 }
 
-// expr ::= equality
-static Node *expr() { return equality(); }
+// expr ::= assign
+static Node *expr() { return assign(); }
+
+// note: right-associative
+// assign ::= equality ("=" assign)?
+static Node *assign() {
+  Node *node = equality();
+  return consume(TokenKind_EQ) ? new_binop(NodeKind_ASSIGN, node, assign()) : node;
+}
 
 // equality ::= relational ("==" relational | "!=" relational)*
 static Node *equality() {
   Node *node = relational();
   const Token *tok = NULL;
   while (true) {
-    if      ((tok = consume(TokenKind_EQ)))  node = new_binop(NodeKind_EQ,  node, relational());
+    if      ((tok = consume(TokenKind_DEQ))) node = new_binop(NodeKind_EQ,  node, relational());
     else if ((tok = consume(TokenKind_NEQ))) node = new_binop(NodeKind_NEQ, node, relational());
     else                                     break;
   }
@@ -247,7 +268,7 @@ static Node *unary() {
   else                                       return primary();
 }
 
-// primary ::= "(" expr ")" | num
+// primary ::= "(" expr ")" | ident | num
 static Node *primary() {
   const Token *tok = NULL;
   if (consume(TokenKind_LPAREN)) {
@@ -255,8 +276,9 @@ static Node *primary() {
     expect(TokenKind_RPAREN);
     return node;
   }
-  else if ((tok = consume(TokenKind_NUM))) return new_num(tok->num);
-  else                                     errorf_tok("expected expression");
+  else if ((tok = consume(TokenKind_IDENT))) return new_var(tok->ident);
+  else if ((tok = consume(TokenKind_NUM)))   return new_num(tok->num);
+  else                                       errorf_tok("expected expression");
 }
 
 Node *parse() {

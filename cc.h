@@ -63,6 +63,7 @@ StringView sv(const char *loc, const int len);
 
 typedef enum {
   TokenKind_NUM,
+  TokenKind_IDENT,
   TokenKind_PLUS,
   TokenKind_MINUS,
   TokenKind_STAR,
@@ -70,6 +71,7 @@ typedef enum {
   TokenKind_LPAREN,
   TokenKind_RPAREN,
   TokenKind_EQ,
+  TokenKind_DEQ,
   TokenKind_NEQ,
   TokenKind_LEQ,
   TokenKind_GEQ,
@@ -85,6 +87,7 @@ struct Token {
   Token *next;
   union {
     int num;
+    StringView ident;
   };
   StringView lexeme;
 };
@@ -114,6 +117,7 @@ Token *lex();
 
 typedef enum {
   NodeKind_NUM,
+  NodeKind_VAR,
   NodeKind_ADD,
   NodeKind_SUB,
   NodeKind_MUL,
@@ -123,6 +127,7 @@ typedef enum {
   NodeKind_NEQ,
   NodeKind_LT,
   NodeKind_LEQ,
+  NodeKind_ASSIGN,
   NodeKind_EXPR,
   NodeKind_PROG,
 } NodeKind;
@@ -132,6 +137,7 @@ struct Node {
   NodeKind kind;
   union {
     int                         num;
+    StringView                  name;
     Node *                      variant;
     Node *                      operand;
     struct { Node *lhs, *rhs; } binop;
@@ -168,6 +174,8 @@ Node *parse();
 
 
 // code generator
+
+// todo: debugf_at_node(), debugf_node()
 
 void codegen();
 

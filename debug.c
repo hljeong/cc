@@ -11,7 +11,7 @@ void debugf(const char *fmt, ...) {
 
 static void vdebugf_at(const char *loc, const char *fmt, va_list ap) {
   const int col = loc - ctx.src;
-  assertf(0 <= col && col < ctx.src_len,
+  assertf(0 <= col && col <= ctx.src_len,
           "invalid loc: %d, src_len=%d",
           col, ctx.src_len);
   debugf("%s\n", ctx.src);

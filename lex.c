@@ -10,13 +10,15 @@ StringView sv(const char *loc, const int len) {
 
 const char *token_kind_to_str(const TokenKind kind) {
   if      (kind == TokenKind_NUM)       return "num";
+  else if (kind == TokenKind_IDENT)     return "ident";
   else if (kind == TokenKind_PLUS)      return "+";
   else if (kind == TokenKind_MINUS)     return "-";
   else if (kind == TokenKind_STAR)      return "*";
   else if (kind == TokenKind_SLASH)     return "/";
   else if (kind == TokenKind_LPAREN)    return "(";
   else if (kind == TokenKind_RPAREN)    return ")";
-  else if (kind == TokenKind_EQ)        return "==";
+  else if (kind == TokenKind_EQ)        return "=";
+  else if (kind == TokenKind_DEQ)       return "==";
   else if (kind == TokenKind_NEQ)       return "!=";
   else if (kind == TokenKind_LEQ)       return "<=";
   else if (kind == TokenKind_GEQ)       return ">=";
@@ -34,6 +36,10 @@ const char *token_to_str(const Token *tok) {
 
   if (tok->kind == TokenKind_NUM) {
     snprintf(buf + off, sizeof(buf) - off, "(%d)", tok->num);
+  }
+
+  else if (tok->kind == TokenKind_IDENT) {
+    snprintf(buf + off, sizeof(buf) - off, "("sv_fmt")", sv_arg(tok->ident));
   }
 
   return buf;
@@ -103,14 +109,20 @@ Token *lex() {
     if (isspace(ch)) ctx.lexer.loc++;
 
     else if (isdigit(ch)) {
-      cur = (cur->next = new_token(TokenKind_NUM, 0));
       const char *start = ctx.lexer.loc;
       // todo: why is this cast needed?
-      cur->num = strtoul(ctx.lexer.loc, (char **) &ctx.lexer.loc, 10);
-      cur->lexeme.len = ctx.lexer.loc - start;
+      const int num = strtoul(ctx.lexer.loc, (char **) &ctx.lexer.loc, 10);
+      cur = (cur->next = new_token(TokenKind_NUM, ctx.lexer.loc - start));
+      cur->num = num;
     }
 
-    else if ((len = consume("==")))   cur = (cur->next = new_token(TokenKind_EQ,        len));
+    else if ('a' <= ch && ch <= 'z') {
+      ctx.lexer.loc++;
+      cur = (cur->next = new_token(TokenKind_IDENT, 1));
+      cur->ident = cur->lexeme;
+    }
+
+    else if ((len = consume("==")))   cur = (cur->next = new_token(TokenKind_DEQ,       len));
     else if ((len = consume("!=")))   cur = (cur->next = new_token(TokenKind_NEQ,       len));
     else if ((len = consume("<=")))   cur = (cur->next = new_token(TokenKind_LEQ,       len));
     else if ((len = consume(">=")))   cur = (cur->next = new_token(TokenKind_GEQ,       len));
@@ -123,6 +135,7 @@ Token *lex() {
     else if ((len = consume_ch('('))) cur = (cur->next = new_token(TokenKind_LPAREN,    len));
     else if ((len = consume_ch(')'))) cur = (cur->next = new_token(TokenKind_RPAREN,    len));
     else if ((len = consume_ch(';'))) cur = (cur->next = new_token(TokenKind_SEMICOLON, len));
+    else if ((len = consume_ch('='))) cur = (cur->next = new_token(TokenKind_EQ,        len));
     else                              errorf_loc("invalid token");
   }
 

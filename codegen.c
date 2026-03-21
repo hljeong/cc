@@ -1,5 +1,18 @@
 #include "cc.h"
 
+// todo: coments
+
+static void addr(const Node *node) {
+  if (node->kind == NodeKind_VAR) {
+    const int offset = (*node->name.loc - 'a' + 1) * 8;
+    printf("  lea   %d(%%rbp), %%rax\n", -offset);
+    return;
+  }
+
+  else errorf("not an lvalue: %s",
+              node_kind_to_str(node->kind));
+}
+
 static void push(void) {
   printf("  push  %%rax\n");
   ctx.codegen.depth++;
@@ -15,10 +28,16 @@ static void expr(const Node *node);
 
 static void prog(const Node *node) {
   assertf(node->kind == NodeKind_PROG,
-          "bad invocation: prog(%s)", node_kind_to_str(node->kind));
+          "bad invocation: prog(%s)",
+          node_kind_to_str(node->kind));
 
   printf("  .globl main\n");
   printf("main:\n");
+
+  printf("  push  %%rbp\n");
+  printf("  mov   %%rsp, %%rbp\n");
+  // allocate 26 * 8 bytes for 26 possible single-character variables
+  printf("  sub   $208,  %%rsp\n");
 
   Node *cur = node->head;
   while (cur) {
@@ -26,6 +45,8 @@ static void prog(const Node *node) {
     cur = cur->next;
   }
 
+  printf("  mov   %%rbp, %%rsp\n");
+  printf("  pop   %%rbp\n");
   printf("  ret\n");
 }
 
@@ -42,6 +63,19 @@ static void stmt(const Node *node) {
 static void expr(const Node *node) {
   if (node->kind == NodeKind_NUM) {
     printf("  mov   $%d, %%rax\n", node->num);
+  }
+
+  else if (node->kind == NodeKind_VAR) {
+    addr(node);
+    printf("  mov   (%%rax), %%rax\n");
+  }
+
+  else if (node->kind == NodeKind_ASSIGN) {
+    addr(node->binop.lhs);
+    push();
+    expr(node->binop.rhs);
+    pop("%rdi");
+    printf("  mov   %%rax, (%%rdi)\n");
   }
 
   else if (node->kind == NodeKind_NEG) {
