@@ -1,6 +1,7 @@
 #include "cc.h"
 
 #include <stdint.h>
+#include <string.h>
 
 const char *node_kind_to_str(const NodeKind kind) {
   if      (kind == NodeKind_ADD) return "+";
@@ -17,9 +18,35 @@ const char *node_kind_to_str(const NodeKind kind) {
                                        (uint32_t) kind);
 }
 
+static void _debug_ast(const Node *node, const char *prefix, const bool last) {
+  char child_prefix[256];
+  snprintf(child_prefix, sizeof(child_prefix), "%s%s",
+           prefix, last ? "  " : "│ ");
+
+  const char *branch = last ? "└─" : "├─";
+
+  if (node->kind == NodeKind_NUM) {
+    debugf("%s%snum(%d)\n", prefix, branch, node->num);
+  }
+
+  else if (node_kind_is_unop(node->kind)) {
+    debugf("%s%s%s\n", prefix, branch, node_kind_to_str(node->kind));
+    _debug_ast(node->unop.operand, child_prefix, true);
+  }
+
+  else if (node_kind_is_binop(node->kind)) {
+    debugf("%s%s%s\n", prefix, branch, node_kind_to_str(node->kind));
+    _debug_ast(node->binop.lhs, child_prefix, false);
+    _debug_ast(node->binop.rhs, child_prefix, true);
+  }
+
+  else {
+    failf("not implemented: %s", node_kind_to_str(node->kind));
+  }
+}
+
 void debug_ast(const Node *node) {
-  // todo
-  debugf("debug_ast() not implemented\n");
+  _debug_ast(node, "", true);
 }
 
 bool node_kind_is_unop(const NodeKind kind) {
