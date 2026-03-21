@@ -63,19 +63,19 @@ StringView sv(const char *loc, const int len);
 
 typedef enum {
   TokenKind_NUM,
-  TokenKind_ADD,
-  TokenKind_SUB,
-  TokenKind_MUL,
-  TokenKind_DIV,
+  TokenKind_PLUS,
+  TokenKind_MINUS,
+  TokenKind_STAR,
+  TokenKind_SLASH,
   TokenKind_LPAREN,
   TokenKind_RPAREN,
-  TokenKind_EEQ,
+  TokenKind_EQ,
   TokenKind_NEQ,
   TokenKind_LEQ,
   TokenKind_GEQ,
   TokenKind_LT,
   TokenKind_GT,
-  TokenKind_SEMI,
+  TokenKind_SEMICOLON,
   TokenKind_EOF,
 } TokenKind;
 
@@ -88,6 +88,12 @@ struct Token {
   };
   StringView lexeme;
 };
+
+// debug print at given loc
+void debugf_at(const char *loc, const char *fmt, ...);
+
+// debug print at current loc
+void debugf_loc(const char *fmt, ...);
 
 // lex error at given loc
 [[noreturn]] void errorf_at(const char *loc, const char *fmt, ...);
@@ -134,6 +140,12 @@ struct Node {
   Node *next;
 };
 
+// debug log at given token
+void debugf_at_tok(const Token *tok, const char *fmt, ...);
+
+// debug log at current tok
+void debugf_tok(const char *fmt, ...);
+
 // parse error at given token
 [[noreturn]] void errorf_at_tok(const Token *tok, const char *fmt, ...);
 
@@ -164,6 +176,7 @@ void codegen();
 
 typedef struct {
   const char *src;
+  int src_len;
 
   struct {
     const char *loc;

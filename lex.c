@@ -9,23 +9,23 @@ StringView sv(const char *loc, const int len) {
 }
 
 const char *token_kind_to_str(const TokenKind kind) {
-  if      (kind == TokenKind_NUM)    return "number";
-  else if (kind == TokenKind_ADD)    return "+";
-  else if (kind == TokenKind_SUB)    return "-";
-  else if (kind == TokenKind_MUL)    return "*";
-  else if (kind == TokenKind_DIV)    return "/";
-  else if (kind == TokenKind_LPAREN) return "(";
-  else if (kind == TokenKind_RPAREN) return ")";
-  else if (kind == TokenKind_EEQ)    return "==";
-  else if (kind == TokenKind_NEQ)    return "!=";
-  else if (kind == TokenKind_LEQ)    return "<=";
-  else if (kind == TokenKind_GEQ)    return ">=";
-  else if (kind == TokenKind_LT)     return "<";
-  else if (kind == TokenKind_GT)     return ">";
-  else if (kind == TokenKind_SEMI)   return ";";
-  else if (kind == TokenKind_EOF)    return "eof";
-  else                               failf("not implemented: %u",
-                                           (uint32_t) kind);
+  if      (kind == TokenKind_NUM)       return "num";
+  else if (kind == TokenKind_PLUS)      return "+";
+  else if (kind == TokenKind_MINUS)     return "-";
+  else if (kind == TokenKind_STAR)      return "*";
+  else if (kind == TokenKind_SLASH)     return "/";
+  else if (kind == TokenKind_LPAREN)    return "(";
+  else if (kind == TokenKind_RPAREN)    return ")";
+  else if (kind == TokenKind_EQ)        return "==";
+  else if (kind == TokenKind_NEQ)       return "!=";
+  else if (kind == TokenKind_LEQ)       return "<=";
+  else if (kind == TokenKind_GEQ)       return ">=";
+  else if (kind == TokenKind_LT)        return "<";
+  else if (kind == TokenKind_GT)        return ">";
+  else if (kind == TokenKind_SEMICOLON) return ";";
+  else if (kind == TokenKind_EOF)       return "eof";
+  else                                  failf("not implemented: %u",
+                                              (uint32_t) kind);
 }
 
 const char *token_to_str(const Token *tok) {
@@ -66,7 +66,10 @@ static int consume_ch(const char ch) {
 static int consume(const char *s) {
   const int len = strlen(s);
   assertm(len > 0, "empty literal");
-  return strncmp(ctx.lexer.loc, s, len) ? 0 : len;
+  if (!strncmp(ctx.lexer.loc, s, len)) {
+    ctx.lexer.loc += len;
+    return len;
+  } else return 0;
 }
 
 // lex_consume_ch(ch), except fail if unsuccesful
@@ -107,19 +110,19 @@ Token *lex() {
       cur->lexeme.len = ctx.lexer.loc - start;
     }
 
-    else if ((len = consume("==")))   cur = (cur->next = new_token(TokenKind_EEQ,    len));
-    else if ((len = consume("!=")))   cur = (cur->next = new_token(TokenKind_NEQ,    len));
-    else if ((len = consume("<=")))   cur = (cur->next = new_token(TokenKind_LEQ,    len));
-    else if ((len = consume(">=")))   cur = (cur->next = new_token(TokenKind_GEQ,    len));
-    else if ((len = consume_ch('<'))) cur = (cur->next = new_token(TokenKind_LT,     len));
-    else if ((len = consume_ch('>'))) cur = (cur->next = new_token(TokenKind_GT,     len));
-    else if ((len = consume_ch('+'))) cur = (cur->next = new_token(TokenKind_ADD,    len));
-    else if ((len = consume_ch('-'))) cur = (cur->next = new_token(TokenKind_SUB,    len));
-    else if ((len = consume_ch('*'))) cur = (cur->next = new_token(TokenKind_MUL,    len));
-    else if ((len = consume_ch('/'))) cur = (cur->next = new_token(TokenKind_DIV,    len));
-    else if ((len = consume_ch('('))) cur = (cur->next = new_token(TokenKind_LPAREN, len));
-    else if ((len = consume_ch(')'))) cur = (cur->next = new_token(TokenKind_RPAREN, len));
-    else if ((len = consume_ch(';'))) cur = (cur->next = new_token(TokenKind_SEMI,   len));
+    else if ((len = consume("==")))   cur = (cur->next = new_token(TokenKind_EQ,        len));
+    else if ((len = consume("!=")))   cur = (cur->next = new_token(TokenKind_NEQ,       len));
+    else if ((len = consume("<=")))   cur = (cur->next = new_token(TokenKind_LEQ,       len));
+    else if ((len = consume(">=")))   cur = (cur->next = new_token(TokenKind_GEQ,       len));
+    else if ((len = consume_ch('<'))) cur = (cur->next = new_token(TokenKind_LT,        len));
+    else if ((len = consume_ch('>'))) cur = (cur->next = new_token(TokenKind_GT,        len));
+    else if ((len = consume_ch('+'))) cur = (cur->next = new_token(TokenKind_PLUS,      len));
+    else if ((len = consume_ch('-'))) cur = (cur->next = new_token(TokenKind_MINUS,     len));
+    else if ((len = consume_ch('*'))) cur = (cur->next = new_token(TokenKind_STAR,      len));
+    else if ((len = consume_ch('/'))) cur = (cur->next = new_token(TokenKind_SLASH,     len));
+    else if ((len = consume_ch('('))) cur = (cur->next = new_token(TokenKind_LPAREN,    len));
+    else if ((len = consume_ch(')'))) cur = (cur->next = new_token(TokenKind_RPAREN,    len));
+    else if ((len = consume_ch(';'))) cur = (cur->next = new_token(TokenKind_SEMICOLON, len));
     else                              errorf_loc("invalid token");
   }
 

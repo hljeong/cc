@@ -181,7 +181,7 @@ static Node *prog() {
 // stmt ::= expr ";"
 static Node *stmt() {
   Node *node = new_variant(NodeKind_EXPR, expr());
-  expect(TokenKind_SEMI);
+  expect(TokenKind_SEMICOLON);
   return node;
 }
 
@@ -193,7 +193,7 @@ static Node *equality() {
   Node *node = relational();
   const Token *tok = NULL;
   while (true) {
-    if      ((tok = consume(TokenKind_EEQ))) node = new_binop(NodeKind_EQ,  node, relational());
+    if      ((tok = consume(TokenKind_EQ)))  node = new_binop(NodeKind_EQ,  node, relational());
     else if ((tok = consume(TokenKind_NEQ))) node = new_binop(NodeKind_NEQ, node, relational());
     else                                     break;
   }
@@ -219,9 +219,9 @@ static Node *add() {
   Node *node = mul();
   const Token *tok = NULL;
   while (true) {
-    if      ((tok = consume(TokenKind_ADD))) node = new_binop(NodeKind_ADD, node, mul());
-    else if ((tok = consume(TokenKind_SUB))) node = new_binop(NodeKind_SUB, node, mul());
-    else                                     break;
+    if      ((tok = consume(TokenKind_PLUS)))  node = new_binop(NodeKind_ADD, node, mul());
+    else if ((tok = consume(TokenKind_MINUS))) node = new_binop(NodeKind_SUB, node, mul());
+    else                                       break;
   }
   return node;
 }
@@ -231,9 +231,9 @@ static Node *mul() {
   Node *node = unary();
   const Token *tok = NULL;
   while (true) {
-    if      ((tok = consume(TokenKind_MUL))) node = new_binop(NodeKind_MUL, node, unary());
-    else if ((tok = consume(TokenKind_DIV))) node = new_binop(NodeKind_DIV, node, unary());
-    else                                     break;
+    if      ((tok = consume(TokenKind_STAR)))  node = new_binop(NodeKind_MUL, node, unary());
+    else if ((tok = consume(TokenKind_SLASH))) node = new_binop(NodeKind_DIV, node, unary());
+    else                                       break;
   }
   return node;
 }
@@ -242,9 +242,9 @@ static Node *mul() {
 //         | primary
 static Node *unary() {
   const Token *tok = NULL;
-  if      ((tok = consume(TokenKind_ADD))) return unary();
-  else if ((tok = consume(TokenKind_SUB))) return new_unop(NodeKind_NEG, unary());
-  else                                     return primary();
+  if      ((tok = consume(TokenKind_PLUS)))  return unary();
+  else if ((tok = consume(TokenKind_MINUS))) return new_unop(NodeKind_NEG, unary());
+  else                                       return primary();
 }
 
 // primary ::= "(" expr ")" | num
