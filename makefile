@@ -1,10 +1,17 @@
 CC = gcc
 CFLAGS = -Wno-attributes -std=c11 -g
+SRCS = debug.c lex.c parse.c codegen.c main.c
+OBJS = $(SRCS:.c=.o)
 
-.PHONY: build clean
+.PHONY: all clean
 
-build:
-	@ $(CC) $(CFLAGS) -o cc main.c
+all: cc
+
+cc: $(OBJS)
+	@ $(CC) $(CFLAGS) -o $@ $^
+
+%.o: %.c cc.h
+	$(CC) $(CFLAGS) -c -o $@ $<
 
 clean:
-	@ rm -rf a.S a.out cc
+	@ rm -f $(OBJS) a.S a.out cc
