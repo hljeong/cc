@@ -36,7 +36,7 @@ void _assertf(const char *file, const int line,
                #cond, fmt, __VA_ARGS__); \
   } while (0)
 
-// internal failure
+// internal error
 [[noreturn]]
 void _failf(const char *file, const int line,
             const char *fmt, ...);

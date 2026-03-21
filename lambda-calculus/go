@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+cd -P -- "$(dirname -- "$0")" && (
+  gcc -Wno-attributes -std=c11 -g -o lc main.c && \
+  ./lc "$@"
+)
+rm -f lc
