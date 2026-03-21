@@ -28,7 +28,7 @@ const char *token_kind_to_str(const TokenKind kind) {
 }
 
 const char *token_to_str(const Token *tok) {
-  static char buf[100] = {0};
+  static char buf[256] = {0};
   const int off = snprintf(buf, sizeof(buf), "%s", token_kind_to_str(tok->kind));
 
   if (tok->kind == TokenKind_NUM) {
@@ -85,7 +85,7 @@ static int expect(const char *s) {
 static Token *new_token(const TokenKind kind, const int len) {
   Token *tok = calloc(1, sizeof(Token));
   tok->kind = kind;
-  tok->lexeme = sv(ctx.lexer.loc, len);
+  tok->lexeme = sv(ctx.lexer.loc - len, len);
   return tok;
 }
 
