@@ -79,6 +79,7 @@ typedef enum {
   NodeKind_SUB,
   NodeKind_MUL,
   NodeKind_DIV,
+  NodeKind_NEG,
   NodeKind_NUM,
 } NodeKind;
 
@@ -87,8 +88,13 @@ static const char *node_kind_to_str(const NodeKind kind) {
   else if (kind == NodeKind_SUB) return "-";
   else if (kind == NodeKind_MUL) return "*";
   else if (kind == NodeKind_DIV) return "/";
+  else if (kind == NodeKind_NEG) return "-";
   else if (kind == NodeKind_NUM) return "number";
   else                           error("unknown node kind: %d\n", (uint32_t) kind);
+}
+
+static bool node_kind_is_unary(const NodeKind kind) {
+  return (kind == NodeKind_NEG);
 }
 
 static bool node_kind_is_binop(const NodeKind kind) {
@@ -101,6 +107,10 @@ static bool node_kind_is_binop(const NodeKind kind) {
 typedef struct Node Node;
 
 typedef union {
+  struct {
+    Node *operand;
+  } unary;
+
   struct {
     Node *lhs;
     Node *rhs;
@@ -248,6 +258,13 @@ static Node *new_node(NodeKind kind) {
   return node;
 }
 
+static Node *new_unary_node(NodeKind kind, Node *operand) {
+  assertf(node_kind_is_unary(kind), "bad invocation: new_unary_node(%s)", node_kind_to_str(kind));
+  Node *node = new_node(kind);
+  node->topo.unary.operand = operand;
+  return node;
+}
+
 static Node *new_binop_node(NodeKind kind, Node *lhs, Node *rhs) {
   assertf(node_kind_is_binop(kind), "bad invocation: new_binop_node(%s)", node_kind_to_str(kind));
   Node *node = new_node(kind);
@@ -264,6 +281,7 @@ static Node *new_num_node(int value) {
 
 static Node *parse_expr();
 static Node *parse_mul();
+static Node *parse_unary();
 static Node *parse_primary();
 
 // expr ::= mul ("+" mul | "-" mul)*
@@ -278,16 +296,25 @@ static Node *parse_expr() {
   return node;
 }
 
-// mul ::= primary ("*" primary | "/" primary)*
+// mul ::= unary ("*" unary | "/" unary)*
 static Node *parse_mul() {
-  Node *node = parse_primary();
+  Node *node = parse_unary();
   const Token *tok = NULL;
   while (true) {
-    if      ((tok = consume(TokenKind_MUL))) node = new_binop_node(NodeKind_MUL, node, parse_primary());
-    else if ((tok = consume(TokenKind_DIV))) node = new_binop_node(NodeKind_DIV, node, parse_primary());
+    if      ((tok = consume(TokenKind_MUL))) node = new_binop_node(NodeKind_MUL, node, parse_unary());
+    else if ((tok = consume(TokenKind_DIV))) node = new_binop_node(NodeKind_DIV, node, parse_unary());
     else                                     break;
   }
   return node;
+}
+
+// unary ::= ("+" | "-") unary
+//         | primary
+static Node *parse_unary() {
+  const Token *tok = NULL;
+  if      ((tok = consume(TokenKind_ADD))) return parse_unary();
+  else if ((tok = consume(TokenKind_SUB))) return new_unary_node(NodeKind_NEG, parse_unary());
+  else                                     return parse_primary();
 }
 
 // primary ::= "(" expr ")" | num
@@ -315,6 +342,11 @@ static void pop(const char *arg) {
 static void gen_expr(const Node *node) {
   if (node->kind == NodeKind_NUM) {
     printf("  mov $%d, %%rax\n", node->value.num);
+  }
+
+  else if (node->kind == NodeKind_NEG) {
+    gen_expr(node->topo.unary.operand);
+    printf("  neg %%rax\n");
   }
 
   else if (node_kind_is_binop(node->kind)) {
