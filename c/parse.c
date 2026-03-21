@@ -51,8 +51,8 @@ static void _debug_ast(const Node *node, const char *prefix, const bool last) {
 
   else if (node_kind_is_binop(node->kind)) {
     debugf("%s%s%s\n", prefix, branch, node_kind_to_str(node->kind));
-    _debug_ast(node->binop.lhs, child_prefix, false);
-    _debug_ast(node->binop.rhs, child_prefix, true);
+    _debug_ast(node->lhs, child_prefix, false);
+    _debug_ast(node->rhs, child_prefix, true);
   }
 
   else if (node_kind_is_list(node->kind)) {
@@ -157,8 +157,8 @@ static Node *new_binop(const NodeKind kind, Node *lhs, Node *rhs) {
   assertf(node_kind_is_binop(kind),
           "bad invocation: new_binop(%s)", node_kind_to_str(kind));
   Node *node = new_node(kind);
-  node->binop.lhs = lhs;
-  node->binop.rhs = rhs;
+  node->lhs = lhs;
+  node->rhs = rhs;
   return node;
 }
 

@@ -86,7 +86,10 @@ struct Token {
   TokenKind kind;
   Token *next;
   union {
+    // TokenKind_NUM
     int num;
+
+    // TokenKind_IDENT
     StringView ident;
   };
   StringView lexeme;
@@ -130,12 +133,12 @@ typedef struct Node Node;
 struct Node {
   NodeKind kind;
   union {
-    int                         num;
-    StringView                  name;
-    Node *                      variant;
-    Node *                      operand;
-    struct { Node *lhs, *rhs; } binop;
-    Node *                      head;
+    int num;                     // NodeKind_NUM
+    StringView name;             // NodeKind_VAR
+    Node *variant;               // node_kind_is_variant()
+    Node *operand;               // node_kind_id_unop()
+    struct { Node *lhs, *rhs; }; // node_kind_is_binop()
+    Node *head;                  // node_kind_is_list()
   };
   Node *next;
 };

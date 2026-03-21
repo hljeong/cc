@@ -71,9 +71,9 @@ static void expr(const Node *node) {
   }
 
   else if (node->kind == NodeKind_ASSIGN) {
-    addr(node->binop.lhs);
+    addr(node->lhs);
     push();
-    expr(node->binop.rhs);
+    expr(node->rhs);
     pop("%rdi");
     printf("  mov   %%rax, (%%rdi)\n");
   }
@@ -84,9 +84,9 @@ static void expr(const Node *node) {
   }
 
   else if (node_kind_is_binop(node->kind)) {
-    expr(node->binop.rhs);
+    expr(node->rhs);
     push();
-    expr(node->binop.lhs);
+    expr(node->lhs);
     pop("%rdi");
 
     switch (node->kind) {
