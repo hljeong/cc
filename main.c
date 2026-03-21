@@ -34,7 +34,7 @@ static void debug(const char *fmt, ...) {
 }
 
 [[noreturn]] static void vassert_abort(const char *file, const int line, const char *condition, const char *fmt, va_list ap) {
-  debug("%s:%d: assert(%s) failed: ", file, line, condition);
+  debug("%s:%d: assert(%s): ", file, line, condition);
   vdebug(fmt, ap);
   abort();
 }
@@ -44,8 +44,21 @@ static void debug(const char *fmt, ...) {
   vassert_abort(file, line, condition, fmt, ap);
 }
 
+[[noreturn]] static void vfail_abort(const char *file, const int line, const char *fmt, va_list ap) {
+  debug("%s:%d: ", file, line);
+  vdebug(fmt, ap);
+  abort();
+}
+
+[[noreturn]] static void fail_abort(const char *file, const int line, const char *fmt, ...) {
+  va_list ap; va_start(ap, fmt);
+  vfail_abort(file, line, fmt, ap);
+}
+
 #define assertf(condition, fmt, ...) do { if (!(condition)) assert_abort(__FILE__, __LINE__, #condition, fmt, __VA_ARGS__); } while (0);
 #define assert(condition, msg) do { if (!(condition)) assert_abort(__FILE__, __LINE__, #condition, msg); } while (0);
+#define failf(fmt, ...) fail_abort(__FILE__, __LINE__, fmt, __VA_ARGS__)
+#define fail(msg) fail_abort(__FILE__, __LINE__, msg)
 
 [[noreturn]] static void error(const char *fmt, ...) {
   va_list ap; va_start(ap, fmt);
@@ -80,6 +93,10 @@ typedef enum {
   NodeKind_MUL,
   NodeKind_DIV,
   NodeKind_NEG,
+  NodeKind_EQ,
+  NodeKind_NEQ,
+  NodeKind_LT,
+  NodeKind_LEQ,
   NodeKind_NUM,
 } NodeKind;
 
@@ -89,11 +106,15 @@ static const char *node_kind_to_str(const NodeKind kind) {
   else if (kind == NodeKind_MUL) return "*";
   else if (kind == NodeKind_DIV) return "/";
   else if (kind == NodeKind_NEG) return "-";
+  else if (kind == NodeKind_EQ)  return "==";
+  else if (kind == NodeKind_NEQ) return "!=";
+  else if (kind == NodeKind_LT)  return "<";
+  else if (kind == NodeKind_LEQ) return "<=";
   else if (kind == NodeKind_NUM) return "number";
   else                           error("unknown node kind: %d\n", (uint32_t) kind);
 }
 
-static bool node_kind_is_unary(const NodeKind kind) {
+static bool node_kind_is_unop(const NodeKind kind) {
   return (kind == NodeKind_NEG);
 }
 
@@ -101,7 +122,11 @@ static bool node_kind_is_binop(const NodeKind kind) {
   return (kind == NodeKind_ADD) ||
          (kind == NodeKind_SUB) ||
          (kind == NodeKind_MUL) ||
-         (kind == NodeKind_DIV);
+         (kind == NodeKind_DIV) ||
+         (kind == NodeKind_EQ)  ||
+         (kind == NodeKind_NEQ) ||
+         (kind == NodeKind_LEQ) ||
+         (kind == NodeKind_LT);
 }
 
 typedef struct Node Node;
@@ -109,7 +134,7 @@ typedef struct Node Node;
 typedef union {
   struct {
     Node *operand;
-  } unary;
+  } unop;
 
   struct {
     Node *lhs;
@@ -130,6 +155,12 @@ typedef enum {
   TokenKind_DIV,
   TokenKind_LPAREN,
   TokenKind_RPAREN,
+  TokenKind_EEQ,
+  TokenKind_NEQ,
+  TokenKind_LEQ,
+  TokenKind_GEQ,
+  TokenKind_LT,
+  TokenKind_GT,
   TokenKind_NUM,
   TokenKind_EOF,
 } TokenKind;
@@ -141,9 +172,16 @@ static const char *token_kind_to_str(const TokenKind kind) {
   else if (kind == TokenKind_DIV)    return "/";
   else if (kind == TokenKind_LPAREN) return "(";
   else if (kind == TokenKind_RPAREN) return ")";
+  else if (kind == TokenKind_EEQ)    return "==";
+  else if (kind == TokenKind_NEQ)    return "!=";
+  else if (kind == TokenKind_LEQ)    return "<=";
+  else if (kind == TokenKind_GEQ)    return ">=";
+  else if (kind == TokenKind_LT)     return "<";
+  else if (kind == TokenKind_GT)     return ">";
   else if (kind == TokenKind_NUM)    return "number";
   else if (kind == TokenKind_EOF)    return "eof";
-  else                               assertf(false, "token_kind_to_str not implemented for token kind: %d\n", (uint32_t) kind);
+  else                               failf("not implemented: %u\n",
+                                           (uint32_t) kind);
 }
 
 static bool token_kind_is_binop(const TokenKind kind) {
@@ -175,14 +213,7 @@ struct Token {
 static const char *token_to_str(const Token *tok) {
   static char buf[100] = {0};
   const int off = snprintf(buf, sizeof(buf), "%s", token_kind_to_str(tok->kind));
-  if      (tok->kind == TokenKind_ADD)    ;
-  else if (tok->kind == TokenKind_SUB)    ;
-  else if (tok->kind == TokenKind_MUL)    ;
-  else if (tok->kind == TokenKind_DIV)    ;
-  else if (tok->kind == TokenKind_LPAREN) ;
-  else if (tok->kind == TokenKind_RPAREN) ;
-  else if (tok->kind == TokenKind_NUM)    snprintf(buf + off, sizeof(buf) - off, "(%d)", tok->value.num);
-  else                                    ;
+  if (tok->kind == TokenKind_NUM) snprintf(buf + off, sizeof(buf) - off, "(%d)", tok->value.num);
   return buf;
 }
 
@@ -203,6 +234,15 @@ static Token *new_token(const TokenKind kind, const int len) {
   return tok;
 }
 
+static bool consume_match(const char *literal) {
+  const size_t len = strlen(literal);
+  if (!strncmp(g.lexer.loc, literal, len)) {
+    g.lexer.loc += len;
+    return true;
+  }
+  return false;
+}
+
 static Token *lex() {
   Token head = {};
   Token *cur = &head;
@@ -219,6 +259,13 @@ static Token *lex() {
       cur->lexeme.len = g.lexer.loc - start;
     }
 
+    else if (consume_match("==")) cur = (cur->next = new_token(TokenKind_EEQ, 2));
+    else if (consume_match("!=")) cur = (cur->next = new_token(TokenKind_NEQ, 2));
+    else if (consume_match("<=")) cur = (cur->next = new_token(TokenKind_LEQ, 2));
+    else if (consume_match(">=")) cur = (cur->next = new_token(TokenKind_GEQ, 2));
+
+    else if (ch == '<') { cur = (cur->next = new_token(TokenKind_LT,     1)); g.lexer.loc++; }
+    else if (ch == '>') { cur = (cur->next = new_token(TokenKind_GT,     1)); g.lexer.loc++; }
     else if (ch == '+') { cur = (cur->next = new_token(TokenKind_ADD,    1)); g.lexer.loc++; }
     else if (ch == '-') { cur = (cur->next = new_token(TokenKind_SUB,    1)); g.lexer.loc++; }
     else if (ch == '*') { cur = (cur->next = new_token(TokenKind_MUL,    1)); g.lexer.loc++; }
@@ -258,10 +305,10 @@ static Node *new_node(NodeKind kind) {
   return node;
 }
 
-static Node *new_unary_node(NodeKind kind, Node *operand) {
-  assertf(node_kind_is_unary(kind), "bad invocation: new_unary_node(%s)", node_kind_to_str(kind));
+static Node *new_unop_node(NodeKind kind, Node *operand) {
+  assertf(node_kind_is_unop(kind), "bad invocation: new_unop_node(%s)", node_kind_to_str(kind));
   Node *node = new_node(kind);
-  node->topo.unary.operand = operand;
+  node->topo.unop.operand = operand;
   return node;
 }
 
@@ -280,12 +327,46 @@ static Node *new_num_node(int value) {
 }
 
 static Node *parse_expr();
+static Node *parse_equality();
+static Node *parse_relational();
+static Node *parse_add();
 static Node *parse_mul();
 static Node *parse_unary();
 static Node *parse_primary();
 
-// expr ::= mul ("+" mul | "-" mul)*
+// expr ::= equality
 static Node *parse_expr() {
+  return parse_equality();
+}
+
+// equality ::= relational ("==" relational | "!=" relational)*
+static Node *parse_equality() {
+  Node *node = parse_relational();
+  const Token *tok = NULL;
+  while (true) {
+    if      ((tok = consume(TokenKind_EEQ))) node = new_binop_node(NodeKind_EQ,  node, parse_relational());
+    else if ((tok = consume(TokenKind_NEQ))) node = new_binop_node(NodeKind_NEQ, node, parse_relational());
+    else                                     break;
+  }
+  return node;
+}
+
+// relational ::= add ("<" add | "<=" add | ">" add | ">=" add)*
+static Node *parse_relational() {
+  Node *node = parse_add();
+  const Token *tok = NULL;
+  while (true) {
+    if      ((tok = consume(TokenKind_LT)))  node = new_binop_node(NodeKind_LT,  node, parse_add());
+    else if ((tok = consume(TokenKind_GT)))  node = new_binop_node(NodeKind_LT,  parse_add(), node);
+    else if ((tok = consume(TokenKind_LEQ))) node = new_binop_node(NodeKind_LEQ, node, parse_add());
+    else if ((tok = consume(TokenKind_GEQ))) node = new_binop_node(NodeKind_LEQ, parse_add(), node);
+    else                                     break;
+  }
+  return node;
+}
+
+// add ::= mul ("+" mul | "-" mul)*
+static Node *parse_add() {
   Node *node = parse_mul();
   const Token *tok = NULL;
   while (true) {
@@ -313,7 +394,7 @@ static Node *parse_mul() {
 static Node *parse_unary() {
   const Token *tok = NULL;
   if      ((tok = consume(TokenKind_ADD))) return parse_unary();
-  else if ((tok = consume(TokenKind_SUB))) return new_unary_node(NodeKind_NEG, parse_unary());
+  else if ((tok = consume(TokenKind_SUB))) return new_unop_node(NodeKind_NEG, parse_unary());
   else                                     return parse_primary();
 }
 
@@ -330,41 +411,59 @@ static Node *parse_primary() {
 }
 
 static void push(void) {
-  printf("  push %%rax\n");
+  printf("  push  %%rax\n");
   g.codegen.depth++;
 }
 
 static void pop(const char *arg) {
-  printf("  pop %s\n", arg);
+  printf("  pop   %s\n", arg);
   g.codegen.depth--;
 }
 
 static void gen_expr(const Node *node) {
   if (node->kind == NodeKind_NUM) {
-    printf("  mov $%d, %%rax\n", node->value.num);
+    printf("  mov   $%d, %%rax\n", node->value.num);
   }
 
   else if (node->kind == NodeKind_NEG) {
-    gen_expr(node->topo.unary.operand);
-    printf("  neg %%rax\n");
+    gen_expr(node->topo.unop.operand);
+    printf("  neg   %%rax\n");
   }
 
   else if (node_kind_is_binop(node->kind)) {
-    gen_expr(node->topo.binop.lhs);
-    push();
     gen_expr(node->topo.binop.rhs);
+    push();
+    gen_expr(node->topo.binop.lhs);
     pop("%rdi");
 
     switch (node->kind) {
-      case NodeKind_ADD: { printf("  add %%rdi, %%rax\n"); break; }
-      case NodeKind_SUB: { printf("  sub %%rdi, %%rax\n"); break; }
-      case NodeKind_MUL: { printf("  imul %%rdi, %%rax\n"); break; }
+      case NodeKind_ADD: { printf("  add   %%rdi, %%rax\n"); break; }
+      case NodeKind_SUB: { printf("  sub   %%rdi, %%rax\n"); break; }
+      case NodeKind_MUL: { printf("  imul  %%rdi, %%rax\n"); break; }
       case NodeKind_DIV: {
         printf("  cqo\n");
-        printf("  idiv %%rdi, %%rax\n");
+        printf("  idiv  %%rdi, %%rax\n");
         break;
       }
-      default: assertf(false, "unaccounted-for binop node kind: %s", node_kind_to_str(node->kind));
+      case NodeKind_EQ:
+      case NodeKind_NEQ:
+      case NodeKind_LT:
+      case NodeKind_LEQ: {
+        printf("  cmp   %%rdi, %%rax\n");
+        switch (node->kind) {
+          case NodeKind_EQ:  { printf("  sete  %%al\n"); break; }
+          case NodeKind_NEQ: { printf("  setne %%al\n"); break; }
+          case NodeKind_LT:  { printf("  setl  %%al\n"); break; }
+          case NodeKind_LEQ: { printf("  setle %%al\n"); break; }
+          default:           failf("comparison not implemented: %s",
+                                   node_kind_to_str(node->kind));
+        }
+        printf("  movzb %%al, %%rax\n");
+        break;
+      }
+
+      default: failf("binop not implemented: %s",
+                     node_kind_to_str(node->kind));
     }
   }
 
