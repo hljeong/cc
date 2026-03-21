@@ -21,7 +21,7 @@ const char *token_kind_to_str(const TokenKind kind) {
   else if (kind == TokenKind_GEQ)    return ">=";
   else if (kind == TokenKind_LT)     return "<";
   else if (kind == TokenKind_GT)     return ">";
-  else if (kind == TokenKind_NUM)    return "number";
+  else if (kind == TokenKind_NUM)    return "num";
   else if (kind == TokenKind_EOF)    return "eof";
   else                               failf("not implemented: %u",
                                            (uint32_t) kind);

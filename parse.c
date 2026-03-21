@@ -13,7 +13,7 @@ const char *node_kind_to_str(const NodeKind kind) {
   else if (kind == NodeKind_NEQ) return "!=";
   else if (kind == NodeKind_LT)  return "<";
   else if (kind == NodeKind_LEQ) return "<=";
-  else if (kind == NodeKind_NUM) return "number";
+  else if (kind == NodeKind_NUM) return "num";
   else                           failf("not implemented: %u",
                                        (uint32_t) kind);
 }
