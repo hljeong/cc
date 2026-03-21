@@ -10,7 +10,7 @@ void debugf(const char *fmt, ...) {
 }
 
 void _assert(const char *file, const int line, const char *cond) {
-  debugf("%s:%d: assert(%d) failed\n");
+  debugf("%s:%d: assert(%s) failed\n", file, line, cond);
   exit(1);
 }
 

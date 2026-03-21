@@ -9,7 +9,8 @@ StringView sv(const char *loc, const int len) {
 }
 
 const char *token_kind_to_str(const TokenKind kind) {
-  if      (kind == TokenKind_ADD)    return "+";
+  if      (kind == TokenKind_NUM)    return "number";
+  else if (kind == TokenKind_ADD)    return "+";
   else if (kind == TokenKind_SUB)    return "-";
   else if (kind == TokenKind_MUL)    return "*";
   else if (kind == TokenKind_DIV)    return "/";
@@ -21,7 +22,7 @@ const char *token_kind_to_str(const TokenKind kind) {
   else if (kind == TokenKind_GEQ)    return ">=";
   else if (kind == TokenKind_LT)     return "<";
   else if (kind == TokenKind_GT)     return ">";
-  else if (kind == TokenKind_NUM)    return "num";
+  else if (kind == TokenKind_SEMI)   return ";";
   else if (kind == TokenKind_EOF)    return "eof";
   else                               failf("not implemented: %u",
                                            (uint32_t) kind);
@@ -118,6 +119,7 @@ Token *lex() {
     else if ((len = consume_ch('/'))) cur = (cur->next = new_token(TokenKind_DIV,    len));
     else if ((len = consume_ch('('))) cur = (cur->next = new_token(TokenKind_LPAREN, len));
     else if ((len = consume_ch(')'))) cur = (cur->next = new_token(TokenKind_RPAREN, len));
+    else if ((len = consume_ch(';'))) cur = (cur->next = new_token(TokenKind_SEMI,   len));
     else                              errorf_loc("invalid token");
   }
 

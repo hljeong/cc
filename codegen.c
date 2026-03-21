@@ -10,13 +10,42 @@ static void pop(const char *arg) {
   ctx.codegen.depth--;
 }
 
+static void stmt(const Node *node);
+static void expr(const Node *node);
+
+static void prog(const Node *node) {
+  assertf(node->kind == NodeKind_PROG,
+          "bad invocation: prog(%s)", node_kind_to_str(node->kind));
+
+  printf("  .globl main\n");
+  printf("main:\n");
+
+  Node *cur = node->head;
+  while (cur) {
+    stmt(cur);
+    cur = cur->next;
+  }
+
+  printf("  ret\n");
+}
+
+static void stmt(const Node *node) {
+  switch (node->kind) {
+    case NodeKind_EXPR: { expr(node->variant); break; }
+    default:            assertf(node->kind == NodeKind_EXPR,
+                                "bad invocation: stmt(%s)",
+                                node_kind_to_str(node->kind));
+  }
+  assert(ctx.codegen.depth == 0);
+}
+
 static void expr(const Node *node) {
   if (node->kind == NodeKind_NUM) {
     printf("  mov   $%d, %%rax\n", node->num);
   }
 
   else if (node->kind == NodeKind_NEG) {
-    expr(node->unop.operand);
+    expr(node->operand);
     printf("  neg   %%rax\n");
   }
 
@@ -61,9 +90,5 @@ static void expr(const Node *node) {
 }
 
 void codegen() {
-  printf("  .globl main\n");
-  printf("main:\n");
-  expr(ctx.codegen.node);
-  printf("  ret\n");
-  assert(ctx.codegen.depth == 0);
+  prog(ctx.codegen.node);
 }

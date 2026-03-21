@@ -4,16 +4,18 @@
 #include <string.h>
 
 const char *node_kind_to_str(const NodeKind kind) {
-  if      (kind == NodeKind_ADD) return "+";
-  else if (kind == NodeKind_SUB) return "-";
-  else if (kind == NodeKind_MUL) return "*";
-  else if (kind == NodeKind_DIV) return "/";
-  else if (kind == NodeKind_NEG) return "-";
-  else if (kind == NodeKind_EQ)  return "==";
-  else if (kind == NodeKind_NEQ) return "!=";
-  else if (kind == NodeKind_LT)  return "<";
-  else if (kind == NodeKind_LEQ) return "<=";
-  else if (kind == NodeKind_NUM) return "num";
+  if      (kind == NodeKind_NUM)  return "num";
+  else if (kind == NodeKind_ADD)  return "+";
+  else if (kind == NodeKind_SUB)  return "-";
+  else if (kind == NodeKind_MUL)  return "*";
+  else if (kind == NodeKind_DIV)  return "/";
+  else if (kind == NodeKind_NEG)  return "-";
+  else if (kind == NodeKind_EQ)   return "==";
+  else if (kind == NodeKind_NEQ)  return "!=";
+  else if (kind == NodeKind_LT)   return "<";
+  else if (kind == NodeKind_LEQ)  return "<=";
+  else if (kind == NodeKind_EXPR) return "expr";
+  else if (kind == NodeKind_PROG) return "prog";
   else                           failf("not implemented: %u",
                                        (uint32_t) kind);
 }
@@ -29,15 +31,31 @@ static void _debug_ast(const Node *node, const char *prefix, const bool last) {
     debugf("%s%snum(%d)\n", prefix, branch, node->num);
   }
 
+  else if (node_kind_is_variant(node->kind)) {
+    // todo: this, except show variant after branch?
+    // _debug_ast(node->variant, prefix, last);
+    debugf("%s%s%s\n", prefix, branch, node_kind_to_str(node->kind));
+    _debug_ast(node->variant, child_prefix, true);
+  }
+
   else if (node_kind_is_unop(node->kind)) {
     debugf("%s%s%s\n", prefix, branch, node_kind_to_str(node->kind));
-    _debug_ast(node->unop.operand, child_prefix, true);
+    _debug_ast(node->operand, child_prefix, true);
   }
 
   else if (node_kind_is_binop(node->kind)) {
     debugf("%s%s%s\n", prefix, branch, node_kind_to_str(node->kind));
     _debug_ast(node->binop.lhs, child_prefix, false);
     _debug_ast(node->binop.rhs, child_prefix, true);
+  }
+
+  else if (node_kind_is_list(node->kind)) {
+    debugf("%s%s%s\n", prefix, branch, node_kind_to_str(node->kind));
+    Node *child = node->head;
+    while (child) {
+      _debug_ast(child, child_prefix, !(child->next));
+      child = child->next;
+    }
   }
 
   else {
@@ -47,6 +65,10 @@ static void _debug_ast(const Node *node, const char *prefix, const bool last) {
 
 void debug_ast(const Node *node) {
   _debug_ast(node, "", true);
+}
+
+bool node_kind_is_variant(const NodeKind kind) {
+  return (kind == NodeKind_EXPR);
 }
 
 bool node_kind_is_unop(const NodeKind kind) {
@@ -62,6 +84,10 @@ bool node_kind_is_binop(const NodeKind kind) {
          (kind == NodeKind_NEQ) ||
          (kind == NodeKind_LEQ) ||
          (kind == NodeKind_LT);
+}
+
+bool node_kind_is_list(const NodeKind kind) {
+  return (kind == NodeKind_PROG);
 }
 
 static bool match(const TokenKind kind) {
@@ -92,29 +118,48 @@ static Node *new_node(const NodeKind kind) {
   return node;
 }
 
-static Node *new_unop(const NodeKind kind, Node *operand) {
-  assertf(node_kind_is_unop(kind),
-          "bad invocation: new_unop_node(%s)", node_kind_to_str(kind));
-  Node *node = new_node(kind);
-  node->unop.operand = operand;
-  return node;
-}
-
-static Node *new_binop(const NodeKind kind, Node *lhs, Node *rhs) {
-  assertf(node_kind_is_binop(kind),
-          "bad invocation: new_binop_node(%s)", node_kind_to_str(kind));
-  Node *node = new_node(kind);
-  node->binop.lhs = lhs;
-  node->binop.rhs = rhs;
-  return node;
-}
-
 static Node *new_num(const int num) {
   Node *node = new_node(NodeKind_NUM);
   node->num = num;
   return node;
 }
 
+static Node *new_variant(const NodeKind kind, Node *variant) {
+  assertf(node_kind_is_variant(kind),
+          "bad invocation: new_variant(%s)", node_kind_to_str(kind));
+  Node *node = new_node(kind);
+  node->variant = variant;
+  return node;
+}
+
+static Node *new_unop(const NodeKind kind, Node *operand) {
+  assertf(node_kind_is_unop(kind),
+          "bad invocation: new_unop(%s)", node_kind_to_str(kind));
+  Node *node = new_node(kind);
+  node->operand = operand;
+  return node;
+}
+
+static Node *new_binop(const NodeKind kind, Node *lhs, Node *rhs) {
+  assertf(node_kind_is_binop(kind),
+          "bad invocation: new_binop(%s)", node_kind_to_str(kind));
+  Node *node = new_node(kind);
+  node->binop.lhs = lhs;
+  node->binop.rhs = rhs;
+  return node;
+}
+
+static Node *new_list(const NodeKind kind, Node *head) {
+  assertf(node_kind_is_list(kind),
+          "bad invocation: new_list(%s)", node_kind_to_str(kind));
+  Node *node = new_node(kind);
+  node->head = head;
+  return node;
+}
+
+// todo: can these be `const Node *`s?
+static Node *prog();
+static Node *stmt();
 static Node *expr();
 static Node *equality();
 static Node *relational();
@@ -122,6 +167,23 @@ static Node *add();
 static Node *mul();
 static Node *unary();
 static Node *primary();
+
+// prog ::= stmt*
+static Node *prog() {
+  Node head = {};
+  Node *cur = &head;
+  while (!match(TokenKind_EOF)) {
+    cur = (cur->next = stmt());
+  }
+  return new_list(NodeKind_PROG, head.next);
+}
+
+// stmt ::= expr ";"
+static Node *stmt() {
+  Node *node = new_variant(NodeKind_EXPR, expr());
+  expect(TokenKind_SEMI);
+  return node;
+}
 
 // expr ::= equality
 static Node *expr() { return equality(); }
@@ -198,7 +260,7 @@ static Node *primary() {
 }
 
 Node *parse() {
-  Node *node = expr();
+  Node *node = prog();
   if (ctx.parser.tok->kind != TokenKind_EOF)
     errorf_tok("extra token");
   return node;

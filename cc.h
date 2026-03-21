@@ -62,6 +62,7 @@ StringView sv(const char *loc, const int len);
 #define sv_arg(sv) (sv).len, (sv).loc
 
 typedef enum {
+  TokenKind_NUM,
   TokenKind_ADD,
   TokenKind_SUB,
   TokenKind_MUL,
@@ -74,7 +75,7 @@ typedef enum {
   TokenKind_GEQ,
   TokenKind_LT,
   TokenKind_GT,
-  TokenKind_NUM,
+  TokenKind_SEMI,
   TokenKind_EOF,
 } TokenKind;
 
@@ -106,6 +107,7 @@ Token *lex();
 // parser
 
 typedef enum {
+  NodeKind_NUM,
   NodeKind_ADD,
   NodeKind_SUB,
   NodeKind_MUL,
@@ -115,17 +117,21 @@ typedef enum {
   NodeKind_NEQ,
   NodeKind_LT,
   NodeKind_LEQ,
-  NodeKind_NUM,
+  NodeKind_EXPR,
+  NodeKind_PROG,
 } NodeKind;
 
 typedef struct Node Node;
 struct Node {
   NodeKind kind;
   union {
-    struct { Node *operand; }   unop;
-    struct { Node *lhs, *rhs; } binop;
     int                         num;
+    Node *                      variant;
+    Node *                      operand;
+    struct { Node *lhs, *rhs; } binop;
+    Node *                      head;
   };
+  Node *next;
 };
 
 // parse error at given token
@@ -138,9 +144,13 @@ const char *node_kind_to_str(const NodeKind kind);
 
 void debug_ast(const Node *node);
 
+bool node_kind_is_variant(const NodeKind kind);
+
 bool node_kind_is_unop(const NodeKind kind);
 
 bool node_kind_is_binop(const NodeKind kind);
+
+bool node_kind_is_list(const NodeKind kind);
 
 Node *parse();
 
