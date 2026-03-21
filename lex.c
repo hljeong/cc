@@ -110,8 +110,9 @@ Token *lex() {
 
     else if (isdigit(ch)) {
       const char *start = ctx.lexer.loc;
-      // todo: why is this cast needed?
-      const int num = strtoul(ctx.lexer.loc, (char **) &ctx.lexer.loc, 10);
+      char *end = NULL;
+      const int num = strtoul(ctx.lexer.loc, &end, 10);
+      ctx.lexer.loc = end;
       cur = (cur->next = new_token(TokenKind_NUM, ctx.lexer.loc - start));
       cur->num = num;
     }

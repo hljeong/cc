@@ -170,7 +170,7 @@ static Node *new_list(const NodeKind kind, Node *head) {
   return node;
 }
 
-// todo: can these be `const Node *`s?
+// These cannot be `const` due to the intrusive linked list
 static Node *prog();
 static Node *stmt();
 static Node *expr();
