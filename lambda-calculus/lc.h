@@ -110,9 +110,9 @@ typedef struct Node Node;
 struct Node {
   NodeKind kind;
   union {
-    StringView name;                     // NodeKind_VAR
-    struct { Node *par, *var, *expr; };  // NodeKind_FUN
-    struct { Node *fun, *val; };         // NodeKind_APP
+    struct { StringView name; Node *ref; };  // NodeKind_VAR  todo: doc
+    struct { Node *par, *var, *expr; };      // NodeKind_FUN
+    struct { Node *fun, *val; };             // NodeKind_APP
   };
   StringView lexeme;
   Node *next;  // todo: unused, delete?

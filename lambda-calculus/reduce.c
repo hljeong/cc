@@ -5,8 +5,8 @@ Node *sub(Node *node, Node *var, Node *subval) {
     failf("bad invocation: sub(*, %s, *)", node_kind_to_str(var->kind));
 
   if (node->kind == NodeKind_VAR) {
-    return node == var ? subval
-                       : node;
+    return node->ref == var ? subval
+                            : node;
   }
 
   else if (node->kind == NodeKind_FUN) {

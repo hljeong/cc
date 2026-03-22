@@ -40,4 +40,3 @@ int main(int argc, char **argv) {
 }
 
 // todo: shadow warning
-// todo: map node to src
