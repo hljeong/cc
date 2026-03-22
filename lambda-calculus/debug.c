@@ -27,9 +27,8 @@ static void vdebugf_span(const StringView span, const char *fmt, va_list ap) {
           col, ctx.src_len);
 
   debugf("%s\n", ctx.src);
-  debugf("%*s^", col, "");
-  for (int i = 0; i < span.len - 1; i++)
-    debugf("%c", '~');
+  debugf("%*s", col, "");
+  for (int i = 0; i < span.len; i++) debugf("%c", '~');
   debugf(" ");
   vdebugf(fmt, ap); debugf("\n");
 }

@@ -47,3 +47,6 @@ int main(int argc, char **argv) {
 
   return 0;
 }
+
+// todo: colors
+// todo: colored src + rainbow parens

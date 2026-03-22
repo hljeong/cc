@@ -140,10 +140,14 @@ static Node *new_var(const StringView name, Node *ref) {
 static Node *get_var(const StringView name) {
   Node *scope = ctx.parser.scope, *prev_scope = NULL;
   while (scope) {
-    if (sv_eq(scope->var->name, name)) return new_var(name, scope->var);
+    if (sv_eq(scope->var->name, name))
+      return new_var(name, scope->var);  // found binding var node,
+                                         // create a reference
     scope = (prev_scope = scope)->par;
   }
 
+  // exhausted all ancestor scopes and did not find the bind site.
+  // create a free variable binding var node
   scope = new_node(NodeKind_FUN);
   scope->var = new_var(name, NULL);
   scope->lexeme = name;
@@ -253,49 +257,101 @@ static Node *fun(void) {
 // var ::= ident
 static Node *var(const bool lookup) {
   const StringView lexeme = parse_expect(TokenKind_IDENT)->lexeme;
-  if (lookup) return get_var(lexeme);
-  else        return new_var(lexeme, NULL);
+  if (lookup) return get_var(lexeme);        // get a reference var node to an existing
+                                             // bound or free var node. if the variable
+                                             // does not exist, create a binding var node
+                                             // for the free variable
+
+  else        return new_var(lexeme, NULL);  // create a binding var node
 }
 
-static void debug_shadow(const StringView shadowee,
-                         const StringView shadowed,
+static void debug_shadow(const StringView shadower,
+                         const StringView shadowee,
                          const char *desc) {
+  // todo: colors to emphasize which one shadows which
+  const bool shadower_first = shadower.loc < shadowee.loc;
+  const StringView left =  shadower_first ? shadower : shadowee;
+  const StringView right = shadower_first ? shadowee : shadower;
+
   debugf("%s\n", ctx.src);
   {
-    const int col = shadowed.loc - ctx.src;
+    const int col = left.loc - ctx.src;
     if (!(0 <= col && col <= ctx.src_len))
       failf("invalid loc: %d, src_len=%d",
             col, ctx.src_len);
 
-    debugf("%*s^", col, "");
-    for (int i = 0; i < shadowed.len - 1; i++)
-      debugf("%c", '~');
+    debugf("%*s", col, "");
+    for (int i = 0; i < left.len; i++) debugf("%c", '~');
   }
 
   {
-    const int col = shadowee.loc - ctx.src;
+    const int col = right.loc - ctx.src;
     if (!(0 <= col && col <= ctx.src_len))
       failf("invalid loc: %d, src_len=%d",
             col, ctx.src_len);
 
-    const int d_col = col - (sv_end(shadowed) - ctx.src);
-    for (int i = 0; i < d_col; i++)
-      debugf("%c", '.');
-    debugf("^");
-    for (int i = 0; i < shadowee.len - 1; i++)
-      debugf("%c", '~');
-    debugf(" warning: \""sv_fmt"\" shadows %s variable\n",
-           sv_arg(shadowee), desc);
+    const int d_col = col - (sv_end(left) - ctx.src);
+    for (int i = 0; i < d_col; i++) debugf("%c", '.');
+    for (int i = 0; i < right.len; i++) debugf("%c", '~');
+    debugf("\n");
+  }
+
+  {
+    const int col = shadower.loc - ctx.src;
+    debugf("%*s^ warning: \""sv_fmt"\" shadows %s variable\n", col, "",
+           sv_arg(shadower), desc);
   }
 
   debugf("\n");
 }
 
+// print warnings to shadowing variable bindings, i.e.,
+// a binding that has the same name as:
+// - some variable that exists in the current scope or
+// - some free variable whose existence is implied
+//   by the rest of the expression
+//
+// the shadowing and the shadowed binding site are underlined,
+// with the warning message positioned underneath the shadowing
+// binding site. caveat: for free variables that are implied by
+// a reference, the first such reference is underlined instead
+//
+// some examples:
+// $ lc '(\foo.\bar.\foo.bar)'
+// (\foo.\bar.\foo.bar)
+//   ~~~.......~~~
+//             ^ warning: "foo" shadows bound variable
+//
+//
+// $ lc '(\foo.foo) foo bar (\bar.bar)'
+// (\foo.foo) foo bar (\bar.bar)
+//   ~~~......~~~
+//   ^ warning: "foo" shadows free variable
+//
+// (\foo.foo) foo bar (\bar.bar)
+//                ~~~...~~~
+//                      ^ warning: "bar" shadows free variable
+//
+//
+// $ lc '(\foo.bar) (\bar.foo)'
+// (\foo.bar) (\bar.foo)
+//   ~~~............~~~
+//   ^ warning: "foo" shadows free variable
+//
+// (\foo.bar) (\bar.foo)
+//       ~~~....~~~
+//              ^ warning: "bar" shadows free variable
+//
+// note that `(\foo.bar)` implies the existence of free variable `bar`
+// and `(\bar.foo)` implies the existence of free variable `foo`
+//
+// this is done by walking the ast and checking for every binding
+// whether there exists a variable with the same name up the scope
+// chain
 static void warn_shadows(const Node *node) {
   if (node->kind == NodeKind_VAR) return;
 
   else if (node->kind == NodeKind_FUN) {
-    // todo: colors
     const Node *cur = node;
     const char *desc = "bound";
     while ((cur = cur->par)) {
