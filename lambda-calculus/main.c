@@ -206,8 +206,36 @@ static void _debug_unparse(const Node *node) {
 }
 
 static void debug_unparse(const Node *node) {
-  _debug_unparse(node);
-  debugf("\n");
+  _debug_unparse(node); debugf("\n");
+}
+
+// todo: unlucky code duplication due to bad structure
+static void _print_unparse(const Node *node) {
+  if (node->kind == NodeKind_VAR) {
+    printf(sv_fmt, sv_arg(node->name));
+  }
+
+  else if (node->kind == NodeKind_FUN) {
+    printf("(\\");
+    _print_unparse(node->var);
+    printf(".");
+    _print_unparse(node->expr);
+    printf(")");
+  }
+
+  else if (node->kind == NodeKind_APP) {
+    printf("(");
+    _print_unparse(node->fun);
+    printf(" ");
+    _print_unparse(node->val);
+    printf(")");
+  }
+
+  else failf("not implemented: %u", (uint32_t) node->kind);
+}
+
+static void print_unparse(const Node *node) {
+  _print_unparse(node); printf("\n");
 }
 
 static bool is_atom_first(const TokenKind kind) {
@@ -469,11 +497,16 @@ Node *beta(Node *node) {
 // to avoid looping. e.g. applicative order (reduce innermost
 // reducible expr first) loops on (\x.\y.y)((\x.x x)(\x.x x))
 // since it tries to reduce the irreducible ((\x.x x)(\x.x x)) first
-Node *step(Node *node) {
+//
+// if whnf is true, reduce to weak head normal form (whnf), i.e.,
+// stop as soon as the outermost layer ("head") is a lambda
+Node *step(Node *node, bool whnf) {
   if      (node->kind == NodeKind_VAR) return node;
 
   else if (node->kind == NodeKind_FUN) {
-    Node *expr = step(node->expr);
+    if (whnf) return node;
+
+    Node *expr = step(node->expr, false);
     if (expr != node->expr) return new_fun(node->var, expr);
 
     return node;
@@ -482,7 +515,7 @@ Node *step(Node *node) {
   else if (node->kind == NodeKind_APP) {
     if (node->fun->kind == NodeKind_FUN) return beta(node);
 
-    Node *fun = step(node->fun);
+    Node *fun = step(node->fun, whnf);
     if (fun != node->fun) return new_app(fun, node->val);
 
     return node;
@@ -495,12 +528,15 @@ Node *step(Node *node) {
 // entry point
 
 int main(int argc, char **argv ) {
-  if (argc < 2) errorf("usage: %s <expression> [max-steps=10]", argv[0]);
+  if (argc < 2) errorf("usage: %s <expression> [nf=(nf)|whnf] [max-steps=10]", argv[0]);
 
   ctx.src = argv[1];
 
+  bool whnf = false;
+  if (argc >= 3) whnf = !strcmp(argv[2], "whnf");
+
   int max_steps = 10;
-  if (argc >= 3) max_steps = atoi(argv[2]);
+  if (argc >= 4) max_steps = atoi(argv[3]);
 
   debugf("src: %s\n", ctx.lexer.loc = ctx.src);
 
@@ -512,7 +548,7 @@ int main(int argc, char **argv ) {
 
   Node *nxt;
   int steps = 0;
-  while (ast != (nxt = step(ast))) {
+  while (ast != (nxt = step(ast, whnf))) {
     debugf("%d: ", ++steps);
     debug_unparse(ast = nxt);
 
@@ -521,4 +557,9 @@ int main(int argc, char **argv ) {
       break;
     }
   }
+
+  print_unparse(ast);
 }
+
+// todo: capture avoidance
+// todo: shadow warning
