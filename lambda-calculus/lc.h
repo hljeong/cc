@@ -5,13 +5,23 @@
 #include <string.h>
 
 
+typedef struct Token Token;
+typedef struct Node Node;
+
+
 // debug
 
 void debugf(const char *fmt, ...);
 
+void debugf_at_loc(const char *loc, const char *fmt, ...);
+
 void debugf_loc(const char *fmt, ...);
 
+void debugf_at_tok(const Token *tok, const char *fmt, ...);
+
 void debugf_tok(const char *fmt, ...);
+
+void debugf_at_node(const Node *node, const char*fmt, ...);
 
 [[noreturn]]
 void _failf(const char *file, const int line,
@@ -24,10 +34,19 @@ void _failf(const char *file, const int line,
 void errorf(const char *fmt, ...);
 
 [[noreturn]]
+void errorf_at_loc(const char *loc, const char *fmt, ...);
+
+[[noreturn]]
 void errorf_loc(const char *fmt, ...);
 
 [[noreturn]]
+void errorf_at_tok(const Token *tok, const char *fmt, ...);
+
+[[noreturn]]
 void errorf_tok(const char *fmt, ...);
+
+[[noreturn]]
+void errorf_at_node(const Node *node, const char *fmt, ...);
 
 
 // lexer
@@ -43,6 +62,10 @@ static inline StringView sv(const char *loc, const int len) {
 
 static inline int sv_eq(const StringView s, const StringView t) {
   return (s.len == t.len) && !strncmp(s.loc, t.loc, s.len);
+}
+
+static inline const char *sv_end(const StringView s) {
+  return (s.loc + s.len);
 }
 
 #define sv_fmt "%.*s"
@@ -91,7 +114,8 @@ struct Node {
     struct { Node *par, *var, *expr; };  // NodeKind_FUN
     struct { Node *fun, *val; };         // NodeKind_APP
   };
-  Node *next;
+  StringView lexeme;
+  Node *next;  // todo: unused, delete?
 };
 
 Node *new_fun(Node *var, Node *expr);

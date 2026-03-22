@@ -129,6 +129,7 @@ static Node *new_node(const NodeKind kind) {
 static Node *new_var(const StringView name) {
   Node *node = new_node(NodeKind_VAR);
   node->name = name;
+  node->lexeme = name;
   return node;
 }
 
@@ -141,8 +142,9 @@ static Node *get_var(const StringView name) {
 
   scope = new_node(NodeKind_FUN);
   scope->var = new_var(name);
-  if (prev_scope) prev_scope->par = scope;
-  else ctx.parser.scope = scope;
+  scope->lexeme = name;
+  scope->var->lexeme = name;
+  prev_scope->par = scope;
 
   return scope->var;
 }
@@ -194,19 +196,22 @@ static Node *var(const bool lookup);
 
 // expr ::= expr atom | atom
 static Node *expr(void) {
+  const char *start = ctx.parser.tok->lexeme.loc;
   Node *node = atom();
   while (parse_match_pred(is_atom_first)) {
     Node *val = atom();
     node = new_app(node, val);
+    node->lexeme = sv(start, sv_end(node->val->lexeme) - start);
   }
   return node;
 }
 
 // atom ::= "(" expr ")" | fun | var
 static Node *atom(void) {
+  const char *start = ctx.parser.tok->lexeme.loc;
   if (parse_consume(TokenKind_LPAREN)) {
     Node *node = expr();
-    parse_expect(TokenKind_RPAREN);
+    node->lexeme = sv(start, sv_end(parse_expect(TokenKind_RPAREN)->lexeme) - start);
     return node;
   }
   else if (parse_match(TokenKind_BACKSLASH)) return fun();
@@ -217,6 +222,7 @@ static Node *atom(void) {
 
 // fun ::= "\" var "." expr
 static Node *fun(void) {
+  const char *start = ctx.parser.tok->lexeme.loc;
   Node *node = new_node(NodeKind_FUN);
   parse_expect(TokenKind_BACKSLASH);
   node->par = ctx.parser.scope;
@@ -227,6 +233,7 @@ static Node *fun(void) {
   // debug_fun_scope(node);
   parse_expect(TokenKind_DOT);
   node->expr = expr();
+  node->lexeme = sv(start, sv_end(node->expr->lexeme) - start);
   ctx.parser.scope = node->par;
   return node;
 }
@@ -244,9 +251,10 @@ Node *parse(void) {
     .kind = NodeKind_FUN,
     .par = NULL,
   };
+  dummy_scope.lexeme = sv(ctx.lexer.loc, 0);
   // 0-length variable name guarantees nothing
   // will ever match the dummy var
-  dummy_scope.var = new_var(sv(ctx.lexer.loc, 0));
+  dummy_scope.var = new_var(dummy_scope.lexeme);
   ctx.parser.scope = &dummy_scope;
   Node *node = expr();
   if (!parse_match(TokenKind_EOF))
