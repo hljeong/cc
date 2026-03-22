@@ -4,6 +4,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+typedef int bool;
+const int true = 1;
+const int false = 0;
+
 
 // debug
 
@@ -101,13 +105,61 @@ static void debug_token_stream(const Token *tok) {
   debugf("\n");
 }
 
-// would've preferred `bool (*pred)(const char)` but `isspace()`, etc. are int (*)(int)
-static int consume_pred(int (*pred)(int));
-
-static Token *new_token(const TokenKind kind, const int len);
-
 static Token *lex();
 
+
+// parser
+
+typedef enum {
+  NodeKind_VAR,
+  NodeKind_FUN,
+  NodeKind_APP,
+} NodeKind;
+
+typedef struct Node Node;
+struct Node {
+  NodeKind kind;
+  union {
+    StringView name;              // NodeKind_VAR
+    struct { Node *var, *expr; }; // NodeKind_FUN
+    struct { Node *fun, *val; };  // NodeKind_APP
+  };
+  Node *next;
+};
+
+static void _debug_ast(const Node *node, const char *prefix, const bool last) {
+  char child_prefix[256];
+  snprintf(child_prefix, sizeof(child_prefix), "%s%s",
+           prefix, last ? "  " : "│ ");
+
+  const char *branch = last ? "└─" : "├─";
+
+  if (node->kind == NodeKind_VAR) {
+    debugf("%s%svar("sv_fmt")\n", prefix, branch, sv_arg(node->name));
+  }
+
+  else if (node->kind == NodeKind_FUN) {
+    debugf("%s%sfun\n", prefix, branch);
+    _debug_ast(node->var, child_prefix, false);
+    _debug_ast(node->expr, child_prefix, true);
+  }
+
+  else if (node->kind == NodeKind_APP) {
+    debugf("%s%sapp\n", prefix, branch);
+    _debug_ast(node->fun, child_prefix, false);
+    _debug_ast(node->val, child_prefix, true);
+  }
+
+  else {
+    failf("not implemented: %u", (uint32_t) node->kind);
+  }
+}
+
+static void debug_ast(const Node *node) {
+  _debug_ast(node, "", true);
+}
+
+static Node *parse();
 
 // global context
 
@@ -117,16 +169,22 @@ struct {
   struct {
     const char *loc;
   } lexer;
+
+  struct {
+    const Token *tok;
+  } parser;
 } ctx;
 
 
-// implementation
+// lexer implementation
 
-// consume_*(): if current loc matches,
+// lex_consume_*(): if current loc matches,
 // - advance current loc by len matched and
 // - return len matched,
 // otherwise return 0
-static int consume_pred(int (*pred)(int)) {
+
+// would've preferred `bool (*pred)(const char)` but `isspace()`, etc. are int (*)(int)
+static int lex_consume_pred(int (*pred)(int)) {
   if (pred('\0')) fail("predicate accepts eof");
   const char *start = ctx.lexer.loc;
   while (pred(*ctx.lexer.loc)) ctx.lexer.loc++;
@@ -143,13 +201,13 @@ static int is_ident_rest(int c) {
   return isalnum(c) || (c == '_');
 }
 
-static int consume_ident() {
+static int lex_consume_ident() {
   int len = 0;
-  if (!(len = consume_pred(is_ident_first))) return 0;
-  return (len += consume_pred(is_ident_rest));
+  if (!(len = lex_consume_pred(is_ident_first))) return 0;
+  return (len += lex_consume_pred(is_ident_rest));
 }
 
-static int consume_ch(const char c) {
+static int lex_consume_ch(const char c) {
   if (*ctx.lexer.loc == c) {
     ctx.lexer.loc++; return 1;
   }
@@ -170,19 +228,100 @@ Token *lex() {
   int len = 0;
   char ch = '\0';
   while ((ch = *ctx.lexer.loc)) {
-    if      ((len = consume_pred(isspace))) ;  // skip whitespace
-    else if ((len = consume_ident()))       cur = (cur->next = new_token(TokenKind_IDENT, len));
-    else if ((len = consume_ch('\\')))      cur = (cur->next = new_token(TokenKind_BACKSLASH, len));
-    else if ((len = consume_ch('.')))       cur = (cur->next = new_token(TokenKind_DOT,       len));
-    else if ((len = consume_ch('(')))       cur = (cur->next = new_token(TokenKind_LPAREN,    len));
-    else if ((len = consume_ch(')')))       cur = (cur->next = new_token(TokenKind_RPAREN,    len));
-    else                                    errorf("invalid token");  // todo: error context
+    if      ((len = lex_consume_pred(isspace))) ;  // skip whitespace
+    else if ((len = lex_consume_ident()))       cur = (cur->next = new_token(TokenKind_IDENT, len));
+    else if ((len = lex_consume_ch('\\')))      cur = (cur->next = new_token(TokenKind_BACKSLASH, len));
+    else if ((len = lex_consume_ch('.')))       cur = (cur->next = new_token(TokenKind_DOT,       len));
+    else if ((len = lex_consume_ch('(')))       cur = (cur->next = new_token(TokenKind_LPAREN,    len));
+    else if ((len = lex_consume_ch(')')))       cur = (cur->next = new_token(TokenKind_RPAREN,    len));
+    else                                        errorf("invalid token");  // todo: error context
   }
 
   cur = (cur->next = new_token(TokenKind_EOF, 0));
   return head.next;
 }
 
+
+// parser implementation
+
+static Node *new_node(const NodeKind kind) {
+  Node *node = calloc(1, sizeof(Node));
+  node->kind = kind;
+  return node;
+}
+
+static Node *new_app(Node *fun, Node *val) {
+  Node *node = new_node(NodeKind_APP);
+  node->fun = fun;
+  node->val = val;
+  return node;
+}
+
+static int parse_match(const TokenKind kind) {
+  return ctx.parser.tok->kind == kind;
+}
+
+static const Token *parse_advance() {
+  const Token *tok = ctx.parser.tok;
+  ctx.parser.tok = ctx.parser.tok->next;
+  return tok;
+}
+
+static const Token *parse_consume(const TokenKind kind) {
+  return parse_match(kind) ? parse_advance() : NULL;
+}
+
+static const Token *parse_expect(const TokenKind kind) {
+  const Token *tok = parse_consume(kind);
+  if (!tok) errorf("expected %s, got: %s",
+                   token_kind_to_str(kind),
+                   token_to_str(ctx.parser.tok));
+  return tok;
+}
+
+static Node *expr();
+static Node *fun();
+static Node *var();
+
+// expr ::= "(" expr ")" | fun | var | expr expr
+static Node *expr() {
+  Node *node = NULL;
+  if (parse_consume(TokenKind_LPAREN)) {
+    node = expr();
+    parse_expect(TokenKind_RPAREN);
+  }
+  else if (parse_match(TokenKind_BACKSLASH)) node = fun();
+  else if (parse_match(TokenKind_IDENT))     node = var();
+  else                                       errorf("expected expression, got %s",
+                                                    token_to_str(ctx.parser.tok));
+
+  return parse_match(TokenKind_EOF) || parse_match(TokenKind_RPAREN) ? node
+                                                                     : new_app(node, expr());
+}
+
+// fun ::= "\" var "." expr
+static Node *fun() {
+  Node *node = new_node(NodeKind_FUN);
+  parse_expect(TokenKind_BACKSLASH);
+  node->var = var();
+  parse_expect(TokenKind_DOT);
+  node->expr = expr();
+  return node;
+}
+
+// var ::= ident
+static Node *var() {
+  Node *node = new_node(NodeKind_VAR);
+  node->name = parse_expect(TokenKind_IDENT)->lexeme;
+  return node;
+}
+
+static Node *parse() {
+  Node *node = expr();
+  if (!parse_match(TokenKind_EOF))
+    errorf("extra token");
+  return node;
+}
 
 // entry point
 
@@ -193,5 +332,7 @@ int main(int argc, char **argv ) {
 
   debugf("src: %s\n", ctx.lexer.loc = ctx.src);
 
-  debug_token_stream(lex());
+  debug_token_stream(ctx.parser.tok = lex());
+
+  debug_ast(parse());
 }

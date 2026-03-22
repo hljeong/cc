@@ -107,11 +107,11 @@ static const Token *advance() {
   return tok;
 }
 
-const Token *consume(const TokenKind kind) {
+static const Token *consume(const TokenKind kind) {
   return match(kind) ? advance() : NULL;
 }
 
-const Token *expect(const TokenKind kind) {
+static const Token *expect(const TokenKind kind) {
   const Token *tok = consume(kind);
   if (!tok) errorf_tok("expected %s, got: %s",
                        token_kind_to_str(kind),
@@ -281,9 +281,11 @@ static Node *primary() {
   else                                       errorf_tok("expected expression");
 }
 
+// todo: new_binop() -> binop(), etc.
+
 Node *parse() {
   Node *node = prog();
-  if (ctx.parser.tok->kind != TokenKind_EOF)
+  if (!match(TokenKind_EOF))
     errorf_tok("extra token");
   return node;
 }
