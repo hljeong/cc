@@ -150,13 +150,38 @@ static void _debug_ast(const Node *node, const char *prefix, const bool last) {
     _debug_ast(node->val, child_prefix, true);
   }
 
-  else {
-    failf("not implemented: %u", (uint32_t) node->kind);
-  }
+  else failf("not implemented: %u", (uint32_t) node->kind);
 }
 
 static void debug_ast(const Node *node) {
   _debug_ast(node, "", true);
+}
+
+static void _debug_unparse(const Node *node) {
+  if (node->kind == NodeKind_VAR) {
+    debugf(sv_fmt, sv_arg(node->name));
+  }
+
+  else if (node->kind == NodeKind_FUN) {
+    debugf("(\\");
+    _debug_unparse(node->var);
+    debugf(".");
+    _debug_unparse(node->expr);
+    debugf(")");
+  }
+
+  else if (node->kind == NodeKind_APP) {
+    _debug_unparse(node->fun);
+    debugf(" ");
+    _debug_unparse(node->val);
+  }
+
+  else failf("not implemented: %u", (uint32_t) node->kind);
+}
+
+static void debug_unparse(const Node *node) {
+  _debug_unparse(node);
+  debugf("\n");
 }
 
 static Node *parse();
@@ -342,6 +367,7 @@ static Node *parse() {
   return node;
 }
 
+
 // entry point
 
 int main(int argc, char **argv ) {
@@ -353,5 +379,7 @@ int main(int argc, char **argv ) {
 
   debug_token_stream(ctx.parser.tok = lex());
 
-  debug_ast(parse());
+  Node *ast = parse();
+  // debug_ast(ast);
+  debug_unparse(ast);
 }
