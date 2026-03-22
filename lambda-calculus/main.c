@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 typedef int bool;
 const int true = 1;
@@ -58,6 +59,11 @@ static StringView sv(const char *loc, const int len) {
   return (StringView) { .loc = loc, .len = len };
 }
 
+// check equality between two string views
+static int sv_eq(const StringView s, const StringView t) {
+  return (s.len == t.len) && !strncmp(s.loc, t.loc, s.len);
+}
+
 #define sv_fmt "%.*s"
 #define sv_arg(sv) (sv).len, (sv).loc
 
@@ -105,6 +111,16 @@ static void debug_token_stream(const Token *tok) {
   debugf("\n");
 }
 
+// identifiers: (letter or underscore) followed by
+//              0 or more (letter or digit or underscore)
+static int is_ident_first(int c) {
+  return isalpha(c) || (c == '_');
+}
+
+static int is_ident_rest(int c) {
+  return isalnum(c) || (c == '_');
+}
+
 static Token *lex();
 
 
@@ -115,6 +131,14 @@ typedef enum {
   NodeKind_FUN,
   NodeKind_APP,
 } NodeKind;
+
+const char *node_kind_to_str(const NodeKind kind) {
+  if      (kind == NodeKind_VAR) return "var";
+  else if (kind == NodeKind_FUN) return "fun";
+  else if (kind == NodeKind_APP) return "app";
+  else                           failf("not implemented: %u",
+                                       (uint32_t) kind);
+}
 
 typedef struct Node Node;
 struct Node {
@@ -171,9 +195,11 @@ static void _debug_unparse(const Node *node) {
   }
 
   else if (node->kind == NodeKind_APP) {
+    debugf("(");
     _debug_unparse(node->fun);
     debugf(" ");
     _debug_unparse(node->val);
+    debugf(")");
   }
 
   else failf("not implemented: %u", (uint32_t) node->kind);
@@ -182,6 +208,12 @@ static void _debug_unparse(const Node *node) {
 static void debug_unparse(const Node *node) {
   _debug_unparse(node);
   debugf("\n");
+}
+
+static bool is_atom_first(const TokenKind kind) {
+  return (kind == TokenKind_LPAREN) ||
+         (kind == TokenKind_BACKSLASH) ||
+         (kind == TokenKind_IDENT);
 }
 
 static Node *parse();
@@ -214,16 +246,6 @@ static int lex_consume_pred(int (*pred)(int)) {
   const char *start = ctx.lexer.loc;
   while (pred(*ctx.lexer.loc)) ctx.lexer.loc++;
   return ctx.lexer.loc - start;
-}
-
-// identifiers: (letter or underscore) followed by
-//              0 or more (letter or digit or underscore)
-static int is_ident_first(int c) {
-  return isalpha(c) || (c == '_');
-}
-
-static int is_ident_rest(int c) {
-  return isalnum(c) || (c == '_');
 }
 
 static int lex_consume_ident() {
@@ -295,6 +317,10 @@ static Node *new_app(Node *fun, Node *val) {
   return node;
 }
 
+static int parse_match_pred(bool (*pred)(const TokenKind)) {
+  return pred(ctx.parser.tok->kind);
+}
+
 static int parse_match(const TokenKind kind) {
   return ctx.parser.tok->kind == kind;
 }
@@ -318,24 +344,31 @@ static const Token *parse_expect(const TokenKind kind) {
 }
 
 static Node *expr();
+static Node *atom();
 static Node *fun();
 static Node *var();
 
-// expr ::= "(" expr ")" | fun | var | expr expr
+// expr ::= expr atom | atom
 static Node *expr() {
-  Node *node = NULL;
-  if (parse_consume(TokenKind_LPAREN)) {
-    node = expr();
-    parse_expect(TokenKind_RPAREN);
+  Node *node = atom();
+  while (parse_match_pred(is_atom_first)) {
+    Node *val = atom();
+    node = new_app(node, val);
   }
-  else if (parse_match(TokenKind_BACKSLASH)) node = fun();
-  else if (parse_match(TokenKind_IDENT))     node = var();
+  return node;
+}
+
+// atom ::= "(" expr ")" | fun | var
+static Node *atom() {
+  if (parse_consume(TokenKind_LPAREN)) {
+    Node *node = expr();
+    parse_expect(TokenKind_RPAREN);
+    return node;
+  }
+  else if (parse_match(TokenKind_BACKSLASH)) return fun();
+  else if (parse_match(TokenKind_IDENT))     return var();
   else                                       errorf("expected expression, got %s",
                                                     token_to_str(ctx.parser.tok));
-
-  return (parse_match(TokenKind_EOF) ||
-          parse_match(TokenKind_RPAREN)) ? node
-                                         : new_app(node, expr());
 }
 
 // fun ::= "\" var "." expr
@@ -368,6 +401,97 @@ static Node *parse() {
 }
 
 
+// reduction
+
+// return a new expr thats the same as `node`
+// except every var within which thats the same as `var`
+// is replaced with `subval`. return the original
+// `node` if no substitution happens
+Node *sub(Node *node, Node *var, Node* subval) {
+  if (var->kind != NodeKind_VAR)
+    failf("bad invocation: sub(*, %s, *)", node_kind_to_str(var->kind));
+
+  // {
+  //   debugf("sub():\n");
+  //
+  //   debugf("node\n");
+  //   debug_ast(node);
+  //   debugf("\n");
+  //
+  //   debugf("var\n");
+  //   debug_ast(var);
+  //   debugf("\n");
+  //
+  //   debugf("subval\n");
+  //   debug_ast(subval);
+  //   debugf("\n\n\n");
+  // }
+
+  if (node->kind == NodeKind_VAR) {
+    return sv_eq(node->name, var->name) ? subval
+                                        : node;
+  }
+
+  else if (node->kind == NodeKind_FUN) {
+    Node *expr = sub(node->expr, var, subval);
+    if (expr != node->expr) return new_fun(node->var, expr);
+
+    return node;
+  }
+
+  else if (node->kind == NodeKind_APP) {
+    Node *fun = sub(node->fun, var, subval);
+    Node *val = sub(node->val, var, subval);
+    if (fun != node->fun || val != node->val) return new_app(fun, val);
+
+    return node;
+  }
+
+  else failf("not implemented: %u", (uint32_t) node->kind);
+}
+
+// return a new expr by performing beta-reduction on `node`.
+// return the original `node` if no such reduction happens
+Node *beta(Node *node) {
+  if (node->kind != NodeKind_APP)
+    failf("bad invocation: beta(%s)", node_kind_to_str(node->kind));
+
+  return node->fun->kind == NodeKind_FUN ? sub(node->fun->expr,
+                                               node->fun->var,
+                                               node->val)
+                                         : node;
+}
+
+// perform one beta-reduction in normal order.
+// return the original `node` if no reduction happens
+//
+// normal order: reduce outermost reducible expr first,
+// to avoid looping. e.g. applicative order (reduce innermost
+// reducible expr first) loops on (\x.\y.y)((\x.x x)(\x.x x))
+// since it tries to reduce the irreducible ((\x.x x)(\x.x x)) first
+Node *step(Node *node) {
+  if      (node->kind == NodeKind_VAR) return node;
+
+  else if (node->kind == NodeKind_FUN) {
+    Node *expr = step(node->expr);
+    if (expr != node->expr) return new_fun(node->var, expr);
+
+    return node;
+  }
+
+  else if (node->kind == NodeKind_APP) {
+    if (node->fun->kind == NodeKind_FUN) return beta(node);
+
+    Node *fun = step(node->fun);
+    if (fun != node->fun) return new_app(fun, node->val);
+
+    return node;
+  }
+
+  else failf("not implemented: %u", (uint32_t) node->kind);
+}
+
+
 // entry point
 
 int main(int argc, char **argv ) {
@@ -380,6 +504,18 @@ int main(int argc, char **argv ) {
   debug_token_stream(ctx.parser.tok = lex());
 
   Node *ast = parse();
-  // debug_ast(ast);
+  debug_ast(ast);
   debug_unparse(ast);
+
+  Node *nxt;
+  int steps = 0;
+  while (ast != (nxt = step(ast))) {
+    debugf("%d: ", ++steps);
+    debug_unparse(ast = nxt);
+
+    if (steps >= 10) {
+      debugf("max reductions reached, halting\n");
+      break;
+    }
+  }
 }
