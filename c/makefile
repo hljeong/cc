@@ -1,13 +1,14 @@
 CC = gcc
 CFLAGS = -Wno-attributes -std=c11 -g
+BIN = cc
 SRCS = debug.c lex.c parse.c codegen.c main.c
 OBJS = $(SRCS:.c=.o)
 
 .PHONY: all clean
 
-all: cc
+all: $(BIN)
 
-cc: $(OBJS)
+$(BIN): $(OBJS)
 	@ $(CC) $(CFLAGS) -o $@ $^
 
 %.o: %.c cc.h
