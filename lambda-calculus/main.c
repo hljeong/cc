@@ -250,6 +250,19 @@ static Node *new_node(const NodeKind kind) {
   return node;
 }
 
+static Node *new_var(const StringView name) {
+  Node *node = new_node(NodeKind_VAR);
+  node->name = name;
+  return node;
+}
+
+static Node *new_fun(Node *var, Node *expr) {
+  Node *node = new_node(NodeKind_FUN);
+  node->var = var;
+  node->expr = expr;
+  return node;
+}
+
 static Node *new_app(Node *fun, Node *val) {
   Node *node = new_node(NodeKind_APP);
   node->fun = fun;
@@ -295,12 +308,20 @@ static Node *expr() {
   else                                       errorf("expected expression, got %s",
                                                     token_to_str(ctx.parser.tok));
 
-  return parse_match(TokenKind_EOF) || parse_match(TokenKind_RPAREN) ? node
-                                                                     : new_app(node, expr());
+  return (parse_match(TokenKind_EOF) ||
+          parse_match(TokenKind_RPAREN)) ? node
+                                         : new_app(node, expr());
 }
 
 // fun ::= "\" var "." expr
 static Node *fun() {
+  // note: this one-liner doesnt work since eval order
+  //       of arguments is unspecified. tragic
+  // return new_fun(
+  //   (parse_expect(TokenKind_BACKSLASH), var()),
+  //   (parse_expect(TokenKind_DOT), expr())
+  // );
+
   Node *node = new_node(NodeKind_FUN);
   parse_expect(TokenKind_BACKSLASH);
   node->var = var();
@@ -311,9 +332,7 @@ static Node *fun() {
 
 // var ::= ident
 static Node *var() {
-  Node *node = new_node(NodeKind_VAR);
-  node->name = parse_expect(TokenKind_IDENT)->lexeme;
-  return node;
+  return new_var(parse_expect(TokenKind_IDENT)->lexeme);
 }
 
 static Node *parse() {
