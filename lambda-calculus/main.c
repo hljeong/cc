@@ -495,9 +495,12 @@ Node *step(Node *node) {
 // entry point
 
 int main(int argc, char **argv ) {
-  if (argc != 2) errorf("usage: %s <expression>", argv[0]);
+  if (argc < 2) errorf("usage: %s <expression> [max-steps=10]", argv[0]);
 
   ctx.src = argv[1];
+
+  int max_steps = 10;
+  if (argc >= 3) max_steps = atoi(argv[2]);
 
   debugf("src: %s\n", ctx.lexer.loc = ctx.src);
 
@@ -513,7 +516,7 @@ int main(int argc, char **argv ) {
     debugf("%d: ", ++steps);
     debug_unparse(ast = nxt);
 
-    if (steps >= 10) {
+    if (steps >= max_steps) {
       debugf("max reductions reached, halting\n");
       break;
     }
