@@ -9,6 +9,10 @@
 
 void debugf(const char *fmt, ...);
 
+void debugf_loc(const char *fmt, ...);
+
+void debugf_tok(const char *fmt, ...);
+
 [[noreturn]]
 void _failf(const char *file, const int line,
             const char *fmt, ...);
@@ -18,6 +22,12 @@ void _failf(const char *file, const int line,
 
 [[noreturn]]
 void errorf(const char *fmt, ...);
+
+[[noreturn]]
+void errorf_loc(const char *fmt, ...);
+
+[[noreturn]]
+void errorf_tok(const char *fmt, ...);
 
 
 // lexer
@@ -106,6 +116,7 @@ Node *step(Node *node, bool whnf);
 
 typedef struct {
   const char *src;
+  int src_len;
 
   struct {
     const char *loc;

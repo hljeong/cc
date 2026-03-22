@@ -6,6 +6,7 @@ int main(int argc, char **argv) {
   if (argc < 2) errorf("usage: %s <expression> [nf=(nf)|whnf] [max-steps=10]", argv[0]);
 
   ctx.src = argv[1];
+  ctx.src_len = strlen(ctx.src);
 
   bool whnf = false;
   if (argc >= 3) whnf = !strcmp(argv[2], "whnf");

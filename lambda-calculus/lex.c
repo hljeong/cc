@@ -78,7 +78,7 @@ Token *lex() {
     else if ((len = lex_consume_ch('.')))       cur = (cur->next = new_token(TokenKind_DOT,       len));
     else if ((len = lex_consume_ch('(')))       cur = (cur->next = new_token(TokenKind_LPAREN,    len));
     else if ((len = lex_consume_ch(')')))       cur = (cur->next = new_token(TokenKind_RPAREN,    len));
-    else                                        errorf("invalid token");  // todo: error context
+    else                                        errorf_loc("invalid token");
   }
 
   cur = (cur->next = new_token(TokenKind_EOF, 0));

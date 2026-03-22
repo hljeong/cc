@@ -147,9 +147,9 @@ static const Token *parse_consume(const TokenKind kind) {
 
 static const Token *parse_expect(const TokenKind kind) {
   const Token *tok = parse_consume(kind);
-  if (!tok) errorf("expected %s, got: %s",
-                   token_kind_to_str(kind),
-                   token_to_str(ctx.parser.tok));
+  if (!tok) errorf_tok("expected %s, got: %s",
+                       token_kind_to_str(kind),
+                       token_to_str(ctx.parser.tok));
   return tok;
 }
 
@@ -177,8 +177,8 @@ static Node *atom(void) {
   }
   else if (parse_match(TokenKind_BACKSLASH)) return fun();
   else if (parse_match(TokenKind_IDENT))     return var();
-  else                                       errorf("expected expression, got %s",
-                                                    token_to_str(ctx.parser.tok));
+  else                                       errorf_tok("expected expression, got %s",
+                                                        token_to_str(ctx.parser.tok));
 }
 
 // fun ::= "\" var "." expr
@@ -199,6 +199,6 @@ static Node *var(void) {
 Node *parse(void) {
   Node *node = expr();
   if (!parse_match(TokenKind_EOF))
-    errorf("extra token");
+    errorf_tok("extra token");
   return node;
 }
