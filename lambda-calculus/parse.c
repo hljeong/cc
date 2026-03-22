@@ -4,7 +4,7 @@ const char *node_kind_to_str(const NodeKind kind) {
   if      (kind == NodeKind_VAR) return "var";
   else if (kind == NodeKind_FUN) return "fun";
   else if (kind == NodeKind_APP) return "app";
-  else                           failf("not implemented: %u",
+  else                           failf("node_kind_to_str(%u)",
                                        (uint32_t) kind);
 }
 
@@ -35,7 +35,7 @@ static void _debug_ast(const Node *node, const char *prefix, const bool last) {
     _debug_ast(node->val, child_prefix, true);
   }
 
-  else failf("not implemented: %u", (uint32_t) node->kind);
+  else failf("%s", node_kind_to_str(node->kind));
 }
 
 void debug_ast(const Node *node) {
@@ -110,7 +110,7 @@ static void _print_unparse(const Node *node) {
     printf(")");
   }
 
-  else failf("not implemented: %u", (uint32_t) node->kind);
+  else failf("%u", (uint32_t) node->kind);
 }
 
 void print_unparse(const Node *node) {
@@ -231,9 +231,6 @@ static Node *fun(void) {
   node->par = ctx.parser.scope;
   node->var = var(/*lookup=*/ false);
   ctx.parser.scope = node;
-  // print variables in scope for this function
-  // where free variables are delimited by '*'
-  // debug_fun_scope(node);
   parse_expect(TokenKind_DOT);
   node->expr = expr();
   node->lexeme = sv(start, sv_end(node->expr->lexeme) - start);
@@ -246,6 +243,71 @@ static Node *var(const bool lookup) {
   const StringView lexeme = parse_expect(TokenKind_IDENT)->lexeme;
   if (lookup) return get_var(lexeme);
   else        return new_var(lexeme, NULL);
+}
+
+static void debug_shadow(const StringView shadowee,
+                         const StringView shadowed,
+                         const char *desc) {
+  debugf("%s\n", ctx.src);
+  {
+    const int col = shadowed.loc - ctx.src;
+    if (!(0 <= col && col <= ctx.src_len))
+      failf("invalid loc: %d, src_len=%d",
+            col, ctx.src_len);
+
+    debugf("%*s^", col, "");
+    for (int i = 0; i < shadowed.len - 1; i++)
+      debugf("%c", '~');
+  }
+
+  {
+    const int col = shadowee.loc - ctx.src;
+    if (!(0 <= col && col <= ctx.src_len))
+      failf("invalid loc: %d, src_len=%d",
+            col, ctx.src_len);
+
+    const int d_col = col - (sv_end(shadowed) - ctx.src);
+    for (int i = 0; i < d_col; i++)
+      debugf("%c", '.');
+    debugf("^");
+    for (int i = 0; i < shadowee.len - 1; i++)
+      debugf("%c", '~');
+    debugf(" warning: \""sv_fmt"\" shadows %s variable\n",
+           sv_arg(shadowee), desc);
+  }
+
+  debugf("\n");
+}
+
+static void warn_shadows(const Node *node) {
+  if (node->kind == NodeKind_VAR) return;
+
+  else if (node->kind == NodeKind_FUN) {
+    // todo: colors
+    const Node *cur = node;
+    const char *desc = "bound";
+    while ((cur = cur->par)) {
+      // hit dummy scope -- variables up the chain are free
+      if (!cur->var->name.len) {
+        desc = "free";
+        continue;
+      }
+
+      if (sv_eq(cur->var->name, node->var->name)) {
+        debug_shadow(node->var->lexeme, cur->var->lexeme, desc);
+        break;
+      }
+    }
+
+    warn_shadows(node->expr);
+  }
+
+  else if (node->kind == NodeKind_APP) {
+    warn_shadows(node->fun);
+    warn_shadows(node->val);
+  }
+
+  else failf("%s", node_kind_to_str(node->kind));
 }
 
 Node *parse(void) {
@@ -262,5 +324,6 @@ Node *parse(void) {
   Node *node = expr();
   if (!parse_match(TokenKind_EOF))
     errorf_tok("extra token");
+  warn_shadows(node);
   return node;
 }

@@ -34,6 +34,11 @@ static void vdebugf_span(const StringView span, const char *fmt, va_list ap) {
   vdebugf(fmt, ap); debugf("\n");
 }
 
+void debugf_span(const StringView span, const char *fmt, ...) {
+  va_list ap; va_start(ap, fmt);
+  vdebugf_span(span, fmt, ap);
+}
+
 void debugf_at_loc(const char *loc, const char *fmt, ...) {
   va_list ap; va_start(ap, fmt);
   vdebugf_at(loc, fmt, ap);

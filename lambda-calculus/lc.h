@@ -5,6 +5,7 @@
 #include <string.h>
 
 
+typedef struct StringView StringView;
 typedef struct Token Token;
 typedef struct Node Node;
 
@@ -12,6 +13,8 @@ typedef struct Node Node;
 // debug
 
 void debugf(const char *fmt, ...);
+
+void debugf_span(const StringView span, const char *fmt, ...);
 
 void debugf_at_loc(const char *loc, const char *fmt, ...);
 
@@ -51,10 +54,11 @@ void errorf_at_node(const Node *node, const char *fmt, ...);
 
 // lexer
 
-typedef struct {
+typedef struct StringView StringView;
+struct StringView {
   const char *loc;
   int len;
-} StringView;
+};
 
 static inline StringView sv(const char *loc, const int len) {
   return (StringView) { .loc = loc, .len = len };
@@ -110,12 +114,50 @@ typedef struct Node Node;
 struct Node {
   NodeKind kind;
   union {
-    struct { StringView name; Node *ref; };  // NodeKind_VAR  todo: doc
+    struct { StringView name; Node *ref; };  // NodeKind_VAR
+                                             // `ref` stores the reference to the declaration
+                                             // var node for this node. the cases are:
+                                             // - for lambda binding sites, this is a self reference
+                                             // - for free variables, this points to the first occurence
+                                             // - for bound variables, this points to the binding site
+
     struct { Node *par, *var, *expr; };      // NodeKind_FUN
+                                             // this node represents scope in addition to storing
+                                             // ast structure. `par` points to the semantic parent scope
+                                             // of the function this node represents. if this node
+                                             // represents a top-level function, `par` points to *the*
+                                             // dummy node. the dummy node is a delimiter for free
+                                             // variables. when a variable reference searches up the
+                                             // entire scope chain and does not find a declaration,
+                                             // it will create a fictitious function node at the tail
+                                             // of the scope chain to "bind" the free variable.
+                                             // consider the expression `(\x.\y.w z) z (\x.z)`:
+                                             //
+                                             // the scope chain (actually a tree) is as follows:
+                                             //   ┌─ (\z.???) binds `z`
+                                             //   ├─ (\w.???) binds `w`
+                                             //   * (dummy)
+                                             //   ├─ (\x.\y.w z) binds `x`
+                                             //   │  └─ (\y.w z) binds `y`
+                                             //   └─ (\x.z) binds `x`
+                                             //
+                                             // the "free" part of the scope chain is deliberatedly
+                                             // depicted as an upside-down linked list *above* the dummy.
+                                             // the effective topology is more apparent when drawn in
+                                             // the conventional manner:
+                                             //   (\z.???) binds `z`
+                                             //   └─ (\w.???) binds `w`
+                                             //      └─ * (dummy)
+                                             //         ├─ (\x.\y.w z) binds `x`
+                                             //         │  └─ (\y.w z) binds `y`
+                                             //         └─ (\x.z) binds `x`
+                                             //
+                                             // this way we are effectively operating on
+                                             // `\z.\w.((\x.\y.w z) z (\x.z)), with no free variables
+
     struct { Node *fun, *val; };             // NodeKind_APP
   };
   StringView lexeme;
-  Node *next;  // todo: unused, delete?
 };
 
 Node *new_fun(Node *var, Node *expr);
