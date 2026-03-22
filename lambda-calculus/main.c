@@ -39,5 +39,5 @@ int main(int argc, char **argv) {
   return 0;
 }
 
-// todo: capture avoidance
 // todo: shadow warning
+// todo: map node to src

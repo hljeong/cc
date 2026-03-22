@@ -5,8 +5,8 @@ Node *sub(Node *node, Node *var, Node *subval) {
     failf("bad invocation: sub(*, %s, *)", node_kind_to_str(var->kind));
 
   if (node->kind == NodeKind_VAR) {
-    return sv_eq(node->name, var->name) ? subval
-                                        : node;
+    return node == var ? subval
+                       : node;
   }
 
   else if (node->kind == NodeKind_FUN) {
@@ -24,7 +24,7 @@ Node *sub(Node *node, Node *var, Node *subval) {
     return node;
   }
 
-  else failf("not implemented: %u", (uint32_t) node->kind);
+  else failf("%s", node_kind_to_str(node->kind));
 }
 
 Node *beta(Node *node) {
@@ -32,13 +32,13 @@ Node *beta(Node *node) {
     failf("bad invocation: beta(%s)", node_kind_to_str(node->kind));
 
   return node->fun->kind == NodeKind_FUN ? sub(node->fun->expr,
-                                                 node->fun->var,
-                                                 node->val)
-                                           : node;
+                                               node->fun->var,
+                                               node->val)
+                                         : node;
 }
 
 Node *step(Node *node, bool whnf) {
-  if      (node->kind == NodeKind_VAR) return node;
+  if (node->kind == NodeKind_VAR) return node;
 
   else if (node->kind == NodeKind_FUN) {
     if (whnf) return node;
@@ -58,5 +58,5 @@ Node *step(Node *node, bool whnf) {
     return node;
   }
 
-  else failf("not implemented: %u", (uint32_t) node->kind);
+  else failf("%s", node_kind_to_str(node->kind));
 }

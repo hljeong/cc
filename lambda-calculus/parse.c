@@ -22,7 +22,8 @@ static void _debug_ast(const Node *node, const char *prefix, const bool last) {
   else if (node->kind == NodeKind_FUN) {
     debugf("%s%sfun\n", prefix, branch);
     _debug_ast(node->var, child_prefix, false);
-    _debug_ast(node->expr, child_prefix, true);
+    if (node->expr) _debug_ast(node->expr, child_prefix, true);
+    else debugf("%s  └─...\n", prefix);
   }
 
   else if (node->kind == NodeKind_APP) {
@@ -36,6 +37,24 @@ static void _debug_ast(const Node *node, const char *prefix, const bool last) {
 
 void debug_ast(const Node *node) {
   _debug_ast(node, "", true);
+}
+
+// print all variables climbing up scope hierarchy.
+// free variables delimited by '*'
+void debug_fun_scope(const Node *node) {
+  if (node->kind != NodeKind_FUN)
+    failf("bad invocation: debug_fun_scope(%s)", node_kind_to_str(node->kind));
+
+  debugf("debug_fun_scope(): ");
+  const Node *cur = node;
+  if (cur->var->name.len) debugf(sv_fmt, sv_arg(cur->var->name));
+  else                    debugf("*");
+  while ((cur = cur->par)) {
+    debugf(", ");
+    if (cur->var->name.len) debugf(sv_fmt, sv_arg(cur->var->name));
+    else                    debugf("*");
+  }
+  debugf("\n");
 }
 
 static void _debug_unparse(const Node *node) {
@@ -113,6 +132,21 @@ static Node *new_var(const StringView name) {
   return node;
 }
 
+static Node *get_var(const StringView name) {
+  Node *scope = ctx.parser.scope, *prev_scope = NULL;
+  while (scope) {
+    if (sv_eq(scope->var->name, name)) return scope->var;
+    scope = (prev_scope = scope)->par;
+  }
+
+  scope = new_node(NodeKind_FUN);
+  scope->var = new_var(name);
+  if (prev_scope) prev_scope->par = scope;
+  else ctx.parser.scope = scope;
+
+  return scope->var;
+}
+
 Node *new_fun(Node *var, Node *expr) {
   Node *node = new_node(NodeKind_FUN);
   node->var = var;
@@ -156,7 +190,7 @@ static const Token *parse_expect(const TokenKind kind) {
 static Node *expr(void);
 static Node *atom(void);
 static Node *fun(void);
-static Node *var(void);
+static Node *var(const bool lookup);
 
 // expr ::= expr atom | atom
 static Node *expr(void) {
@@ -176,7 +210,7 @@ static Node *atom(void) {
     return node;
   }
   else if (parse_match(TokenKind_BACKSLASH)) return fun();
-  else if (parse_match(TokenKind_IDENT))     return var();
+  else if (parse_match(TokenKind_IDENT))     return var(/*lookup=*/ true);
   else                                       errorf_tok("expected expression, got %s",
                                                         token_to_str(ctx.parser.tok));
 }
@@ -185,18 +219,35 @@ static Node *atom(void) {
 static Node *fun(void) {
   Node *node = new_node(NodeKind_FUN);
   parse_expect(TokenKind_BACKSLASH);
-  node->var = var();
+  node->par = ctx.parser.scope;
+  node->var = var(/*lookup=*/ false);
+  ctx.parser.scope = node;
+  // print variables in scope for this function
+  // where free variables are delimited by '*'
+  // debug_fun_scope(node);
   parse_expect(TokenKind_DOT);
   node->expr = expr();
+  ctx.parser.scope = node->par;
   return node;
 }
 
 // var ::= ident
-static Node *var(void) {
-  return new_var(parse_expect(TokenKind_IDENT)->lexeme);
+static Node *var(const bool lookup) {
+  const StringView lexeme = parse_expect(TokenKind_IDENT)->lexeme;
+  if (lookup) return get_var(lexeme);
+  else        return new_var(lexeme);
 }
 
 Node *parse(void) {
+  // *please* only ever call this *once*
+  static Node dummy_scope = {
+    .kind = NodeKind_FUN,
+    .par = NULL,
+  };
+  // 0-length variable name guarantees nothing
+  // will ever match the dummy var
+  dummy_scope.var = new_var(sv(ctx.lexer.loc, 0));
+  ctx.parser.scope = &dummy_scope;
   Node *node = expr();
   if (!parse_match(TokenKind_EOF))
     errorf_tok("extra token");

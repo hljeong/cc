@@ -87,9 +87,9 @@ typedef struct Node Node;
 struct Node {
   NodeKind kind;
   union {
-    StringView name;               // NodeKind_VAR
-    struct { Node *var, *expr; };  // NodeKind_FUN
-    struct { Node *fun, *val; };   // NodeKind_APP
+    StringView name;                     // NodeKind_VAR
+    struct { Node *par, *var, *expr; };  // NodeKind_FUN
+    struct { Node *fun, *val; };         // NodeKind_APP
   };
   Node *next;
 };
@@ -124,6 +124,7 @@ typedef struct {
 
   struct {
     const Token *tok;
+    Node *scope;
   } parser;
 } Context;
 

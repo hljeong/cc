@@ -34,6 +34,9 @@ check "whnf: identity is already in whnf"           '(\x.x)'                '(\x
 check "whnf: stops before reducing inside lambda"   '(\y.((\z.z) y))'       '(\x.\y.((\z.z) y))(\a.a)'        whnf
 check "nf: reduces inside lambda"                   '(\y.y)'                '(\x.\y.((\z.z) y))(\a.a)'        nf
 check "max-steps: limits reductions"                '((\y.(\a.a)) (\b.b))'  '(\x.\y.x)(\a.a)(\b.b)'           nf    1
+check "shadow: inner binding hides outer"           'b'                     '(\x.\x.x) a b'
+check "shadow: prevents free var capture"           'y'                     '(\x.\y.x) y b'
+
 
 echo ""
 echo "=== results: $passed passed, $failed failed ==="
