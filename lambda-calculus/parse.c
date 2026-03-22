@@ -227,14 +227,26 @@ static Node *atom(void) {
 static Node *fun(void) {
   const char *start = ctx.parser.tok->lexeme.loc;
   Node *node = new_node(NodeKind_FUN);
+
   parse_expect(TokenKind_BACKSLASH);
+
+  // set parent scope to current parser scope
   node->par = ctx.parser.scope;
+  // create a binding var node at parent scope
   node->var = var(/*lookup=*/ false);
+  // push current scope onto stack
   ctx.parser.scope = node;
+
   parse_expect(TokenKind_DOT);
   node->expr = expr();
+
+  // populate lexeme
   node->lexeme = sv(start, sv_end(node->expr->lexeme) - start);
+
+  // pop current scope off of stack
+  // (back to parent scope)
   ctx.parser.scope = node->par;
+
   return node;
 }
 
