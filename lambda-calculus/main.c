@@ -16,12 +16,8 @@ int main(int argc, char **argv) {
 
   ctx.src = argv[1];
   ctx.src_len = strlen(ctx.src);
-
-  bool whnf = false;
-  if (argc >= 3) whnf = !strcmp(argv[2], "whnf");
-
-  int max_steps = 10;
-  if (argc >= 4) max_steps = atoi(argv[3]);
+  bool whnf = (argc >= 3) ? !strcmp(argv[2], "whnf") : false;
+  int max_steps = (argc >= 4) ? atoi(argv[3]) : 10;
 
   debugf("src: %s\n", ctx.lexer.loc = ctx.src);
 
@@ -31,16 +27,11 @@ int main(int argc, char **argv) {
   debug_ast(ast);
   debug_unparse(ast);
 
-  Node *nxt;
-  int steps = 0;
-  while (ast != (nxt = step(ast, whnf))) {
-    debugf("%d: ", ++steps);
+  for (int steps = 1; steps <= max_steps; steps++) {
+    Node *nxt = step(ast, whnf);
+    if (ast == nxt) break;
+    debugf("%d: ", steps);
     debug_unparse(ast = nxt);
-
-    if (steps >= max_steps) {
-      debugf("max reductions reached, halting\n");
-      break;
-    }
   }
 
   print_unparse(ast);

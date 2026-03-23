@@ -24,7 +24,7 @@ static void _debug_ast(const Node *node, const char *prefix, const bool last) {
     debugf("%s%sfun\n", prefix, branch);
     // debugf_at_node(node, "fun");
     _debug_ast(node->var, child_prefix, false);
-    if (node->expr) _debug_ast(node->expr, child_prefix, true);
+    if (node->body) _debug_ast(node->body, child_prefix, true);
     else debugf("%s  └─...\n", prefix);
   }
 
@@ -32,7 +32,7 @@ static void _debug_ast(const Node *node, const char *prefix, const bool last) {
     debugf("%s%sapp\n", prefix, branch);
     // debugf_at_node(node, "app");
     _debug_ast(node->fun, child_prefix, false);
-    _debug_ast(node->val, child_prefix, true);
+    _debug_ast(node->arg, child_prefix, true);
   }
 
   else failf("%s", node_kind_to_str(node->kind));
@@ -69,7 +69,7 @@ static void _debug_unparse(const Node *node) {
     debugf("(\\");
     _debug_unparse(node->var);
     debugf(".");
-    _debug_unparse(node->expr);
+    _debug_unparse(node->body);
     debugf(")");
   }
 
@@ -77,7 +77,7 @@ static void _debug_unparse(const Node *node) {
     debugf("(");
     _debug_unparse(node->fun);
     debugf(" ");
-    _debug_unparse(node->val);
+    _debug_unparse(node->arg);
     debugf(")");
   }
 
@@ -98,7 +98,7 @@ static void _print_unparse(const Node *node) {
     printf("(\\");
     _print_unparse(node->var);
     printf(".");
-    _print_unparse(node->expr);
+    _print_unparse(node->body);
     printf(")");
   }
 
@@ -106,7 +106,7 @@ static void _print_unparse(const Node *node) {
     printf("(");
     _print_unparse(node->fun);
     printf(" ");
-    _print_unparse(node->val);
+    _print_unparse(node->arg);
     printf(")");
   }
 
@@ -156,40 +156,40 @@ static Node *get_var(const StringView name) {
   return scope->var;
 }
 
-Node *new_fun(Node *var, Node *expr) {
+Node *new_fun(Node *var, Node *body) {
   Node *node = new_node(NodeKind_FUN);
   node->var = var;
-  node->expr = expr;
+  node->body = body;
   return node;
 }
 
-Node *new_app(Node *fun, Node *val) {
+Node *new_app(Node *fun, Node *arg) {
   Node *node = new_node(NodeKind_APP);
   node->fun = fun;
-  node->val = val;
+  node->arg = arg;
   return node;
 }
 
-static int parse_match_pred(bool (*pred)(const TokenKind)) {
+static int match_pred(bool (*pred)(const TokenKind)) {
   return pred(ctx.parser.tok->kind);
 }
 
-static int parse_match(const TokenKind kind) {
+static int match(const TokenKind kind) {
   return ctx.parser.tok->kind == kind;
 }
 
-static const Token *parse_advance() {
+static const Token *advance() {
   const Token *tok = ctx.parser.tok;
   ctx.parser.tok = ctx.parser.tok->next;
   return tok;
 }
 
-static const Token *parse_consume(const TokenKind kind) {
-  return parse_match(kind) ? parse_advance() : NULL;
+static const Token *consume(const TokenKind kind) {
+  return match(kind) ? advance() : NULL;
 }
 
-static const Token *parse_expect(const TokenKind kind) {
-  const Token *tok = parse_consume(kind);
+static const Token *expect(const TokenKind kind) {
+  const Token *tok = consume(kind);
   if (!tok) errorf_tok("expected %s, got: %s",
                        token_kind_to_str(kind),
                        token_to_str(ctx.parser.tok));
@@ -205,10 +205,10 @@ static Node *var(const bool lookup);
 static Node *expr(void) {
   const char *start = ctx.parser.tok->lexeme.loc;
   Node *node = atom();
-  while (parse_match_pred(is_atom_first)) {
-    Node *val = atom();
-    node = new_app(node, val);
-    node->lexeme = sv(start, sv_end(node->val->lexeme) - start);
+  while (match_pred(is_atom_first)) {
+    Node *arg = atom();
+    node = new_app(node, arg);
+    node->lexeme = sv(start, sv_end(node->arg->lexeme) - start);
   }
   return node;
 }
@@ -216,15 +216,15 @@ static Node *expr(void) {
 // atom ::= "(" expr ")" | fun | var
 static Node *atom(void) {
   const char *start = ctx.parser.tok->lexeme.loc;
-  if (parse_consume(TokenKind_LPAREN)) {
+  if (consume(TokenKind_LPAREN)) {
     Node *node = expr();
-    node->lexeme = sv(start, sv_end(parse_expect(TokenKind_RPAREN)->lexeme) - start);
+    node->lexeme = sv(start, sv_end(expect(TokenKind_RPAREN)->lexeme) - start);
     return node;
   }
-  else if (parse_match(TokenKind_BACKSLASH)) return fun();
-  else if (parse_match(TokenKind_IDENT))     return var(/*lookup=*/ true);
-  else                                       errorf_tok("expected expression, got %s",
-                                                        token_to_str(ctx.parser.tok));
+  else if (match(TokenKind_BACKSLASH)) return fun();
+  else if (match(TokenKind_IDENT))     return var(/*lookup=*/ true);
+  else                                 errorf_tok("expected expression, got %s",
+                                                  token_to_str(ctx.parser.tok));
 }
 
 // fun ::= "\" var "." expr
@@ -232,7 +232,7 @@ static Node *fun(void) {
   const char *start = ctx.parser.tok->lexeme.loc;
   Node *node = new_node(NodeKind_FUN);
 
-  parse_expect(TokenKind_BACKSLASH);
+  expect(TokenKind_BACKSLASH);
 
   // set parent scope to current parser scope
   node->par = ctx.parser.scope;
@@ -241,11 +241,11 @@ static Node *fun(void) {
   // push current scope onto stack
   ctx.parser.scope = node;
 
-  parse_expect(TokenKind_DOT);
-  node->expr = expr();
+  expect(TokenKind_DOT);
+  node->body = expr();
 
   // populate lexeme
-  node->lexeme = sv(start, sv_end(node->expr->lexeme) - start);
+  node->lexeme = sv(start, sv_end(node->body->lexeme) - start);
 
   // pop current scope off of stack
   // (back to parent scope)
@@ -256,7 +256,7 @@ static Node *fun(void) {
 
 // var ::= ident
 static Node *var(const bool lookup) {
-  const StringView lexeme = parse_expect(TokenKind_IDENT)->lexeme;
+  const StringView lexeme = expect(TokenKind_IDENT)->lexeme;
   if (lookup) return get_var(lexeme);        // get a reference var node to an existing
                                              // bound or free var node. if the variable
                                              // does not exist, create a binding var node
@@ -367,12 +367,12 @@ static void warn_shadows(const Node *node) {
       }
     }
 
-    warn_shadows(node->expr);
+    warn_shadows(node->body);
   }
 
   else if (node->kind == NodeKind_APP) {
     warn_shadows(node->fun);
-    warn_shadows(node->val);
+    warn_shadows(node->arg);
   }
 
   else failf("%s", node_kind_to_str(node->kind));
@@ -390,7 +390,7 @@ Node *parse(void) {
   dummy_scope.var = new_var(dummy_scope.lexeme, NULL);
   ctx.parser.scope = &dummy_scope;
   Node *node = expr();
-  if (!parse_match(TokenKind_EOF))
+  if (!match(TokenKind_EOF))
     errorf_tok("extra token");
   warn_shadows(node);
   return node;

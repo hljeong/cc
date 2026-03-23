@@ -141,7 +141,7 @@ struct Node {
                                              // and the latter two will be referred to as "reference var nodes"
                                              // or "references"
 
-    struct { Node *par, *var, *expr; };      // NodeKind_FUN
+    struct { Node *par, *var, *body; };      // NodeKind_FUN
                                              // this node represents scope in addition to storing
                                              // ast structure. `par` points to the semantic parent scope
                                              // of the function this node represents. if this node
@@ -175,14 +175,14 @@ struct Node {
                                              // this way we are effectively operating on
                                              // `\z.\w.((\x.\y.w z) z (\x.z)), with no free variables
 
-    struct { Node *fun, *val; };             // NodeKind_APP - application node
+    struct { Node *fun, *arg; };             // NodeKind_APP - application node
   };
   StringView lexeme;
 };
 
-Node *new_fun(Node *var, Node *expr);
+Node *new_fun(Node *var, Node *body);
 
-Node *new_app(Node *fun, Node *val);
+Node *new_app(Node *fun, Node *arg);
 
 // print abstract syntax tree to debug
 void debug_ast(const Node *node);
