@@ -78,14 +78,14 @@ static int consume(const char *s) {
   } else return 0;
 }
 
-// lex_consume_ch(ch), except fail if unsuccesful
+// consume_ch(ch), except fail if unsuccesful
 static int expect_ch(const char ch) {
   const int len = consume_ch(ch);
   if (!len) errorf_loc("expected '%c'", ch);
   return len;
 }
 
-// lex_consume(s), except fail if unsuccesful
+// consume(s), except fail if unsuccesful
 static int expect(const char *s) {
   const int len = consume(s);
   if (!len) errorf_loc("expected \"%s\"");

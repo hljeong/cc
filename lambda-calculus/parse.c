@@ -170,11 +170,17 @@ Node *new_app(Node *fun, Node *arg) {
   return node;
 }
 
-static int match_pred(bool (*pred)(const TokenKind)) {
+// helper semantics:
+// - match():    check whether the next token satifies some condition
+// - advance():  return the next token and advance the cursor
+// - consume():  advance() if the next token match()'s, otherwise return NULL
+// - expect():   consume() and assert that the token has been consumed
+
+static bool match_pred(bool (*pred)(const TokenKind)) {
   return pred(ctx.parser.tok->kind);
 }
 
-static int match(const TokenKind kind) {
+static bool match(const TokenKind kind) {
   return ctx.parser.tok->kind == kind;
 }
 
@@ -199,15 +205,14 @@ static const Token *expect(const TokenKind kind) {
 static Node *expr(void);
 static Node *atom(void);
 static Node *fun(void);
-static Node *var(const bool lookup);
+static Node *var(const bool binding);
 
 // expr ::= expr atom | atom
 static Node *expr(void) {
   const char *start = ctx.parser.tok->lexeme.loc;
   Node *node = atom();
   while (match_pred(is_atom_first)) {
-    Node *arg = atom();
-    node = new_app(node, arg);
+    node = new_app(node, atom());
     node->lexeme = sv(start, sv_end(node->arg->lexeme) - start);
   }
   return node;

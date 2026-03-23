@@ -38,20 +38,28 @@ static int is_ident_rest(int c) {
   return isalnum(c) || (c == '_');
 }
 
-static int lex_consume_pred(int (*pred)(int)) {
+// helper semantics: consume...() attempts to
+// match some expected pattern of characters,
+// advance the cursor by the number of characters
+// matched, and return that number. if it fails
+// to match, 0 is returned
+
+// consume as many characters `ch` as possible where
+// `pred(ch)` returns true
+static int consume_pred(int (*pred)(int)) {
   if (pred('\0')) fail("predicate accepts eof");
   const char *start = ctx.lexer.loc;
   while (pred(*ctx.lexer.loc)) ctx.lexer.loc++;
   return ctx.lexer.loc - start;
 }
 
-static int lex_consume_ident() {
+static int consume_ident() {
   int len = 0;
-  if (!(len = lex_consume_pred(is_ident_first))) return 0;
-  return (len += lex_consume_pred(is_ident_rest));
+  if (!(len = consume_pred(is_ident_first))) return 0;
+  return (len += consume_pred(is_ident_rest));
 }
 
-static int lex_consume_ch(const char c) {
+static int consume_ch(const char c) {
   if (*ctx.lexer.loc == c) {
     ctx.lexer.loc++; return 1;
   }
@@ -72,13 +80,13 @@ Token *lex() {
   int len = 0;
   char ch = '\0';
   while ((ch = *ctx.lexer.loc)) {
-    if      ((len = lex_consume_pred(isspace))) ;  // skip whitespace
-    else if ((len = lex_consume_ident()))       cur = (cur->next = new_token(TokenKind_IDENT, len));
-    else if ((len = lex_consume_ch('\\')))      cur = (cur->next = new_token(TokenKind_BACKSLASH, len));
-    else if ((len = lex_consume_ch('.')))       cur = (cur->next = new_token(TokenKind_DOT,       len));
-    else if ((len = lex_consume_ch('(')))       cur = (cur->next = new_token(TokenKind_LPAREN,    len));
-    else if ((len = lex_consume_ch(')')))       cur = (cur->next = new_token(TokenKind_RPAREN,    len));
-    else                                        errorf_loc("invalid token");
+    if      ((len = consume_pred(isspace))) ;  // skip whitespace
+    else if ((len = consume_ident()))       cur = (cur->next = new_token(TokenKind_IDENT, len));
+    else if ((len = consume_ch('\\')))      cur = (cur->next = new_token(TokenKind_BACKSLASH, len));
+    else if ((len = consume_ch('.')))       cur = (cur->next = new_token(TokenKind_DOT,       len));
+    else if ((len = consume_ch('(')))       cur = (cur->next = new_token(TokenKind_LPAREN,    len));
+    else if ((len = consume_ch(')')))       cur = (cur->next = new_token(TokenKind_RPAREN,    len));
+    else                                    errorf_loc("invalid token");
   }
 
   cur = (cur->next = new_token(TokenKind_EOF, 0));
