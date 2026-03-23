@@ -32,7 +32,9 @@ check "simple beta reduction 2"                     '(\b.b)'                '(\x
 check "nested function application"                 '(\a.a)'                '(\x.\y.x)((\z.z)(\a.a))(\b.b)'
 check "whnf: identity is already in whnf"           '(\x.x)'                '(\x.x)'                          whnf
 check "whnf: stops before reducing inside lambda"   '(\y.((\z.z) y))'       '(\x.\y.((\z.z) y))(\a.a)'        whnf
+check "whnf: stops reducing at application"         '(y ((\x.x) y))'        '(\x.y x)((\x.x) y)'              whnf
 check "nf: reduces inside lambda"                   '(\y.y)'                '(\x.\y.((\z.z) y))(\a.a)'        nf
+check "nf: reduces inside value"                    '(y y)'                 '((\x.x) y)((\x.x) y)'            nf
 check "max-steps: limits reductions"                '((\y.(\a.a)) (\b.b))'  '(\x.\y.x)(\a.a)(\b.b)'           nf    1
 check "shadow: inner binding hides outer"           'b'                     '(\x.\x.x) a b'
 check "shadow: prevents free var capture"           'y'                     '(\x.\y.x) y b'

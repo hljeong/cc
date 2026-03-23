@@ -86,10 +86,17 @@ Node *step(Node *node, bool whnf) {
     // `\y.y` since `x` is not used in the function body of `(\x.\y.y)`
     if (node->fun->kind == NodeKind_FUN) return beta(node);
 
+    // weak head normal form does not reduce applications whose
+    // lhs is not a function
+    if (whnf) return node;
+
     Node *fun = step(node->fun, whnf);
     // if beta-reduction occurs in the child node,
     // a new node must be created
     if (fun != node->fun) return new_app(fun, node->val);
+
+    Node *val = step(node->val, whnf);
+    if (val != node->val) return new_app(node->fun, val);
 
     return node;
   }
