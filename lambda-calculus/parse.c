@@ -222,7 +222,7 @@ static Node *atom(void) {
     return node;
   }
   else if (match(TokenKind_BACKSLASH)) return fun();
-  else if (match(TokenKind_IDENT))     return var(/*lookup=*/ true);
+  else if (match(TokenKind_IDENT))     return var(/*binding=*/ false);
   else                                 errorf_tok("expected expression, got %s",
                                                   token_to_str(ctx.parser.tok));
 }
@@ -237,7 +237,7 @@ static Node *fun(void) {
   // set parent scope to current parser scope
   node->par = ctx.parser.scope;
   // create a binding var node at parent scope
-  node->var = var(/*lookup=*/ false);
+  node->var = var(/*binding=*/ true);
   // push current scope onto stack
   ctx.parser.scope = node;
 
@@ -255,14 +255,13 @@ static Node *fun(void) {
 }
 
 // var ::= ident
-static Node *var(const bool lookup) {
-  const StringView lexeme = expect(TokenKind_IDENT)->lexeme;
-  if (lookup) return get_var(lexeme);        // get a reference var node to an existing
-                                             // bound or free var node. if the variable
-                                             // does not exist, create a binding var node
-                                             // for the free variable
-
-  else        return new_var(lexeme, NULL);  // create a binding var node
+static Node *var(const bool binding) {
+  const StringView name = expect(TokenKind_IDENT)->lexeme;
+  if (binding) return new_var(name, NULL); // create a binding var node
+  else         return get_var(name);       // get a reference var node to an existing
+                                           // bound or free var node. if the variable
+                                           // does not exist, create a binding var node
+                                           // for the free variable
 }
 
 static void debug_shadow(const StringView shadower,

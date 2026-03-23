@@ -19,8 +19,7 @@ Node *sub(Node *node, Node *var, Node *subval) {
     // binds the variable so pointer equality is used,
     // effectively using the pointer value as a handle
     // of some kind
-    return node->ref == var ? subval
-                            : node;
+    return node->ref == var ? subval : node;
   }
 
   else if (node->kind == NodeKind_FUN) {
