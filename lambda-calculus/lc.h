@@ -199,9 +199,13 @@ Node *parse();
 
 // reduction
 
-// perform one step of beta-reduction towards:
-// - weak head normal form if `whnf` is true, and
-// - normal form otherwise
+typedef enum {
+  NormalForm_WEAK_HEAD,
+  NormalForm_BETA,
+  NormalForm_BETA_ETA,
+} NormalForm;
+
+// perform one step of reduction towards `nf`
 //
 // a new node is created for each reduction. the
 // original `node` is returned if no reduction
@@ -223,8 +227,8 @@ Node *parse();
 //            └─ var(x)                └─ var(x)                 └─ var(x)
 //
 // note that since in each step the top `app` node performs
-// a beta-reduction, a new `app` node is created
-Node *step(Node *node, bool whnf);
+// a reduction, a new `app` node is created
+Node *step(Node *node, const NormalForm nf);
 
 
 // global context

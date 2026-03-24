@@ -10,7 +10,7 @@
 // `node` as is
 //
 // note that `node`, `var`, and `subval` must not overlap
-Node *sub(Node *node, Node *var, Node *subval) {
+static Node *sub(Node *node, Node *var, Node *subval) {
   if (var->kind != NodeKind_VAR)
     failf("bad invocation: sub(*, %s, *)", node_kind_to_str(var->kind));
 
@@ -46,7 +46,7 @@ Node *sub(Node *node, Node *var, Node *subval) {
 
 // perform beta-reduction on the given application node
 // return `node` as is if there is nothing to be done
-Node *beta(Node *node) {
+static Node *beta(Node *node) {
   if (node->kind != NodeKind_APP)
     failf("bad invocation: beta(%s)", node_kind_to_str(node->kind));
   if (node->fun->kind != NodeKind_FUN)
@@ -55,14 +55,39 @@ Node *beta(Node *node) {
   return sub(node->fun->body, node->fun->var, node->arg);
 }
 
-Node *step(Node *node, bool whnf) {
+// return `var` occurs free in `node`
+static bool is_free(Node *var, Node *node) {
+  if (var->kind != NodeKind_VAR)
+    failf("bad invocation: is_free(%s, *)", node_kind_to_str(var->kind));
+
+  if      (node->kind == NodeKind_VAR) return node->ref == var;
+  else if (node->kind == NodeKind_FUN) return is_free(var, node->body);
+  else if (node->kind == NodeKind_APP) return is_free(var, node->fun) || is_free(var, node->arg);
+  else                                 failf("%s", node_kind_to_str(node->kind));
+}
+
+// a lambda term is eta-reducible if it's in the form of
+// (\x.f x) where `x` is not a free variable in `f`. this
+// can be reduced to simply `f`
+static bool eta_reducible(Node *node) {
+    return node->kind == NodeKind_FUN &&
+           node->body->kind == NodeKind_APP &&
+           node->body->arg->kind == NodeKind_VAR &&
+           node->body->arg->ref == node->var &&
+           !is_free(node->var, node->body->fun);
+}
+
+Node *step(Node *node, const NormalForm nf) {
   if (node->kind == NodeKind_VAR) return node;
 
   else if (node->kind == NodeKind_FUN) {
     // weak head normal form does not reduce inside lambdas
-    if (whnf) return node;
+    if (nf == NormalForm_WEAK_HEAD) return node;
 
-    Node *body = step(node->body, false);
+    if ((nf == NormalForm_BETA_ETA) && eta_reducible(node))
+      return node->body->fun;
+
+    Node *body = step(node->body, nf);
     // if beta-reduction occurs in the child node,
     // a new node must be created
     if (body != node->body) return new_fun(node->var, body);
@@ -86,14 +111,14 @@ Node *step(Node *node, bool whnf) {
 
     // weak head normal form does not reduce applications whose
     // lhs is not a function
-    if (whnf) return node;
+    if (nf == NormalForm_WEAK_HEAD) return node;
 
-    Node *fun = step(node->fun, false);
+    Node *fun = step(node->fun, nf);
     // if beta-reduction occurs in the child node,
     // a new node must be created
     if (fun != node->fun) return new_app(fun, node->arg);
 
-    Node *arg = step(node->arg, false);
+    Node *arg = step(node->arg, nf);
     if (arg != node->arg) return new_app(node->fun, arg);
 
     return node;

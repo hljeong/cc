@@ -35,6 +35,10 @@ check "whnf: stops before reducing inside lambda"   '(\y.((\z.z) y))'       '(\x
 check "whnf: stops reducing at application"         '(y ((\x.x) y))'        '(\x.y x)((\x.x) y)'              whnf
 check "nf: reduces inside lambda"                   '(\y.y)'                '(\x.\y.((\z.z) y))(\a.a)'        nf
 check "nf: reduces inside value"                    '(y y)'                 '((\x.x) y)((\x.x) y)'            nf
+check "nf: does not eta-reduce"                     '(\x.(g x))'            '(\f.(\x.g (f x)))(\y.y)'         nf
+check "benf"                                        'g'                     '(\f.\x.(f x)) g'                 benf
+check "benf: beta-eta combo"                        'g'                     '(\f.(\x.g (f x)))(\y.y)'         benf
+check "benf: does not faux reduce"                  '(\x.(x x))'            '(\x.x x)'                        benf
 check "max-steps: limits reductions"                '((\y.(\a.a)) (\b.b))'  '(\x.\y.x)(\a.a)(\b.b)'           nf    1
 check "shadow: inner binding hides outer"           'b'                     '(\x.\x.x) a b'
 check "shadow: prevents free var capture"           'y'                     '(\x.\y.x) y b'
