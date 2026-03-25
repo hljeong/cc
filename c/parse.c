@@ -172,6 +172,8 @@ static Node *new_list(const NodeKind kind, Node *head) {
 
 // These cannot be `const` due to the intrusive linked list
 static Node *prog();
+static Node *decl();
+static Node *block();
 static Node *stmt();
 static Node *expr();
 static Node *assign();
@@ -182,8 +184,20 @@ static Node *mul();
 static Node *unary();
 static Node *primary();
 
-// prog ::= stmt*
+// todo: temp
+// prog ::= decl
 static Node *prog() {
+  return decl();
+}
+
+// todo: temp
+// decl ::= block
+static Node *decl() {
+  return block();
+}
+
+// block ::= stmt*
+static Node *block() {
   Node head = {};
   Node *cur = &head;
   while (!match(TokenKind_EOF)) {
@@ -280,8 +294,6 @@ static Node *primary() {
   else if ((tok = consume(TokenKind_NUM)))   return new_num(tok->num);
   else                                       errorf_tok("expected expression");
 }
-
-// todo: new_binop() -> binop(), etc.
 
 Node *parse() {
   Node *node = prog();

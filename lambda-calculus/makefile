@@ -9,13 +9,13 @@ BIN = lc
 all: $(BIN)
 
 $(BIN): $(OBJS)
-	@$(CC) $(CFLAGS) -o $@ $^
+	@ $(CC) $(CFLAGS) -o $@ $^
 
 %.o: %.c lc.h
-	@$(CC) $(CFLAGS) -c -o $@ $<
+	@ $(CC) $(CFLAGS) -c -o $@ $<
 
 clean:
-	@rm -f $(OBJS) $(BIN)
+	@ rm -f $(OBJS) $(BIN)
 
 test: $(BIN)
-	@./test.sh
+	@ ./test.sh

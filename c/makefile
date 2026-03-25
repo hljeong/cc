@@ -16,3 +16,6 @@ $(BIN): $(OBJS)
 
 clean:
 	@ rm -f $(OBJS) a.S a.out cc
+
+test: $(BIN)
+	@ ./test.sh

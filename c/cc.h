@@ -126,6 +126,8 @@ typedef enum {
   NodeKind_LEQ,
   NodeKind_ASSIGN,
   NodeKind_EXPR,
+  NodeKind_BLOCK,
+  NodeKind_DECL,  // todo
   NodeKind_PROG,
 } NodeKind;
 

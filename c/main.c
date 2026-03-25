@@ -10,11 +10,14 @@ int main(int argc, char **argv) {
   ctx.src = argv[1];
   ctx.src_len = strlen(ctx.src);
 
-  debugf("src: %s\n", ctx.lexer.loc = ctx.src);
+  ctx.lexer.loc = ctx.src;
+  // debugf("src: %s\n", ctx.lexer.loc);
 
-  debug_token_stream(ctx.parser.tok = lex());
+  ctx.parser.tok = lex();
+  // debug_token_stream(ctx.parser.tok);
 
-  debug_ast(ctx.codegen.node = parse());
+  ctx.codegen.node = parse();
+  // debug_ast(ctx.codegen.node);
 
   codegen();
 

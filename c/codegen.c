@@ -1,6 +1,6 @@
 #include "cc.h"
 
-// todo: coments
+// todo: comments
 
 static void addr(const Node *node) {
   if (node->kind == NodeKind_VAR) {
