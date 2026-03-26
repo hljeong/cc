@@ -67,6 +67,7 @@ echo "--- variables ---"
 check 'assign and read' '5' 'a=5;a;'
 check 'assign two vars' '10' 'a=5;b=10;b;'
 check 'chain assign' '10' 'a=b=10;a;'
+check 'long variable name' '10' 'abc=bcd=10;abc;'
 
 echo "--- parentheses ---"
 check 'grouped add' '9' '(1+2)*3;'

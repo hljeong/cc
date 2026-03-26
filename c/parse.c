@@ -4,22 +4,23 @@
 #include <string.h>
 
 const char *node_kind_to_str(const NodeKind kind) {
-  if      (kind == NodeKind_NUM)    return "num";
-  else if (kind == NodeKind_VAR)    return "var";
-  else if (kind == NodeKind_ADD)    return "+";
-  else if (kind == NodeKind_SUB)    return "-";
-  else if (kind == NodeKind_MUL)    return "*";
-  else if (kind == NodeKind_DIV)    return "/";
-  else if (kind == NodeKind_NEG)    return "-";
-  else if (kind == NodeKind_EQ)     return "==";
-  else if (kind == NodeKind_NEQ)    return "!=";
-  else if (kind == NodeKind_LT)     return "<";
-  else if (kind == NodeKind_LEQ)    return "<=";
-  else if (kind == NodeKind_ASSIGN) return "assign";
-  else if (kind == NodeKind_EXPR)   return "expr";
-  else if (kind == NodeKind_PROG)   return "prog";
-  else                              failf("not implemented: %u",
-                                          (uint32_t) kind);
+  if      (kind == NodeKind_NUM)      return "num";
+  else if (kind == NodeKind_VAR)      return "var";
+  else if (kind == NodeKind_ADD)      return "+";
+  else if (kind == NodeKind_SUB)      return "-";
+  else if (kind == NodeKind_MUL)      return "*";
+  else if (kind == NodeKind_DIV)      return "/";
+  else if (kind == NodeKind_NEG)      return "-";
+  else if (kind == NodeKind_EQ)       return "==";
+  else if (kind == NodeKind_NEQ)      return "!=";
+  else if (kind == NodeKind_LT)       return "<";
+  else if (kind == NodeKind_LEQ)      return "<=";
+  else if (kind == NodeKind_ASSIGN)   return "assign";
+  else if (kind == NodeKind_EXPR)     return "expr";
+  else if (kind == NodeKind_BLOCK)    return "block";
+  else if (kind == NodeKind_FUN_DECL) return "fun_decl";
+  else if (kind == NodeKind_PROG)     return "prog";
+  else                                failf("%u", (uint32_t) kind);
 }
 
 static void _debug_ast(const Node *node, const char *prefix, const bool last) {
@@ -94,7 +95,7 @@ bool node_kind_is_binop(const NodeKind kind) {
 }
 
 bool node_kind_is_list(const NodeKind kind) {
-  return (kind == NodeKind_PROG);
+  return (kind == NodeKind_BLOCK);
 }
 
 static bool match(const TokenKind kind) {
@@ -172,7 +173,7 @@ static Node *new_list(const NodeKind kind, Node *head) {
 
 // These cannot be `const` due to the intrusive linked list
 static Node *prog();
-static Node *decl();
+static Node *fun_decl();
 static Node *block();
 static Node *stmt();
 static Node *expr();
@@ -185,15 +186,17 @@ static Node *unary();
 static Node *primary();
 
 // todo: temp
-// prog ::= decl
+// prog ::= fun_decl
 static Node *prog() {
-  return decl();
+  return fun_decl();
 }
 
 // todo: temp
 // decl ::= block
-static Node *decl() {
-  return block();
+static Node *fun_decl() {
+  Node *node = new_node(NodeKind_FUN_DECL);
+  node->body = block();
+  return node;
 }
 
 // block ::= stmt*
@@ -203,7 +206,7 @@ static Node *block() {
   while (!match(TokenKind_EOF)) {
     cur = (cur->next = stmt());
   }
-  return new_list(NodeKind_PROG, head.next);
+  return new_list(NodeKind_BLOCK, head.next);
 }
 
 // stmt ::= expr ";"

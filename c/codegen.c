@@ -4,8 +4,9 @@
 
 static void addr(const Node *node) {
   if (node->kind == NodeKind_VAR) {
-    const int offset = (*node->name.loc - 'a' + 1) * 8;
-    printf("  lea   %d(%%rbp), %%rax\n", -offset);
+    int offset = -8;
+    for (Var *var = ctx.analyzer.locals.next; !sv_eq(var->name, node->name); (offset -= 8), (var = var->next));
+    printf("  lea   %d(%%rbp), %%rax\n", offset);
     return;
   }
 
@@ -26,9 +27,9 @@ static void pop(const char *arg) {
 static void stmt(const Node *node);
 static void expr(const Node *node);
 
-static void prog(const Node *node) {
-  assertf(node->kind == NodeKind_PROG,
-          "bad invocation: prog(%s)",
+static void fun_decl(const Node *node) {
+  assertf(node->kind == NodeKind_FUN_DECL,
+          "bad invocation: fun_decl(%s)",
           node_kind_to_str(node->kind));
 
   printf("  .globl main\n");
@@ -36,10 +37,13 @@ static void prog(const Node *node) {
 
   printf("  push  %%rbp\n");
   printf("  mov   %%rsp, %%rbp\n");
-  // allocate 26 * 8 bytes for 26 possible single-character variables
-  printf("  sub   $208,  %%rsp\n");
 
-  Node *cur = node->head;
+  int n_locals = 0;
+  for (Var *local = ctx.analyzer.locals.next; local; n_locals++, local = local->next);
+
+  printf("  sub   $%d,  %%rsp\n", n_locals * 8);
+
+  Node *cur = node->body->head;
   while (cur) {
     stmt(cur);
     cur = cur->next;
@@ -124,5 +128,5 @@ static void expr(const Node *node) {
 }
 
 void codegen() {
-  prog(ctx.codegen.node);
+  fun_decl(ctx.ast);
 }

@@ -16,8 +16,10 @@ int main(int argc, char **argv) {
   ctx.parser.tok = lex();
   // debug_token_stream(ctx.parser.tok);
 
-  ctx.codegen.node = parse();
-  // debug_ast(ctx.codegen.node);
+  ctx.ast = parse();
+  // debug_ast(ctx.ast);
+
+  analyze();
 
   codegen();
 

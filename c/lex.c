@@ -53,6 +53,27 @@ void debug_token_stream(const Token *tok) {
     debugf("\n");
 }
 
+static int is_ident_first(int c) {
+  return isalpha(c) || (c == '_');
+}
+
+static int is_ident_rest(int c) {
+  return isalnum(c) || (c == '_');
+}
+
+static int consume_pred(int (*pred)(int)) {
+  assertm(!pred('\0'), "predicate accepts eof");
+  const char *start = ctx.lexer.loc;
+  while (pred(*ctx.lexer.loc)) ctx.lexer.loc++;
+  return ctx.lexer.loc - start;
+}
+
+static int consume_ident() {
+  int len = 0;
+  if (!(len = consume_pred(is_ident_first))) return 0;
+  return (len += consume_pred(is_ident_rest));
+}
+
 // if current loc matches ch:
 // - return 1
 // - advance current loc by 1
@@ -106,7 +127,7 @@ Token *lex() {
   int len = 0;
   char ch = '\0';
   while ((ch = *ctx.lexer.loc)) {
-    if (isspace(ch)) ctx.lexer.loc++;
+    if (consume_pred(isspace)) ;  // skip whitespace
 
     else if (isdigit(ch)) {
       const char *start = ctx.lexer.loc;
@@ -117,9 +138,8 @@ Token *lex() {
       cur->num = num;
     }
 
-    else if ('a' <= ch && ch <= 'z') {
-      ctx.lexer.loc++;
-      cur = (cur->next = new_token(TokenKind_IDENT, 1));
+    else if ((len = consume_ident())) {
+      cur = (cur->next = new_token(TokenKind_IDENT, len));
       cur->ident = cur->lexeme;
     }
 

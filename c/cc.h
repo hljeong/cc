@@ -1,6 +1,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 
 // debug
@@ -58,6 +59,10 @@ typedef struct {
 
 StringView sv(const char *loc, const int len);
 
+static inline int sv_eq(const StringView s, const StringView t) {
+  return (s.len == t.len) && !strncmp(s.loc, t.loc, s.len);
+}
+
 #define sv_fmt "%.*s"
 #define sv_arg(sv) (sv).len, (sv).loc
 
@@ -95,6 +100,8 @@ struct Token {
   StringView lexeme;
 };
 
+void debugf_at_loc(const char *loc, const char *fmt, ...);
+
 // debug print at current loc
 void debugf_loc(const char *fmt, ...);
 
@@ -127,9 +134,15 @@ typedef enum {
   NodeKind_ASSIGN,
   NodeKind_EXPR,
   NodeKind_BLOCK,
-  NodeKind_DECL,  // todo
+  NodeKind_FUN_DECL,  // todo
   NodeKind_PROG,
 } NodeKind;
+
+typedef struct Var Var;
+struct Var {
+  StringView name;
+  Var *next;
+};
 
 typedef struct Node Node;
 struct Node {
@@ -141,9 +154,15 @@ struct Node {
     Node *operand;               // node_kind_id_unop()
     struct { Node *lhs, *rhs; }; // node_kind_is_binop()
     Node *head;                  // node_kind_is_list()
+    struct {                     // NodeKind_FUN_DECL
+      Node *body;
+      Var *locals;
+    };
   };
   Node *next;
 };
+
+void debugf_at_tok(const Token *tok, const char *fmt, ...);
 
 // debug log at current tok
 void debugf_tok(const char *fmt, ...);
@@ -166,9 +185,13 @@ bool node_kind_is_list(const NodeKind kind);
 Node *parse();
 
 
-// code generator
+// semantic analyzer
 
 // todo: debugf_node()
+
+void analyze();
+
+// code generator
 
 void codegen();
 
@@ -187,8 +210,13 @@ typedef struct {
     const Token *tok;
   } parser;
 
+  Node *ast;
+
   struct {
-    const Node *node;
+    Var locals;
+  } analyzer;
+
+  struct {
     int depth;
   } codegen;
 } Context;

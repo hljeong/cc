@@ -30,9 +30,19 @@ static void vdebugf_span(const StringView span, const char *fmt, va_list ap) {
   debugf(" "); vdebugf(fmt, ap); debugf("\n");
 }
 
+void debugf_at_loc(const char *loc, const char *fmt, ...) {
+  va_list ap; va_start(ap, fmt);
+  vdebugf_at(loc, fmt, ap);
+}
+
 void debugf_loc(const char *fmt, ...) {
   va_list ap; va_start(ap, fmt);
   vdebugf_at(ctx.lexer.loc, fmt, ap);
+}
+
+void debugf_at_tok(const Token *tok, const char *fmt, ...) {
+  va_list ap; va_start(ap, fmt);
+  vdebugf_span(tok->lexeme, fmt, ap);
 }
 
 void debugf_tok(const char *fmt, ...) {

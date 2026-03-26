@@ -1,7 +1,7 @@
 CC = gcc
 CFLAGS = -Wno-attributes -std=c11 -g
 BIN = cc
-SRCS = debug.c lex.c parse.c codegen.c main.c
+SRCS = analyze.c debug.c lex.c parse.c codegen.c main.c
 OBJS = $(SRCS:.c=.o)
 
 .PHONY: all clean
