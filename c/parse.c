@@ -6,23 +6,24 @@
 const bool debug_parse = false;
 
 const char *node_kind_to_str(const NodeKind kind) {
-  if      (kind == NodeKind_NUM)      return "num";
-  else if (kind == NodeKind_VAR)      return "var";
-  else if (kind == NodeKind_ADD)      return "+";
-  else if (kind == NodeKind_SUB)      return "-";
-  else if (kind == NodeKind_MUL)      return "*";
-  else if (kind == NodeKind_DIV)      return "/";
-  else if (kind == NodeKind_NEG)      return "-";
-  else if (kind == NodeKind_EQ)       return "==";
-  else if (kind == NodeKind_NEQ)      return "!=";
-  else if (kind == NodeKind_LT)       return "<";
-  else if (kind == NodeKind_LEQ)      return "<=";
-  else if (kind == NodeKind_ASSIGN)   return "assign";
-  else if (kind == NodeKind_EXPR)     return "expr";
-  else if (kind == NodeKind_BLOCK)    return "block";
-  else if (kind == NodeKind_FUN_DECL) return "fun_decl";
-  else if (kind == NodeKind_PROG)     return "prog";
-  else                                failf("%u", (uint32_t) kind);
+  if      (kind == NodeKind_NUM)       return "num";
+  else if (kind == NodeKind_VAR)       return "var";
+  else if (kind == NodeKind_ADD)       return "+";
+  else if (kind == NodeKind_SUB)       return "-";
+  else if (kind == NodeKind_MUL)       return "*";
+  else if (kind == NodeKind_DIV)       return "/";
+  else if (kind == NodeKind_NEG)       return "-";
+  else if (kind == NodeKind_EQ)        return "==";
+  else if (kind == NodeKind_NEQ)       return "!=";
+  else if (kind == NodeKind_LT)        return "<";
+  else if (kind == NodeKind_LEQ)       return "<=";
+  else if (kind == NodeKind_ASSIGN)    return "assign";
+  else if (kind == NodeKind_EXPR_STMT) return "expr-stmt";
+  else if (kind == NodeKind_RETURN)    return "return";
+  else if (kind == NodeKind_BLOCK)     return "block";
+  else if (kind == NodeKind_FUN_DECL)  return "fun_decl";
+  else if (kind == NodeKind_PROG)      return "prog";
+  else                                 failf("%u", (uint32_t) kind);
 }
 
 static void _debug_ast(const Node *node, const char *prefix, const bool last) {
@@ -38,13 +39,6 @@ static void _debug_ast(const Node *node, const char *prefix, const bool last) {
 
   else if (node->kind == NodeKind_VAR) {
     debugf("%s%snum("sv_fmt")\n", prefix, branch, sv_arg(node->name));
-  }
-
-  else if (node_kind_is_variant(node->kind)) {
-    // todo: this, except show variant after branch?
-    // _debug_ast(node->variant, prefix, last);
-    debugf("%s%s%s\n", prefix, branch, node_kind_to_str(node->kind));
-    _debug_ast(node->variant, child_prefix, true);
   }
 
   else if (node_kind_is_unop(node->kind)) {
@@ -76,12 +70,10 @@ void debug_ast(const Node *node) {
   _debug_ast(node, "", true);
 }
 
-bool node_kind_is_variant(const NodeKind kind) {
-  return (kind == NodeKind_EXPR);
-}
-
 bool node_kind_is_unop(const NodeKind kind) {
-  return (kind == NodeKind_NEG);
+  return (kind == NodeKind_NEG)       ||
+         (kind == NodeKind_EXPR_STMT) ||
+         (kind == NodeKind_RETURN);
 }
 
 bool node_kind_is_binop(const NodeKind kind) {
@@ -137,14 +129,6 @@ static Node *new_num(const int num) {
 static Node *new_var(const StringView name) {
   Node *node = new_node(NodeKind_VAR);
   node->name = name;
-  return node;
-}
-
-static Node *new_variant(const NodeKind kind, Node *variant) {
-  assertf(node_kind_is_variant(kind),
-          "bad invocation: new_variant(%s)", node_kind_to_str(kind));
-  Node *node = new_node(kind);
-  node->variant = variant;
   return node;
 }
 
@@ -260,11 +244,14 @@ static Node *block() {
   return pop_lexeme(new_list(NodeKind_BLOCK, head.next));
 }
 
-// stmt ::= expr ";"
+// stmt ::= "return" expr ";"
+//        | expr ";"
 static Node *stmt() {
   if (debug_parse) debugf_tok("parsing stmt");
   src_push();
-  Node *node = new_variant(NodeKind_EXPR, expr());
+  Node *node = NULL;
+  if (consume(TokenKind_RETURN)) node = new_unop(NodeKind_RETURN, expr());
+  else                           node = new_unop(NodeKind_EXPR_STMT, expr());
   expect(TokenKind_SEMICOLON);
   return pop_lexeme(node);
 }

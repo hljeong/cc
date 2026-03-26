@@ -22,10 +22,6 @@ static void visit(Node *node) {
     }
   }
 
-  else if (node_kind_is_variant(node->kind)) {
-    visit(node->variant);
-  }
-
   else if (node_kind_is_unop(node->kind)) {
     visit(node->operand);
   }

@@ -12,15 +12,29 @@ check() {
   expected="$1"
   shift
 
-  actual=$(gcc -x assembler -o a.out <($BIN "$@" 2>/dev/null) && ./a.out; echo $?)
-  if [ "$actual" = "$expected" ]; then
-    echo "pass: $desc"
-    passed=$((passed + 1))
-  else
+  compile=$($BIN "$@" >a.S 2>test.err; echo $?)
+  if [ "$compile" != "0" ]; then
     echo "fail: $desc"
-    echo "  expected: $expected"
-    echo "  actual:   $actual"
+    cat test.err
     failed=$((failed + 1))
+  else
+    assemble=$(gcc -x assembler -o a.out a.S 2>test.err; echo $?)
+    if [ "$assemble" != "0" ]; then
+      echo "fail: $desc"
+      cat test.err
+      failed=$((failed + 1))
+    else
+      actual=$(./a.out; echo $?)
+      if [ "$actual" = "$expected" ]; then
+        echo "pass: $desc"
+        passed=$((passed + 1))
+      else
+        echo "fail: $desc"
+        echo "  expected: $expected"
+        echo "  actual:   $actual"
+        failed=$((failed + 1))
+      fi
+    fi
   fi
 }
 
@@ -73,6 +87,11 @@ echo "--- parentheses ---"
 check 'grouped add' '9' '(1+2)*3;'
 check 'nested parens' '4' '(1+(2*3))-3;'
 check 'parens precedence' '7' '(1+2)*3-2;'
+
+echo "--- return ---"
+check 'return' '1' 'return 1;'
+check 'return early' '3' 'return 3; 2; 1;'
+check 'return not-so-early' '2' '1; return 2; 3;'
 
 echo ""
 echo "=== results: $passed passed, $failed failed ==="

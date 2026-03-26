@@ -49,6 +49,7 @@ static void fun_decl(const Node *node) {
     cur = cur->next;
   }
 
+  printf(".L.return:\n");
   printf("  mov   %%rbp, %%rsp\n");
   printf("  pop   %%rbp\n");
   printf("  ret\n");
@@ -56,10 +57,15 @@ static void fun_decl(const Node *node) {
 
 static void stmt(const Node *node) {
   switch (node->kind) {
-    case NodeKind_EXPR: { expr(node->variant); break; }
-    default:            assertf(node->kind == NodeKind_EXPR,
-                                "bad invocation: stmt(%s)",
-                                node_kind_to_str(node->kind));
+    case NodeKind_EXPR_STMT: { expr(node->operand); break; }
+
+    case NodeKind_RETURN: {
+      expr(node->operand);
+      printf("  jmp .L.return\n");
+      break;
+    }
+
+    default:                 failf("%s", node_kind_to_str(node->kind));
   }
   assert(ctx.codegen.depth == 0);
 }

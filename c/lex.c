@@ -25,6 +25,7 @@ const char *token_kind_to_str(const TokenKind kind) {
   else if (kind == TokenKind_LT)        return "<";
   else if (kind == TokenKind_GT)        return ">";
   else if (kind == TokenKind_SEMICOLON) return ";";
+  else if (kind == TokenKind_RETURN)    return "return";
   else if (kind == TokenKind_EOF)       return "eof";
   else                                  failf("not implemented: %u",
                                               (uint32_t) kind);
@@ -134,6 +135,8 @@ Token *lex() {
   char ch = '\0';
   while ((ch = *ctx.lexer.loc)) {
     if (consume_pred(isspace)) ;  // skip whitespace
+
+    else if ((len = consume("return"))) cur = link(cur, new_token(TokenKind_RETURN, len));
 
     else if (isdigit(ch)) {
       const char *start = ctx.lexer.loc;

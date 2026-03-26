@@ -83,6 +83,7 @@ typedef enum {
   TokenKind_LT,
   TokenKind_GT,
   TokenKind_SEMICOLON,
+  TokenKind_RETURN,
   TokenKind_EOF,
 } TokenKind;
 
@@ -133,7 +134,8 @@ typedef enum {
   NodeKind_LT,
   NodeKind_LEQ,
   NodeKind_ASSIGN,
-  NodeKind_EXPR,
+  NodeKind_EXPR_STMT,
+  NodeKind_RETURN,
   NodeKind_BLOCK,
   NodeKind_FUN_DECL,  // todo
   NodeKind_PROG,
@@ -151,7 +153,6 @@ struct Node {
   union {
     int num;                     // NodeKind_NUM
     StringView name;             // NodeKind_VAR
-    Node *variant;               // node_kind_is_variant()
     Node *operand;               // node_kind_id_unop()
     struct { Node *lhs, *rhs; }; // node_kind_is_binop()
     Node *head;                  // node_kind_is_list()
