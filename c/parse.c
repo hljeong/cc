@@ -3,6 +3,8 @@
 #include <stdint.h>
 #include <string.h>
 
+const bool debug_parse = false;
+
 const char *node_kind_to_str(const NodeKind kind) {
   if      (kind == NodeKind_NUM)      return "num";
   else if (kind == NodeKind_VAR)      return "var";
@@ -66,7 +68,7 @@ static void _debug_ast(const Node *node, const char *prefix, const bool last) {
   }
 
   else {
-    failf("not implemented: %s", node_kind_to_str(node->kind));
+    failf("%s", node_kind_to_str(node->kind));
   }
 }
 
@@ -185,80 +187,145 @@ static Node *mul();
 static Node *unary();
 static Node *primary();
 
+typedef struct SourceStack SourceStack;
+struct SourceStack {
+  const char *loc;
+  SourceStack *last;
+};
+
+static SourceStack *src_stack = NULL;
+
+static void src_push() {
+  SourceStack *new_src_stack = calloc(1, sizeof(SourceStack));
+  new_src_stack->loc = ctx.parser.tok->lexeme.loc;
+  new_src_stack->last = src_stack;
+  src_stack = new_src_stack;
+}
+
+static StringView src_peek() {
+  assertm(src_stack, "empty src stack");
+  assertf(ctx.parser.tok->prev, "no tokens consumed before %s", token_to_str(ctx.parser.tok));
+  const StringView last = ctx.parser.tok->prev->lexeme;
+  const char *start = src_stack->loc;
+  return (StringView) {
+    .loc = start,
+    .len = last.loc + last.len - start,
+  };
+}
+
+static void src_pop() {
+  assertm(src_stack, "empty src stack");
+  SourceStack *last_src_stack = src_stack->last;
+  free(src_stack);
+  src_stack = last_src_stack;
+}
+
+static Node *pop_lexeme(Node *node) {
+  node->lexeme = src_peek();
+  src_pop();
+  return node;
+}
+
+static Node *add_lexeme(Node *node) {
+  node->lexeme = src_peek();
+  return node;
+}
+
 // todo: temp
 // prog ::= fun_decl
 static Node *prog() {
+  if (debug_parse) debugf_tok("parsing prog");
   return fun_decl();
 }
 
 // todo: temp
 // decl ::= block
 static Node *fun_decl() {
+  if (debug_parse) debugf_tok("parsing fun_decl");
+  src_push();
   Node *node = new_node(NodeKind_FUN_DECL);
   node->body = block();
-  return node;
+  return pop_lexeme(node);
 }
 
 // block ::= stmt*
 static Node *block() {
+  if (debug_parse) debugf_tok("parsing block");
+  src_push();
   Node head = {};
   Node *cur = &head;
   while (!match(TokenKind_EOF)) {
     cur = (cur->next = stmt());
   }
-  return new_list(NodeKind_BLOCK, head.next);
+  return pop_lexeme(new_list(NodeKind_BLOCK, head.next));
 }
 
 // stmt ::= expr ";"
 static Node *stmt() {
+  if (debug_parse) debugf_tok("parsing stmt");
+  src_push();
   Node *node = new_variant(NodeKind_EXPR, expr());
   expect(TokenKind_SEMICOLON);
-  return node;
+  return pop_lexeme(node);
 }
 
 // expr ::= assign
-static Node *expr() { return assign(); }
+static Node *expr() {
+  if (debug_parse) debugf_tok("parsing expr");
+  return assign();
+}
 
 // note: right-associative
 // assign ::= equality ("=" assign)?
 static Node *assign() {
+  if (debug_parse) debugf_tok("parsing assign");
+  src_push();
   Node *node = equality();
-  return consume(TokenKind_EQ) ? new_binop(NodeKind_ASSIGN, node, assign()) : node;
+  return consume(TokenKind_EQ) ? pop_lexeme(new_binop(NodeKind_ASSIGN, node, assign()))
+                               : (src_pop(), node);
 }
 
 // equality ::= relational ("==" relational | "!=" relational)*
 static Node *equality() {
+  if (debug_parse) debugf_tok("parsing equality");
+  src_push();
   Node *node = relational();
   const Token *tok = NULL;
   while (true) {
-    if      ((tok = consume(TokenKind_DEQ))) node = new_binop(NodeKind_EQ,  node, relational());
-    else if ((tok = consume(TokenKind_NEQ))) node = new_binop(NodeKind_NEQ, node, relational());
+    if      ((tok = consume(TokenKind_DEQ))) node = add_lexeme(new_binop(NodeKind_EQ,  node, relational()));
+    else if ((tok = consume(TokenKind_NEQ))) node = add_lexeme(new_binop(NodeKind_NEQ, node, relational()));
     else                                     break;
   }
+  src_pop();
   return node;
 }
 
 // relational ::= add ("<" add | "<=" add | ">" add | ">=" add)*
 static Node *relational() {
+  if (debug_parse) debugf_tok("parsing relational");
+  src_push();
   Node *node = add();
   const Token *tok = NULL;
   while (true) {
-    if      ((tok = consume(TokenKind_LT)))  node = new_binop(NodeKind_LT,  node, add());
-    else if ((tok = consume(TokenKind_GT)))  node = new_binop(NodeKind_LT,  add(), node);
-    else if ((tok = consume(TokenKind_LEQ))) node = new_binop(NodeKind_LEQ, node, add());
-    else if ((tok = consume(TokenKind_GEQ))) node = new_binop(NodeKind_LEQ, add(), node);
+    if      ((tok = consume(TokenKind_LT)))  node = add_lexeme(new_binop(NodeKind_LT,  node, add()));
+    else if ((tok = consume(TokenKind_GT)))  node = add_lexeme(new_binop(NodeKind_LT,  add(), node));
+    else if ((tok = consume(TokenKind_LEQ))) node = add_lexeme(new_binop(NodeKind_LEQ, node, add()));
+    else if ((tok = consume(TokenKind_GEQ))) node = add_lexeme(new_binop(NodeKind_LEQ, add(), node));
     else                                     break;
   }
+  src_pop();
   return node;
 }
 
 // add ::= mul ("+" mul | "-" mul)*
 static Node *add() {
+  if (debug_parse) debugf_tok("parsing add");
+  src_push();
   Node *node = mul();
   const Token *tok = NULL;
   while (true) {
-    if      ((tok = consume(TokenKind_PLUS)))  node = new_binop(NodeKind_ADD, node, mul());
-    else if ((tok = consume(TokenKind_MINUS))) node = new_binop(NodeKind_SUB, node, mul());
+    if      ((tok = consume(TokenKind_PLUS)))  node = add_lexeme(new_binop(NodeKind_ADD, node, mul()));
+    else if ((tok = consume(TokenKind_MINUS))) node = add_lexeme(new_binop(NodeKind_SUB, node, mul()));
     else                                       break;
   }
   return node;
@@ -266,35 +333,42 @@ static Node *add() {
 
 // mul ::= unary ("*" unary | "/" unary)*
 static Node *mul() {
+  if (debug_parse) debugf_tok("parsing mul");
+  src_push();
   Node *node = unary();
   const Token *tok = NULL;
   while (true) {
-    if      ((tok = consume(TokenKind_STAR)))  node = new_binop(NodeKind_MUL, node, unary());
-    else if ((tok = consume(TokenKind_SLASH))) node = new_binop(NodeKind_DIV, node, unary());
+    if      ((tok = consume(TokenKind_STAR)))  node = add_lexeme(new_binop(NodeKind_MUL, node, unary()));
+    else if ((tok = consume(TokenKind_SLASH))) node = add_lexeme(new_binop(NodeKind_DIV, node, unary()));
     else                                       break;
   }
+  src_pop();
   return node;
 }
 
 // unary ::= ("+" | "-") unary
 //         | primary
 static Node *unary() {
+  if (debug_parse) debugf_tok("parsing unary");
+  src_push();
   const Token *tok = NULL;
-  if      ((tok = consume(TokenKind_PLUS)))  return unary();
-  else if ((tok = consume(TokenKind_MINUS))) return new_unop(NodeKind_NEG, unary());
-  else                                       return primary();
+  if      ((tok = consume(TokenKind_PLUS)))  return src_pop(), unary();
+  else if ((tok = consume(TokenKind_MINUS))) return pop_lexeme(new_unop(NodeKind_NEG, unary()));
+  else                                       return src_pop(), primary();
 }
 
 // primary ::= "(" expr ")" | ident | num
 static Node *primary() {
+  if (debug_parse) debugf_tok("parsing primary");
+  src_push();
   const Token *tok = NULL;
   if (consume(TokenKind_LPAREN)) {
     Node *node = expr();
     expect(TokenKind_RPAREN);
     return node;
   }
-  else if ((tok = consume(TokenKind_IDENT))) return new_var(tok->ident);
-  else if ((tok = consume(TokenKind_NUM)))   return new_num(tok->num);
+  else if ((tok = consume(TokenKind_IDENT))) return pop_lexeme(new_var(tok->ident));
+  else if ((tok = consume(TokenKind_NUM)))   return pop_lexeme(new_num(tok->num));
   else                                       errorf_tok("expected expression");
 }
 

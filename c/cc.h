@@ -90,6 +90,7 @@ typedef struct Token Token;
 struct Token {
   TokenKind kind;
   Token *next;
+  Token *prev;
   union {
     // TokenKind_NUM
     int num;
@@ -160,6 +161,7 @@ struct Node {
     };
   };
   Node *next;
+  StringView lexeme;
 };
 
 void debugf_at_tok(const Token *tok, const char *fmt, ...);
@@ -187,7 +189,7 @@ Node *parse();
 
 // semantic analyzer
 
-// todo: debugf_node()
+void debugf_at_node(const Node *node, const char *fmt, ...);
 
 void analyze();
 

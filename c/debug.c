@@ -50,6 +50,11 @@ void debugf_tok(const char *fmt, ...) {
   vdebugf_span(ctx.parser.tok->lexeme, fmt, ap);
 }
 
+void debugf_at_node(const Node *node, const char *fmt, ...) {
+  va_list ap; va_start(ap, fmt);
+  vdebugf_span(node->lexeme, fmt, ap);
+}
+
 void _assert(const char *file, const int line, const char *cond) {
   debugf("%s:%d: assert(%s) failed\n", file, line, cond);
   exit(1);

@@ -120,6 +120,12 @@ static Token *new_token(const TokenKind kind, const int len) {
   return tok;
 }
 
+static Token *link(Token *tok, Token *next_tok) {
+  tok->next = next_tok;
+  next_tok->prev = tok;
+  return next_tok;
+}
+
 Token *lex() {
   Token head = {};
   Token *cur = &head;
@@ -134,32 +140,32 @@ Token *lex() {
       char *end = NULL;
       const int num = strtoul(ctx.lexer.loc, &end, 10);
       ctx.lexer.loc = end;
-      cur = (cur->next = new_token(TokenKind_NUM, ctx.lexer.loc - start));
+      cur = link(cur, new_token(TokenKind_NUM, ctx.lexer.loc - start));
       cur->num = num;
     }
 
     else if ((len = consume_ident())) {
-      cur = (cur->next = new_token(TokenKind_IDENT, len));
+      cur = link(cur, new_token(TokenKind_IDENT, len));
       cur->ident = cur->lexeme;
     }
 
-    else if ((len = consume("==")))   cur = (cur->next = new_token(TokenKind_DEQ,       len));
-    else if ((len = consume("!=")))   cur = (cur->next = new_token(TokenKind_NEQ,       len));
-    else if ((len = consume("<=")))   cur = (cur->next = new_token(TokenKind_LEQ,       len));
-    else if ((len = consume(">=")))   cur = (cur->next = new_token(TokenKind_GEQ,       len));
-    else if ((len = consume_ch('<'))) cur = (cur->next = new_token(TokenKind_LT,        len));
-    else if ((len = consume_ch('>'))) cur = (cur->next = new_token(TokenKind_GT,        len));
-    else if ((len = consume_ch('+'))) cur = (cur->next = new_token(TokenKind_PLUS,      len));
-    else if ((len = consume_ch('-'))) cur = (cur->next = new_token(TokenKind_MINUS,     len));
-    else if ((len = consume_ch('*'))) cur = (cur->next = new_token(TokenKind_STAR,      len));
-    else if ((len = consume_ch('/'))) cur = (cur->next = new_token(TokenKind_SLASH,     len));
-    else if ((len = consume_ch('('))) cur = (cur->next = new_token(TokenKind_LPAREN,    len));
-    else if ((len = consume_ch(')'))) cur = (cur->next = new_token(TokenKind_RPAREN,    len));
-    else if ((len = consume_ch(';'))) cur = (cur->next = new_token(TokenKind_SEMICOLON, len));
-    else if ((len = consume_ch('='))) cur = (cur->next = new_token(TokenKind_EQ,        len));
+    else if ((len = consume("==")))   cur = link(cur, new_token(TokenKind_DEQ,       len));
+    else if ((len = consume("!=")))   cur = link(cur, new_token(TokenKind_NEQ,       len));
+    else if ((len = consume("<=")))   cur = link(cur, new_token(TokenKind_LEQ,       len));
+    else if ((len = consume(">=")))   cur = link(cur, new_token(TokenKind_GEQ,       len));
+    else if ((len = consume_ch('<'))) cur = link(cur, new_token(TokenKind_LT,        len));
+    else if ((len = consume_ch('>'))) cur = link(cur, new_token(TokenKind_GT,        len));
+    else if ((len = consume_ch('+'))) cur = link(cur, new_token(TokenKind_PLUS,      len));
+    else if ((len = consume_ch('-'))) cur = link(cur, new_token(TokenKind_MINUS,     len));
+    else if ((len = consume_ch('*'))) cur = link(cur, new_token(TokenKind_STAR,      len));
+    else if ((len = consume_ch('/'))) cur = link(cur, new_token(TokenKind_SLASH,     len));
+    else if ((len = consume_ch('('))) cur = link(cur, new_token(TokenKind_LPAREN,    len));
+    else if ((len = consume_ch(')'))) cur = link(cur, new_token(TokenKind_RPAREN,    len));
+    else if ((len = consume_ch(';'))) cur = link(cur, new_token(TokenKind_SEMICOLON, len));
+    else if ((len = consume_ch('='))) cur = link(cur, new_token(TokenKind_EQ,        len));
     else                              errorf_loc("invalid token");
   }
 
-  cur = (cur->next = new_token(TokenKind_EOF, 0));
+  cur = link(cur, new_token(TokenKind_EOF, 0));
   return head.next;
 }
