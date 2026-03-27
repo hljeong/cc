@@ -14,13 +14,13 @@ check() {
 
   compile=$($BIN "$@" >a.S 2>test.err; echo $?)
   if [ "$compile" != "0" ]; then
-    echo "fail: $desc"
+    echo "failed to compile: $desc"
     cat test.err
     failed=$((failed + 1))
   else
     assemble=$(gcc -x assembler -o a.out a.S 2>test.err; echo $?)
     if [ "$assemble" != "0" ]; then
-      echo "fail: $desc"
+      echo "failed to assemble: $desc"
       cat test.err
       failed=$((failed + 1))
     else
@@ -29,7 +29,7 @@ check() {
         echo "pass: $desc"
         passed=$((passed + 1))
       else
-        echo "fail: $desc"
+        echo "incorrect output: $desc"
         echo "  expected: $expected"
         echo "  actual:   $actual"
         failed=$((failed + 1))
@@ -88,7 +88,10 @@ check 'while' '15' '{ i = 0; while (i < 15) i = i + 1; return i; }'
 check 'addr-deref' '3' '{ x = 3; return *&x; }'
 check 'pointer' '2' '{ x = 3; y = &x; *y = 2; return x; }'
 check 'double pointer' '154' '{ x = 3; y = 5; z = &y; w = &z; **w = 7; *w = &x; **w = 11; return x * (y + y); }'
-check 'pointer arithmetic' '4' '{ x = 3; y = 5; *(&y + 8) = 4; return x; }'
+check 'pointer plus' '4' '{ x = 3; y = 5; *(&y + 1) = 4; return x; }'
+check 'pointer sub' '4' '{ x = 3; y = 5; *(&x - 1) = 4; return y; }'
+check 'pointer dist' '1' '{ x = 3; y = 5; return &x - &y; }'
+check 'pointer arithmetic' '6' '{ x = 3; y = 5; *(&y - 20 + 3 * 7) = y; return x + (&x - &y); }'
 
 echo ""
 echo "=== results: $passed passed, $failed failed ==="

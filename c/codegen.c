@@ -6,9 +6,7 @@ static void visit(Node *node);
 
 static void addr(const Node *node) {
   if (node->kind == NodeKind_VAR) {
-    int offset = -8;
-    for (Var *var = ctx.analyzer.locals.next; !sv_eq(var->name, node->name); (offset -= 8), (var = var->next));
-    printf("  lea   %d(%%rbp), %%rax\n", offset);
+    printf("  lea   %d(%%rbp), %%rax\n", node->var->offset);
   }
 
   else if (node->kind == NodeKind_DEREF) {
@@ -30,18 +28,22 @@ static void pop(const char *arg) {
 }
 
 static void visit(Node *node) {
-  if (!node) {}
+  if (!node) return;
 
-  else if (node->kind == NodeKind_FUN_DECL) {
+  if (node->kind == NodeKind_FUN_DECL) {
     printf("  .globl main\n");
     printf("main:\n");
 
     printf("  push  %%rbp\n");
     printf("  mov   %%rsp, %%rbp\n");
 
-    int n_locals = 0;
-    for (Var *local = ctx.analyzer.locals.next; local; n_locals++, local = local->next);
-    printf("  sub   $%d,  %%rsp\n", n_locals * 8);
+    int offset = 0;
+    for (Var *local = ctx.analyzer.locals.next; local; local = local->next) {
+      offset += 8;
+      // todo: why is this negative?
+      local->offset = -offset;
+    }
+    printf("  sub   $%d,  %%rsp\n", (offset + 15) / 16 * 16);
 
     Node *cur = node->body->head;
     while (cur) {
@@ -96,7 +98,7 @@ static void visit(Node *node) {
   }
 
   else if (node->kind == NodeKind_EXPR_STMT) {
-    visit(node->operand);
+    visit(node->expr);
     assert(ctx.codegen.depth == 0);
   }
 

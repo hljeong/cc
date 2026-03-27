@@ -52,6 +52,11 @@ static void _debug_ast(const Node *node, const char *prefix, const bool last) {
     _debug_ast(node->body, child_prefix, true);
   }
 
+  else if (node->kind == NodeKind_EXPR_STMT) {
+    debugf("%s%sexpr-stmt\n", prefix, branch);
+    _debug_ast(node->expr, child_prefix, true);
+  }
+
   else if (node->kind == NodeKind_IF) {
     debugf("%s%sif\n", prefix, branch);
     _debug_ast(node->cond, child_prefix, false);
@@ -67,12 +72,28 @@ static void _debug_ast(const Node *node, const char *prefix, const bool last) {
   }
 
   else if (node_kind_is_unop(node->kind)) {
-    debugf("%s%s%s\n", prefix, branch, node_kind_to_str(node->kind));
+    if (node->type) debugf("%s%s%s: %s\n",
+                           prefix, branch,
+                           node_kind_to_str(node->kind),
+                           type_to_str(node->type));
+
+    else            debugf("%s%s%s\n",
+                           prefix, branch,
+                           node_kind_to_str(node->kind));
+
     _debug_ast(node->operand, child_prefix, true);
   }
 
   else if (node_kind_is_binop(node->kind)) {
-    debugf("%s%s%s\n", prefix, branch, node_kind_to_str(node->kind));
+    if (node->type) debugf("%s%s%s: %s\n",
+                           prefix, branch,
+                           node_kind_to_str(node->kind),
+                           type_to_str(node->type));
+
+    else            debugf("%s%s%s\n",
+                           prefix, branch,
+                           node_kind_to_str(node->kind));
+
     _debug_ast(node->lhs, child_prefix, false);
     _debug_ast(node->rhs, child_prefix, true);
   }
@@ -97,7 +118,6 @@ bool node_kind_is_unop(const NodeKind kind) {
   return (kind == NodeKind_NEG)       ||
          (kind == NodeKind_ADDR)      ||
          (kind == NodeKind_DEREF)     ||
-         (kind == NodeKind_EXPR_STMT) ||
          (kind == NodeKind_RETURN);
 }
 
@@ -145,7 +165,7 @@ static Node *new_node(const NodeKind kind) {
   return node;
 }
 
-static Node *new_num(const int num) {
+Node *new_num(const int num) {
   Node *node = new_node(NodeKind_NUM);
   node->num = num;
   return node;
@@ -165,7 +185,7 @@ static Node *new_unop(const NodeKind kind, Node *operand) {
   return node;
 }
 
-static Node *new_binop(const NodeKind kind, Node *lhs, Node *rhs) {
+Node *new_binop(const NodeKind kind, Node *lhs, Node *rhs) {
   assertf(node_kind_is_binop(kind),
           "bad invocation: new_binop(%s)", node_kind_to_str(kind));
   Node *node = new_node(kind);
@@ -186,7 +206,6 @@ static Node *new_list(const NodeKind kind, Node *head) {
 static Node *prog();
 static Node *fun_decl();
 static Node *stmt();
-static Node *block();
 static Node *expr();
 static Node *assign();
 static Node *equality();
@@ -248,17 +267,26 @@ static Node *prog() {
 }
 
 // todo: temp
-// decl ::= block
+// decl ::= "{" stmt* "}"
 static Node *fun_decl() {
   if (debug_parse) debugf_tok("parsing fun_decl");
   src_push();
   Node *node = new_node(NodeKind_FUN_DECL);
-  node->body = block();
+  {
+    src_push();
+    Node head = {};
+    Node *cur = &head;
+    expect(TokenKind_LBRACE);
+    while (!consume(TokenKind_RBRACE)) {
+      cur = (cur->next = stmt());
+    }
+    node->body = pop_lexeme(new_list(NodeKind_BLOCK, head.next));
+  }
   return pop_lexeme(node);
 }
 
 // stmt ::= "return" expr ";"
-//        | block
+//        | "{" stmt* "}"
 //        | "if" "(" expr ")" stmt ("else" stmt)?
 //        | "for" "(" expr? ";" expr? ";" expr? ")" stmt
 //        | "while" "(" expr ")" stmt
@@ -286,9 +314,8 @@ static Node *stmt() {
     node->cond = expr();
     expect(TokenKind_RPAREN);
     node->then = stmt();
-    if (consume(TokenKind_ELSE)) {
+    if (consume(TokenKind_ELSE))
       node->else_ = stmt();
-    }
     return pop_lexeme(node);
   }
 
@@ -321,29 +348,21 @@ static Node *stmt() {
     return pop_lexeme(node);
   }
 
-  else if (match(TokenKind_LBRACE)) {
-    src_pop();
-    return block();
+  else if (consume(TokenKind_LBRACE)) {
+    Node head = {};
+    Node *cur = &head;
+    while (!consume(TokenKind_RBRACE)) {
+      cur = (cur->next = stmt());
+    }
+    return pop_lexeme(new_list(NodeKind_BLOCK, head.next));
   }
 
   else {
-    node = new_unop(NodeKind_EXPR_STMT, expr());
+    node = new_node(NodeKind_EXPR_STMT);
+    node->expr = expr();
     expect(TokenKind_SEMICOLON);
     return pop_lexeme(node);
   }
-}
-
-// block ::= stmt*
-static Node *block() {
-  if (debug_parse) debugf_tok("parsing block");
-  src_push();
-  expect(TokenKind_LBRACE);
-  Node head = {};
-  Node *cur = &head;
-  while (!consume(TokenKind_RBRACE)) {
-    cur = (cur->next = stmt());
-  }
-  return pop_lexeme(new_list(NodeKind_BLOCK, head.next));
 }
 
 // expr ::= assign
@@ -405,7 +424,7 @@ static Node *add() {
     else if ((tok = consume(TokenKind_MINUS))) node = add_lexeme(new_binop(NodeKind_SUB, node, mul()));
     else                                       break;
   }
-  return node;
+  return src_pop(), node;
 }
 
 // mul ::= unary ("*" unary | "/" unary)*
@@ -419,8 +438,7 @@ static Node *mul() {
     else if ((tok = consume(TokenKind_SLASH))) node = add_lexeme(new_binop(NodeKind_DIV, node, unary()));
     else                                       break;
   }
-  src_pop();
-  return node;
+  return src_pop(), node;
 }
 
 // unary ::= ("+" | "-" | "&" | "*") unary
@@ -444,7 +462,7 @@ static Node *primary() {
   if (consume(TokenKind_LPAREN)) {
     Node *node = expr();
     expect(TokenKind_RPAREN);
-    return node;
+    return src_pop(), node;
   }
   else if ((tok = consume(TokenKind_IDENT))) return pop_lexeme(new_var(tok->ident));
   else if ((tok = consume(TokenKind_NUM)))   return pop_lexeme(new_num(tok->num));
@@ -453,6 +471,15 @@ static Node *primary() {
 
 Node *parse() {
   Node *node = prog();
+  if (src_stack) {
+    int size = 0;
+    SourceStack *cur = src_stack;
+    while (cur) {
+      size++;
+      cur = cur->last;
+    }
+    failf("non-empty src stack: %d", size);
+  }
   if (!match(TokenKind_EOF))
     errorf_tok("extra token");
   return node;

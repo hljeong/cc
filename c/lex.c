@@ -37,6 +37,7 @@ const char *token_kind_to_str(const TokenKind kind) {
   else                                  failf("%u", (uint32_t) kind);
 }
 
+// todo: this cant be safe... what if theres a printf with 2 token_to_str()'s?
 const char *token_to_str(const Token *tok) {
   static char buf[256] = {0};
   const int off = snprintf(buf, sizeof(buf), "%s", token_kind_to_str(tok->kind));

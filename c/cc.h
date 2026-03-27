@@ -152,18 +152,26 @@ typedef enum {
   NodeKind_PROG,
 } NodeKind;
 
+typedef struct Type Type;
+typedef struct Node Node;
+
 typedef struct Var Var;
 struct Var {
   StringView name;
+  Type *type;
+  Node *decl;
+  int offset;
   Var *next;
 };
 
-typedef struct Node Node;
 struct Node {
   NodeKind kind;
   union {
     int num;                     // NodeKind_NUM
-    StringView name;             // NodeKind_VAR
+    struct {
+      StringView name;           // NodeKind_VAR
+      Var *var;
+    };
     Node *operand;               // node_kind_id_unop()
     struct { Node *lhs, *rhs; }; // node_kind_is_binop()
     Node *head;                  // node_kind_is_list()
@@ -171,6 +179,7 @@ struct Node {
       Node *body;
       Var *locals;
     };
+    Node *expr;                  // NodeKind_EXPR_STMT
     struct {                     // NodeKind_IF
       Node *cond;
       Node *then;
@@ -183,8 +192,9 @@ struct Node {
       Node *loop_body;           // tragic
     };
   };
-  Node *next;
+  Type *type;
   StringView lexeme;
+  Node *next;
 };
 
 void debugf_at_tok(const Token *tok, const char *fmt, ...);
@@ -207,10 +217,39 @@ bool node_kind_is_binop(const NodeKind kind);
 
 bool node_kind_is_list(const NodeKind kind);
 
+// todo: token.c, node.c, type.c?
+Node *new_num(const int num);
+
+Node *new_binop(const NodeKind kind, Node *lhs, Node *rhs);
+
 Node *parse();
 
 
 // semantic analyzer
+
+typedef enum {
+  TypeKind_INT,
+  TypeKind_PTR,
+} TypeKind;
+
+struct Type {
+  TypeKind kind;
+  union {
+    Type *referenced;  // TypeKind_PTR
+  };
+};
+
+typedef struct {
+  Type int_;
+} Types;
+
+extern Types t;
+
+const char *type_kind_to_str(const TypeKind kind);
+
+const char *type_to_str(const Type *type);
+
+bool type_eq(const Type *t, const Type* u);
 
 void debugf_at_node(const Node *node, const char *fmt, ...);
 

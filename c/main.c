@@ -22,6 +22,7 @@ int main(int argc, char **argv) {
   if (debug) debug_ast(ctx.ast);
 
   analyze();
+  if (debug) debug_ast(ctx.ast);
 
   codegen();
 
