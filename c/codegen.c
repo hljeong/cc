@@ -59,13 +59,22 @@ static void stmt(const Node *node) {
   switch (node->kind) {
     case NodeKind_EXPR_STMT: { expr(node->operand); break; }
 
+    case NodeKind_BLOCK: {
+      Node *cur = node->head;
+      while (cur) {
+        stmt(cur);
+        cur = cur->next;
+      }
+      break;
+    }
+
     case NodeKind_RETURN: {
       expr(node->operand);
       printf("  jmp .L.return\n");
       break;
     }
 
-    default:                 failf("%s", node_kind_to_str(node->kind));
+    default: failf("%s", node_kind_to_str(node->kind));
   }
   assert(ctx.codegen.depth == 0);
 }

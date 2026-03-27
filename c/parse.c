@@ -41,6 +41,11 @@ static void _debug_ast(const Node *node, const char *prefix, const bool last) {
     debugf("%s%snum("sv_fmt")\n", prefix, branch, sv_arg(node->name));
   }
 
+  else if (node->kind == NodeKind_FUN_DECL) {
+    debugf("%s%sfn\n", prefix, branch);
+    _debug_ast(node->body, child_prefix, true);
+  }
+
   else if (node_kind_is_unop(node->kind)) {
     debugf("%s%s%s\n", prefix, branch, node_kind_to_str(node->kind));
     _debug_ast(node->operand, child_prefix, true);
@@ -61,9 +66,7 @@ static void _debug_ast(const Node *node, const char *prefix, const bool last) {
     }
   }
 
-  else {
-    failf("%s", node_kind_to_str(node->kind));
-  }
+  else failf("%s", node_kind_to_str(node->kind));
 }
 
 void debug_ast(const Node *node) {
@@ -160,8 +163,8 @@ static Node *new_list(const NodeKind kind, Node *head) {
 // These cannot be `const` due to the intrusive linked list
 static Node *prog();
 static Node *fun_decl();
-static Node *block();
 static Node *stmt();
+static Node *block();
 static Node *expr();
 static Node *assign();
 static Node *equality();
@@ -232,28 +235,43 @@ static Node *fun_decl() {
   return pop_lexeme(node);
 }
 
-// block ::= stmt*
-static Node *block() {
-  if (debug_parse) debugf_tok("parsing block");
-  src_push();
-  Node head = {};
-  Node *cur = &head;
-  while (!match(TokenKind_EOF)) {
-    cur = (cur->next = stmt());
-  }
-  return pop_lexeme(new_list(NodeKind_BLOCK, head.next));
-}
-
 // stmt ::= "return" expr ";"
+//        | block
 //        | expr ";"
 static Node *stmt() {
   if (debug_parse) debugf_tok("parsing stmt");
   src_push();
   Node *node = NULL;
-  if (consume(TokenKind_RETURN)) node = new_unop(NodeKind_RETURN, expr());
-  else                           node = new_unop(NodeKind_EXPR_STMT, expr());
-  expect(TokenKind_SEMICOLON);
-  return pop_lexeme(node);
+
+  if (consume(TokenKind_RETURN)) {
+    node = new_unop(NodeKind_RETURN, expr());
+    expect(TokenKind_SEMICOLON);
+    return pop_lexeme(node);
+  }
+
+  else if (match(TokenKind_LBRACE)) {
+    src_pop();
+    return block();
+  }
+
+  else {
+    node = new_unop(NodeKind_EXPR_STMT, expr());
+    expect(TokenKind_SEMICOLON);
+    return pop_lexeme(node);
+  }
+}
+
+// block ::= stmt*
+static Node *block() {
+  if (debug_parse) debugf_tok("parsing block");
+  src_push();
+  expect(TokenKind_LBRACE);
+  Node head = {};
+  Node *cur = &head;
+  while (!consume(TokenKind_RBRACE)) {
+    cur = (cur->next = stmt());
+  }
+  return pop_lexeme(new_list(NodeKind_BLOCK, head.next));
 }
 
 // expr ::= assign

@@ -84,6 +84,8 @@ typedef enum {
   TokenKind_GT,
   TokenKind_SEMICOLON,
   TokenKind_RETURN,
+  TokenKind_LBRACE,
+  TokenKind_RBRACE,
   TokenKind_EOF,
 } TokenKind;
 

@@ -26,6 +26,8 @@ const char *token_kind_to_str(const TokenKind kind) {
   else if (kind == TokenKind_GT)        return ">";
   else if (kind == TokenKind_SEMICOLON) return ";";
   else if (kind == TokenKind_RETURN)    return "return";
+  else if (kind == TokenKind_LBRACE)    return "{";
+  else if (kind == TokenKind_RBRACE)    return "}";
   else if (kind == TokenKind_EOF)       return "eof";
   else                                  failf("not implemented: %u",
                                               (uint32_t) kind);
@@ -166,6 +168,8 @@ Token *lex() {
     else if ((len = consume_ch(')'))) cur = link(cur, new_token(TokenKind_RPAREN,    len));
     else if ((len = consume_ch(';'))) cur = link(cur, new_token(TokenKind_SEMICOLON, len));
     else if ((len = consume_ch('='))) cur = link(cur, new_token(TokenKind_EQ,        len));
+    else if ((len = consume_ch('{'))) cur = link(cur, new_token(TokenKind_LBRACE,    len));
+    else if ((len = consume_ch('}'))) cur = link(cur, new_token(TokenKind_RBRACE,    len));
     else                              errorf_loc("invalid token");
   }
 

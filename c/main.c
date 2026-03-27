@@ -2,6 +2,8 @@
 
 #include <string.h>
 
+bool debug = false;
+
 Context ctx = {};
 
 int main(int argc, char **argv) {
@@ -11,13 +13,13 @@ int main(int argc, char **argv) {
   ctx.src_len = strlen(ctx.src);
 
   ctx.lexer.loc = ctx.src;
-  // debugf("src: %s\n", ctx.lexer.loc);
+  if (debug) debugf("src: %s\n", ctx.lexer.loc);
 
   ctx.parser.tok = lex();
-  // debug_token_stream(ctx.parser.tok);
+  if (debug) debug_token_stream(ctx.parser.tok);
 
   ctx.ast = parse();
-  // debug_ast(ctx.ast);
+  if (debug) debug_ast(ctx.ast);
 
   analyze();
 
