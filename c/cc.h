@@ -86,6 +86,8 @@ typedef enum {
   TokenKind_RETURN,
   TokenKind_LBRACE,
   TokenKind_RBRACE,
+  TokenKind_IF,
+  TokenKind_ELSE,
   TokenKind_EOF,
 } TokenKind;
 
@@ -139,6 +141,7 @@ typedef enum {
   NodeKind_EXPR_STMT,
   NodeKind_RETURN,
   NodeKind_BLOCK,
+  NodeKind_IF,
   NodeKind_FUN_DECL,  // todo
   NodeKind_PROG,
 } NodeKind;
@@ -161,6 +164,11 @@ struct Node {
     struct {                     // NodeKind_FUN_DECL
       Node *body;
       Var *locals;
+    };
+    struct {                     // NodeKind_IF
+      Node *cond;
+      Node *then;
+      Node *else_;
     };
   };
   Node *next;
@@ -223,6 +231,7 @@ typedef struct {
 
   struct {
     int depth;
+    int label;
   } codegen;
 } Context;
 

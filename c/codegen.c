@@ -56,8 +56,13 @@ static void fun_decl(const Node *node) {
 }
 
 static void stmt(const Node *node) {
+  if (!node) return;
+
   switch (node->kind) {
-    case NodeKind_EXPR_STMT: { expr(node->operand); break; }
+    case NodeKind_EXPR_STMT: {
+      expr(node->operand);
+      break;
+    }
 
     case NodeKind_BLOCK: {
       Node *cur = node->head;
@@ -65,6 +70,19 @@ static void stmt(const Node *node) {
         stmt(cur);
         cur = cur->next;
       }
+      break;
+    }
+
+    case NodeKind_IF: {
+      const int label = ctx.codegen.label++;
+      expr(node->cond);
+      printf("  cmp   $0, %%rax\n");
+      printf("  je    .L.%d.else\n", label);
+      stmt(node->then);
+      printf("  je    .L.%d.end\n", label);
+      printf(".L.%d.else:\n", label);
+      stmt(node->else_);
+      printf(".L.%d.end:\n", label);
       break;
     }
 

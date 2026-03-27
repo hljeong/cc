@@ -21,6 +21,7 @@ const char *node_kind_to_str(const NodeKind kind) {
   else if (kind == NodeKind_EXPR_STMT) return "expr-stmt";
   else if (kind == NodeKind_RETURN)    return "return";
   else if (kind == NodeKind_BLOCK)     return "block";
+  else if (kind == NodeKind_IF)        return "if";
   else if (kind == NodeKind_FUN_DECL)  return "fun_decl";
   else if (kind == NodeKind_PROG)      return "prog";
   else                                 failf("%u", (uint32_t) kind);
@@ -43,6 +44,12 @@ static void _debug_ast(const Node *node, const char *prefix, const bool last) {
 
   else if (node->kind == NodeKind_FUN_DECL) {
     debugf("%s%sfn\n", prefix, branch);
+    _debug_ast(node->body, child_prefix, true);
+  }
+
+  else if (node->kind == NodeKind_IF) {
+    debugf("%s%sif\n", prefix, branch);
+    _debug_ast(node->cond, child_prefix, false);
     _debug_ast(node->body, child_prefix, true);
   }
 
@@ -237,6 +244,7 @@ static Node *fun_decl() {
 
 // stmt ::= "return" expr ";"
 //        | block
+//        | "if" "(" expr ")" stmt ("else" stmt)?
 //        | expr? ";"
 static Node *stmt() {
   if (debug_parse) debugf_tok("parsing stmt");
@@ -246,12 +254,24 @@ static Node *stmt() {
   if (consume(TokenKind_SEMICOLON))
   {
     // cool trick from chibicc
-    return new_list(NodeKind_BLOCK, NULL);
+    return pop_lexeme(new_list(NodeKind_BLOCK, NULL));
   }
 
-  if (consume(TokenKind_RETURN)) {
+  else if (consume(TokenKind_RETURN)) {
     node = new_unop(NodeKind_RETURN, expr());
     expect(TokenKind_SEMICOLON);
+    return pop_lexeme(node);
+  }
+
+  else if (consume(TokenKind_IF)) {
+    Node *node = new_node(NodeKind_IF);
+    expect(TokenKind_LPAREN);
+    node->cond = expr();
+    expect(TokenKind_RPAREN);
+    node->then = stmt();
+    if (consume(TokenKind_ELSE)) {
+      node->else_ = stmt();
+    }
     return pop_lexeme(node);
   }
 

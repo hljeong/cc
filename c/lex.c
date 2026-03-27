@@ -28,9 +28,10 @@ const char *token_kind_to_str(const TokenKind kind) {
   else if (kind == TokenKind_RETURN)    return "return";
   else if (kind == TokenKind_LBRACE)    return "{";
   else if (kind == TokenKind_RBRACE)    return "}";
+  else if (kind == TokenKind_IF)        return "if";
+  else if (kind == TokenKind_ELSE)      return "else";
   else if (kind == TokenKind_EOF)       return "eof";
-  else                                  failf("not implemented: %u",
-                                              (uint32_t) kind);
+  else                                  failf("%u", (uint32_t) kind);
 }
 
 const char *token_to_str(const Token *tok) {
@@ -139,6 +140,8 @@ Token *lex() {
     if (consume_pred(isspace)) ;  // skip whitespace
 
     else if ((len = consume("return"))) cur = link(cur, new_token(TokenKind_RETURN, len));
+    else if ((len = consume("if")))     cur = link(cur, new_token(TokenKind_IF, len));
+    else if ((len = consume("else")))   cur = link(cur, new_token(TokenKind_ELSE, len));
 
     else if (isdigit(ch)) {
       const char *start = ctx.lexer.loc;

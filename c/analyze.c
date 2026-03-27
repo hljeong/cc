@@ -16,10 +16,16 @@ static Var *lookup_or_new(Var *locals, const StringView name) {
 static void visit(Node *node);
 
 static void visit(Node *node) {
-  if (node->kind == NodeKind_FUN_DECL) {
-    for (Node *cur = node->body->head; cur; cur = cur->next) {
-      visit(cur);
-    }
+  if (!node) {}
+
+  else if (node->kind == NodeKind_FUN_DECL) {
+    visit(node->body);
+  }
+
+  else if (node->kind == NodeKind_IF) {
+    visit(node->cond);
+    visit(node->then);
+    visit(node->else_);
   }
 
   else if (node_kind_is_unop(node->kind)) {
