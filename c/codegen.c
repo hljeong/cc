@@ -1,13 +1,18 @@
 #include "cc.h"
 
-// todo: comments
+// todo: comment
+
+static void visit(Node *node);
 
 static void addr(const Node *node) {
   if (node->kind == NodeKind_VAR) {
     int offset = -8;
     for (Var *var = ctx.analyzer.locals.next; !sv_eq(var->name, node->name); (offset -= 8), (var = var->next));
     printf("  lea   %d(%%rbp), %%rax\n", offset);
-    return;
+  }
+
+  else if (node->kind == NodeKind_DEREF) {
+    visit(node->operand);
   }
 
   else errorf_at_node(node, "not an lvalue: %s",
@@ -24,7 +29,6 @@ static void pop(const char *arg) {
   ctx.codegen.depth--;
 }
 
-static void visit(Node *node);
 static void visit(Node *node) {
   if (!node) {}
 
@@ -116,6 +120,15 @@ static void visit(Node *node) {
   else if (node->kind == NodeKind_NEG) {
     visit(node->operand);
     printf("  neg   %%rax\n");
+  }
+
+  else if (node->kind == NodeKind_ADDR) {
+    addr(node->operand);
+  }
+
+  else if (node->kind == NodeKind_DEREF) {
+    visit(node->operand);
+    printf("  mov   (%%rax), %%rax\n");
   }
 
   else if (node_kind_is_binop(node->kind)) {

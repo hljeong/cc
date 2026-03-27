@@ -85,6 +85,10 @@ check 'if else' '2' '{ if (1 + 1 > 3) return 3; else { return 2; } }'
 check 'for' '45' '{ i = 0; j = 0; for (i = 0; i < 10; i = i + 1) j = i + j; return j; }'
 check 'forever' '1' '{ for (;;) return 1; return 2; }'
 check 'while' '15' '{ i = 0; while (i < 15) i = i + 1; return i; }'
+check 'addr-deref' '3' '{ x = 3; return *&x; }'
+check 'pointer' '2' '{ x = 3; y = &x; *y = 2; return x; }'
+check 'double pointer' '154' '{ x = 3; y = 5; z = &y; w = &z; **w = 7; *w = &x; **w = 11; return x * (y + y); }'
+check 'pointer arithmetic' '4' '{ x = 3; y = 5; *(&y + 8) = 4; return x; }'
 
 echo ""
 echo "=== results: $passed passed, $failed failed ==="

@@ -13,6 +13,8 @@ const char *node_kind_to_str(const NodeKind kind) {
   else if (kind == NodeKind_MUL)       return "*";
   else if (kind == NodeKind_DIV)       return "/";
   else if (kind == NodeKind_NEG)       return "-";
+  else if (kind == NodeKind_ADDR)      return "addr";
+  else if (kind == NodeKind_DEREF)     return "deref";
   else if (kind == NodeKind_EQ)        return "==";
   else if (kind == NodeKind_NEQ)       return "!=";
   else if (kind == NodeKind_LT)        return "<";
@@ -93,6 +95,8 @@ void debug_ast(const Node *node) {
 
 bool node_kind_is_unop(const NodeKind kind) {
   return (kind == NodeKind_NEG)       ||
+         (kind == NodeKind_ADDR)      ||
+         (kind == NodeKind_DEREF)     ||
          (kind == NodeKind_EXPR_STMT) ||
          (kind == NodeKind_RETURN);
 }
@@ -419,7 +423,7 @@ static Node *mul() {
   return node;
 }
 
-// unary ::= ("+" | "-") unary
+// unary ::= ("+" | "-" | "&" | "*") unary
 //         | primary
 static Node *unary() {
   if (debug_parse) debugf_tok("parsing unary");
@@ -427,6 +431,8 @@ static Node *unary() {
   const Token *tok = NULL;
   if      ((tok = consume(TokenKind_PLUS)))  return src_pop(), unary();
   else if ((tok = consume(TokenKind_MINUS))) return pop_lexeme(new_unop(NodeKind_NEG, unary()));
+  else if ((tok = consume(TokenKind_AND)))   return pop_lexeme(new_unop(NodeKind_ADDR, unary()));
+  else if ((tok = consume(TokenKind_STAR)))  return pop_lexeme(new_unop(NodeKind_DEREF, unary()));
   else                                       return src_pop(), primary();
 }
 

@@ -15,6 +15,7 @@ const char *token_kind_to_str(const TokenKind kind) {
   else if (kind == TokenKind_MINUS)     return "-";
   else if (kind == TokenKind_STAR)      return "*";
   else if (kind == TokenKind_SLASH)     return "/";
+  else if (kind == TokenKind_AND)       return "&";
   else if (kind == TokenKind_LPAREN)    return "(";
   else if (kind == TokenKind_RPAREN)    return ")";
   else if (kind == TokenKind_EQ)        return "=";
@@ -171,6 +172,7 @@ Token *lex() {
     else if ((len = consume_ch('-'))) cur = link(cur, new_token(TokenKind_MINUS,     len));
     else if ((len = consume_ch('*'))) cur = link(cur, new_token(TokenKind_STAR,      len));
     else if ((len = consume_ch('/'))) cur = link(cur, new_token(TokenKind_SLASH,     len));
+    else if ((len = consume_ch('&'))) cur = link(cur, new_token(TokenKind_AND,       len));
     else if ((len = consume_ch('('))) cur = link(cur, new_token(TokenKind_LPAREN,    len));
     else if ((len = consume_ch(')'))) cur = link(cur, new_token(TokenKind_RPAREN,    len));
     else if ((len = consume_ch(';'))) cur = link(cur, new_token(TokenKind_SEMICOLON, len));
