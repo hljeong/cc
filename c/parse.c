@@ -38,7 +38,7 @@ static void _debug_ast(const Node *node, const char *prefix, const bool last) {
   }
 
   else if (node->kind == NodeKind_VAR) {
-    debugf("%s%snum("sv_fmt")\n", prefix, branch, sv_arg(node->name));
+    debugf("%s%svar("sv_fmt")\n", prefix, branch, sv_arg(node->name));
   }
 
   else if (node->kind == NodeKind_FUN_DECL) {
@@ -237,11 +237,17 @@ static Node *fun_decl() {
 
 // stmt ::= "return" expr ";"
 //        | block
-//        | expr ";"
+//        | expr? ";"
 static Node *stmt() {
   if (debug_parse) debugf_tok("parsing stmt");
   src_push();
   Node *node = NULL;
+
+  if (consume(TokenKind_SEMICOLON))
+  {
+    // cool trick from chibicc
+    return new_list(NodeKind_BLOCK, NULL);
+  }
 
   if (consume(TokenKind_RETURN)) {
     node = new_unop(NodeKind_RETURN, expr());

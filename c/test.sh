@@ -78,6 +78,7 @@ check 'return' '1' '{return 1;}'
 check 'return early' '3' '{return 3; 2; 1;}'
 check 'return not-so-early' '2' '{1; return 2; 3;}'
 check 'block in block' '2' '{1; {x = 5; return 2;} 3;}'
+check 'empty statement' '3' '{ ;; ;_; return 3 ;_; ;; }'
 
 echo ""
 echo "=== results: $passed passed, $failed failed ==="
