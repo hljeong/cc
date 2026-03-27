@@ -24,97 +24,77 @@ static void pop(const char *arg) {
   ctx.codegen.depth--;
 }
 
-static void stmt(const Node *node);
-static void expr(const Node *node);
+static void visit(Node *node);
+static void visit(Node *node) {
+  if (!node) {}
 
-static void fun_decl(const Node *node) {
-  assertf(node->kind == NodeKind_FUN_DECL,
-          "bad invocation: fun_decl(%s)",
-          node_kind_to_str(node->kind));
+  else if (node->kind == NodeKind_FUN_DECL) {
+    printf("  .globl main\n");
+    printf("main:\n");
 
-  printf("  .globl main\n");
-  printf("main:\n");
+    printf("  push  %%rbp\n");
+    printf("  mov   %%rsp, %%rbp\n");
 
-  printf("  push  %%rbp\n");
-  printf("  mov   %%rsp, %%rbp\n");
+    int n_locals = 0;
+    for (Var *local = ctx.analyzer.locals.next; local; n_locals++, local = local->next);
+    printf("  sub   $%d,  %%rsp\n", n_locals * 8);
 
-  int n_locals = 0;
-  for (Var *local = ctx.analyzer.locals.next; local; n_locals++, local = local->next);
+    Node *cur = node->body->head;
+    while (cur) {
+      visit(cur);
+      cur = cur->next;
+    }
 
-  printf("  sub   $%d,  %%rsp\n", n_locals * 8);
-
-  Node *cur = node->body->head;
-  while (cur) {
-    stmt(cur);
-    cur = cur->next;
+    printf(".L.return:\n");
+    printf("  mov   %%rbp, %%rsp\n");
+    printf("  pop   %%rbp\n");
+    printf("  ret\n");
   }
 
-  printf(".L.return:\n");
-  printf("  mov   %%rbp, %%rsp\n");
-  printf("  pop   %%rbp\n");
-  printf("  ret\n");
-}
-
-static void stmt(const Node *node) {
-  if (!node) return;
-
-  switch (node->kind) {
-    case NodeKind_EXPR_STMT: {
-      expr(node->operand);
-      break;
+  else if (node->kind == NodeKind_BLOCK) {
+    Node *cur = node->head;
+    while (cur) {
+      visit(cur);
+      cur = cur->next;
     }
+  }
 
-    case NodeKind_BLOCK: {
-      Node *cur = node->head;
-      while (cur) {
-        stmt(cur);
-        cur = cur->next;
-      }
-      break;
-    }
-
-    case NodeKind_IF: {
+  else if (node->kind == NodeKind_IF) {
       const int label = ctx.codegen.label++;
-      expr(node->cond);
+      visit(node->cond);
       printf("  cmp   $0, %%rax\n");
       printf("  je    .L.%d.else\n", label);
-      stmt(node->then);
+      visit(node->then);
       printf("  je    .L.%d.end\n", label);
       printf(".L.%d.else:\n", label);
-      stmt(node->else_);
+      visit(node->else_);
       printf(".L.%d.end:\n", label);
-      break;
-    }
+  }
 
-    case NodeKind_FOR: {
+  else if (node->kind == NodeKind_FOR) {
       const int label = ctx.codegen.label++;
-      expr(node->init);
+      visit(node->init);
       printf(".L.%d.cond:\n", label);
       if (node->loop_cond) {
-        expr(node->loop_cond);
+        visit(node->loop_cond);
         printf("  cmp   $0, %%rax\n");
         printf("  je    .L.%d.end\n", label);
       }
-      stmt(node->loop_body);
-      expr(node->inc);
-        printf("  jmp   .L.%d.cond\n", label);
+      visit(node->loop_body);
+      visit(node->inc);
+      printf("  jmp   .L.%d.cond\n", label);
       printf(".L.%d.end:\n", label);
-      break;
-    }
-
-    case NodeKind_RETURN: {
-      expr(node->operand);
-      printf("  jmp .L.return\n");
-      break;
-    }
-
-    default: failf("%s", node_kind_to_str(node->kind));
   }
-  assert(ctx.codegen.depth == 0);
-}
 
-static void expr(const Node *node) {
-  if (!node) {}
+  else if (node->kind == NodeKind_RETURN) {
+      visit(node->operand);
+      printf("  jmp .L.return\n");
+  }
+
+  else if (node->kind == NodeKind_EXPR_STMT) {
+    visit(node->operand);
+    assert(ctx.codegen.depth == 0);
+  }
 
   else if (node->kind == NodeKind_NUM) {
     printf("  mov   $%d, %%rax\n", node->num);
@@ -128,20 +108,20 @@ static void expr(const Node *node) {
   else if (node->kind == NodeKind_ASSIGN) {
     addr(node->lhs);
     push();
-    expr(node->rhs);
+    visit(node->rhs);
     pop("%rdi");
     printf("  mov   %%rax, (%%rdi)\n");
   }
 
   else if (node->kind == NodeKind_NEG) {
-    expr(node->operand);
+    visit(node->operand);
     printf("  neg   %%rax\n");
   }
 
   else if (node_kind_is_binop(node->kind)) {
-    expr(node->rhs);
+    visit(node->rhs);
     push();
-    expr(node->lhs);
+    visit(node->lhs);
     pop("%rdi");
 
     switch (node->kind) {
@@ -153,6 +133,7 @@ static void expr(const Node *node) {
         printf("  idiv  %%rdi, %%rax\n");
         break;
       }
+
       case NodeKind_EQ:
       case NodeKind_NEQ:
       case NodeKind_LT:
@@ -163,21 +144,19 @@ static void expr(const Node *node) {
           case NodeKind_NEQ: { printf("  setne %%al\n"); break; }
           case NodeKind_LT:  { printf("  setl  %%al\n"); break; }
           case NodeKind_LEQ: { printf("  setle %%al\n"); break; }
-          default:           failf("comparison not implemented: %s",
-                                   node_kind_to_str(node->kind));
+          default:           failf("%s", node_kind_to_str(node->kind));
         }
         printf("  movzb %%al, %%rax\n");
         break;
       }
 
-      default: failf("binop not implemented: %s",
-                     node_kind_to_str(node->kind));
+      default: failf("%s", node_kind_to_str(node->kind));
     }
   }
 
-  else errorf("invalid expression");
+  else failf("%s", node_kind_to_str(node->kind));
 }
 
 void codegen() {
-  fun_decl(ctx.ast);
+  visit(ctx.ast);
 }
