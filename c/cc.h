@@ -211,6 +211,8 @@ Node *parse();
 
 void debugf_at_node(const Node *node, const char *fmt, ...);
 
+[[noreturn]] void errorf_at_node(const Node *node, const char *fmt, ...);
+
 void analyze();
 
 // code generator

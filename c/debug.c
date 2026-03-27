@@ -105,3 +105,9 @@ void errorf_tok(const char *fmt, ...) {
   vdebugf_span(ctx.parser.tok->lexeme, fmt, ap);
   exit(1);
 }
+
+void errorf_at_node(const Node *node, const char *fmt, ...) {
+  va_list ap; va_start(ap, fmt);
+  vdebugf_span(node->lexeme, fmt, ap);
+  exit(1);
+}

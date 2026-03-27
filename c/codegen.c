@@ -10,8 +10,8 @@ static void addr(const Node *node) {
     return;
   }
 
-  else errorf("not an lvalue: %s",
-              node_kind_to_str(node->kind));
+  else errorf_at_node(node, "not an lvalue: %s",
+                      node_kind_to_str(node->kind));
 }
 
 static void push(void) {
