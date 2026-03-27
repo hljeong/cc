@@ -82,6 +82,9 @@ check 'empty block' '0' '{{} 0;}'
 check 'empty statement' '3' '{ ;; ;_; return 3 ;_; ;; }'
 check 'if' '3' '{ if (2 < 3) return 3; return 2; }'
 check 'if else' '2' '{ if (1 + 1 > 3) return 3; else { return 2; } }'
+check 'for' '45' '{ i = 0; j = 0; for (i = 0; i < 10; i = i + 1) j = i + j; return j; }'
+check 'forever' '1' '{ for (;;) return 1; return 2; }'
+check 'while' '15' '{ i = 0; while (i < 15) i = i + 1; return i; }'
 
 echo ""
 echo "=== results: $passed passed, $failed failed ==="

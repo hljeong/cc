@@ -88,6 +88,8 @@ typedef enum {
   TokenKind_RBRACE,
   TokenKind_IF,
   TokenKind_ELSE,
+  TokenKind_FOR,
+  TokenKind_WHILE,
   TokenKind_EOF,
 } TokenKind;
 
@@ -142,6 +144,7 @@ typedef enum {
   NodeKind_RETURN,
   NodeKind_BLOCK,
   NodeKind_IF,
+  NodeKind_FOR,
   NodeKind_FUN_DECL,  // todo
   NodeKind_PROG,
 } NodeKind;
@@ -169,6 +172,12 @@ struct Node {
       Node *cond;
       Node *then;
       Node *else_;
+    };
+    struct {                     // NodeKind_FOR
+      Node *init;
+      Node *loop_cond;           // tragic
+      Node *inc;
+      Node *loop_body;           // tragic
     };
   };
   Node *next;

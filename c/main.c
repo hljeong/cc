@@ -2,7 +2,7 @@
 
 #include <string.h>
 
-bool debug = false;
+bool debug = true;
 
 Context ctx = {};
 

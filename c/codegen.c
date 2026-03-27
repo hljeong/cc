@@ -86,6 +86,22 @@ static void stmt(const Node *node) {
       break;
     }
 
+    case NodeKind_FOR: {
+      const int label = ctx.codegen.label++;
+      expr(node->init);
+      printf(".L.%d.cond:\n", label);
+      if (node->loop_cond) {
+        expr(node->loop_cond);
+        printf("  cmp   $0, %%rax\n");
+        printf("  je    .L.%d.end\n", label);
+      }
+      stmt(node->loop_body);
+      expr(node->inc);
+        printf("  jmp   .L.%d.cond\n", label);
+      printf(".L.%d.end:\n", label);
+      break;
+    }
+
     case NodeKind_RETURN: {
       expr(node->operand);
       printf("  jmp .L.return\n");
@@ -98,7 +114,9 @@ static void stmt(const Node *node) {
 }
 
 static void expr(const Node *node) {
-  if (node->kind == NodeKind_NUM) {
+  if (!node) {}
+
+  else if (node->kind == NodeKind_NUM) {
     printf("  mov   $%d, %%rax\n", node->num);
   }
 

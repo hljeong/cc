@@ -22,12 +22,15 @@ const char *node_kind_to_str(const NodeKind kind) {
   else if (kind == NodeKind_RETURN)    return "return";
   else if (kind == NodeKind_BLOCK)     return "block";
   else if (kind == NodeKind_IF)        return "if";
+  else if (kind == NodeKind_FOR)       return "for";
   else if (kind == NodeKind_FUN_DECL)  return "fun_decl";
   else if (kind == NodeKind_PROG)      return "prog";
   else                                 failf("%u", (uint32_t) kind);
 }
 
 static void _debug_ast(const Node *node, const char *prefix, const bool last) {
+  if (!node) return;
+
   char child_prefix[256];
   snprintf(child_prefix, sizeof(child_prefix), "%s%s",
            prefix, last ? "  " : "│ ");
@@ -51,6 +54,14 @@ static void _debug_ast(const Node *node, const char *prefix, const bool last) {
     debugf("%s%sif\n", prefix, branch);
     _debug_ast(node->cond, child_prefix, false);
     _debug_ast(node->body, child_prefix, true);
+  }
+
+  else if (node->kind == NodeKind_FOR) {
+    debugf("%s%sfor\n", prefix, branch);
+    _debug_ast(node->init, child_prefix, false);
+    _debug_ast(node->loop_cond, child_prefix, false);
+    _debug_ast(node->inc, child_prefix, false);
+    _debug_ast(node->loop_body, child_prefix, true);
   }
 
   else if (node_kind_is_unop(node->kind)) {
@@ -245,6 +256,8 @@ static Node *fun_decl() {
 // stmt ::= "return" expr ";"
 //        | block
 //        | "if" "(" expr ")" stmt ("else" stmt)?
+//        | "for" "(" expr? ";" expr? ";" expr? ")" stmt
+//        | "while" "(" expr ")" stmt
 //        | expr? ";"
 static Node *stmt() {
   if (debug_parse) debugf_tok("parsing stmt");
@@ -272,6 +285,35 @@ static Node *stmt() {
     if (consume(TokenKind_ELSE)) {
       node->else_ = stmt();
     }
+    return pop_lexeme(node);
+  }
+
+  else if (consume(TokenKind_FOR)) {
+    // wow for loops have horrible syntax...
+    Node *node = new_node(NodeKind_FOR);
+    expect(TokenKind_LPAREN);
+    if (!consume(TokenKind_SEMICOLON)) {
+      node->init = expr();
+      expect(TokenKind_SEMICOLON);
+    }
+    if (!consume(TokenKind_SEMICOLON)) {
+      node->loop_cond = expr();
+      expect(TokenKind_SEMICOLON);
+    }
+    if (!consume(TokenKind_RPAREN)) {
+      node->inc = expr();
+      expect(TokenKind_RPAREN);
+    }
+    node->loop_body = stmt();
+    return pop_lexeme(node);
+  }
+
+  else if (consume(TokenKind_WHILE)) {
+    Node *node = new_node(NodeKind_FOR);
+    expect(TokenKind_LPAREN);
+    node->loop_cond = expr();
+    expect(TokenKind_RPAREN);
+    node->loop_body = stmt();
     return pop_lexeme(node);
   }
 

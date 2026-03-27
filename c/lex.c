@@ -30,6 +30,8 @@ const char *token_kind_to_str(const TokenKind kind) {
   else if (kind == TokenKind_RBRACE)    return "}";
   else if (kind == TokenKind_IF)        return "if";
   else if (kind == TokenKind_ELSE)      return "else";
+  else if (kind == TokenKind_FOR)       return "for";
+  else if (kind == TokenKind_WHILE)     return "while";
   else if (kind == TokenKind_EOF)       return "eof";
   else                                  failf("%u", (uint32_t) kind);
 }
@@ -140,8 +142,10 @@ Token *lex() {
     if (consume_pred(isspace)) ;  // skip whitespace
 
     else if ((len = consume("return"))) cur = link(cur, new_token(TokenKind_RETURN, len));
-    else if ((len = consume("if")))     cur = link(cur, new_token(TokenKind_IF, len));
-    else if ((len = consume("else")))   cur = link(cur, new_token(TokenKind_ELSE, len));
+    else if ((len = consume("if")))     cur = link(cur, new_token(TokenKind_IF,     len));
+    else if ((len = consume("else")))   cur = link(cur, new_token(TokenKind_ELSE,   len));
+    else if ((len = consume("for")))    cur = link(cur, new_token(TokenKind_FOR,    len));
+    else if ((len = consume("while")))  cur = link(cur, new_token(TokenKind_WHILE,  len));
 
     else if (isdigit(ch)) {
       const char *start = ctx.lexer.loc;

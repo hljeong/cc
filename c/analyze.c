@@ -28,6 +28,13 @@ static void visit(Node *node) {
     visit(node->else_);
   }
 
+  else if (node->kind == NodeKind_FOR) {
+    visit(node->init);
+    visit(node->loop_cond);
+    visit(node->inc);
+    visit(node->loop_body);
+  }
+
   else if (node_kind_is_unop(node->kind)) {
     visit(node->operand);
   }
