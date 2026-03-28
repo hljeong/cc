@@ -113,6 +113,100 @@ void at_node(const Consumer consumer, const Node *node, const char *fmt, ...) {
   va_end(ap);
 }
 
+void token_stream(const Consumer consumer, const Token *tok) {
+  assert(tok);
+
+  StringBuilder sb = sb_create(256);
+
+  {
+    sb_appendf(&sb, "[[");
+    emit(consumer, &sb.buf);
+    sb_clear(&sb);
+  }
+
+  do {
+    sb_appendf(&sb, " %s", token_to_str(tok));
+    emit(consumer, &sb.buf);
+    sb_clear(&sb);
+  } while ((tok = tok->next));
+
+  {
+    sb_appendf(&sb, " ]]");
+    emit(consumer, &sb.buf);
+    sb_clear(&sb);
+  }
+
+  sb_free(&sb);
+
+  emit(consumer, NULL);
+}
+
+void _ast(const Consumer consumer, const Node *node, StringBuilder *sb, const bool last) {
+  if (!node) return;
+
+  // emit string representation for this node
+  {
+    const int len = sb_appendf(sb, "%s%s\n", last ? "└─" : "├─", node_to_str(node));
+    emit(consumer, &sb->buf);
+    sb_backspace(sb, len);
+  }
+
+  // recursively emit children representation
+  const int prefix_len = sb_appendf(sb, last ? "  " : "│ ");
+
+  if      (node->kind == NodeKind_NUM) {}
+  else if (node->kind == NodeKind_VAR) {}
+
+  else if (node->kind == NodeKind_FUN_DECL) {
+    _ast(consumer, node->body, sb, true);
+  }
+
+  else if (node->kind == NodeKind_EXPR_STMT) {
+    _ast(consumer, node->expr, sb, true);
+  }
+
+  else if (node->kind == NodeKind_IF) {
+    _ast(consumer, node->cond, sb, true);
+    _ast(consumer, node->body, sb, true);
+  }
+
+  else if (node->kind == NodeKind_FOR) {
+    _ast(consumer, node->init, sb, true);
+    _ast(consumer, node->loop_cond, sb, true);
+    _ast(consumer, node->inc, sb, true);
+    _ast(consumer, node->loop_body, sb, true);
+  }
+
+  else if (node_kind_is_unop(node->kind)) {
+    _ast(consumer, node->operand, sb, true);
+  }
+
+  else if (node_kind_is_binop(node->kind)) {
+    _ast(consumer, node->lhs, sb, false);
+    _ast(consumer, node->rhs, sb, true);
+  }
+
+  else if (node_kind_is_list(node->kind)) {
+    Node *child = node->head;
+    while (child) {
+      _ast(consumer, child, sb, !(child->next));
+      child = child->next;
+    }
+  }
+
+  else failf("%s", node_kind_to_str(node->kind));
+
+  sb_backspace(sb, prefix_len);
+}
+
+void ast(const Consumer consumer, const Node *node) {
+  assert(node);
+  StringBuilder sb = sb_create(256);
+  _ast(consumer, node, &sb, true);
+  sb_free(&sb);
+  emit(consumer, NULL);
+}
+
 void _assert(const char *file, const int line, const char *cond) {
   debugf("%s:%d: assert(%s) failed\n", file, line, cond);
   exit(2);

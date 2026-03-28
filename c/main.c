@@ -14,13 +14,13 @@ int main(int argc, char **argv) {
   if (debug) debugf("src: %s\n", ctx.lexer.loc);
 
   ctx.parser.tok = lex();
-  if (debug) debug_token_stream(ctx.parser.tok);
+  if (debug) token_stream(DEBUG, ctx.parser.tok);
 
   ctx.ast = parse();
-  if (debug) debug_ast(ctx.ast);
+  if (debug) ast(DEBUG, ctx.ast);
 
   analyze();
-  if (debug) debug_ast(ctx.ast);
+  if (debug) ast(DEBUG, ctx.ast);
 
   codegen();
 

@@ -23,15 +23,24 @@ void sb_clear(StringBuilder *sb) {
   sb->size = 0;
 }
 
-void sb_appendv(StringBuilder *sb, const char *fmt, va_list ap) {
+int sb_appendv(StringBuilder *sb, const char *fmt, va_list ap) {
   const int space = sb->capacity - sb->size;
   const int len = vsnprintf(sb->buf + sb->size, space, fmt, ap);
   assertf(len < space, "not enough space: len=%d, space=%d",
           len, space);
   sb->size += len;
+  return len;
 }
 
-void sb_appendf(StringBuilder *sb, const char *fmt, ...) {
+int sb_appendf(StringBuilder *sb, const char *fmt, ...) {
   va_list ap; va_start(ap, fmt);
-  sb_appendv(sb, fmt, ap); va_end(ap);
+  const int len = sb_appendv(sb, fmt, ap);
+  va_end(ap);
+  return len;
+}
+
+void sb_backspace(StringBuilder *sb, const int len) {
+  assertf(len <= sb->size, "len=%d, sb->size=%d",
+          len, sb->size);
+  sb->size -= len;
 }

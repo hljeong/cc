@@ -25,6 +25,27 @@ const char *node_kind_to_str(const NodeKind kind) {
   else                                 failf("%d", kind);
 }
 
+// todo: this cant be safe... what if theres a printf with 2 token_to_str()'s?
+const char *node_to_str(const Node *node) {
+  static char buf[256];
+  int off = snprintf(buf, sizeof(buf), "%s", node_kind_to_str(node->kind));
+
+  if (node->kind == NodeKind_NUM) {
+    off += snprintf(buf + off, sizeof(buf) - off, "(%d)", node->num);
+  }
+
+  else if (node->kind == NodeKind_VAR) {
+    off += snprintf(buf + off, sizeof(buf) - off, "("sv_fmt")", sv_arg(node->name));
+  }
+
+  // show type if applicable
+  if (node->type) {
+    off += snprintf(buf + off, sizeof(buf) - off, ": %s", type_to_str(node->type));
+  }
+
+  return buf;
+}
+
 bool node_kind_is_unop(const NodeKind kind) {
   return (kind == NodeKind_NEG)       ||
          (kind == NodeKind_ADDR)      ||
@@ -89,88 +110,4 @@ Node *new_list_node(const NodeKind kind, Node *head) {
   Node *node = new_node(kind);
   node->head = head;
   return node;
-}
-
-static void _debug_ast(const Node *node, const char *prefix, const bool last) {
-  if (!node) return;
-
-  char child_prefix[256];
-  snprintf(child_prefix, sizeof(child_prefix), "%s%s",
-           prefix, last ? "  " : "│ ");
-
-  const char *branch = last ? "└─" : "├─";
-
-  if (node->kind == NodeKind_NUM) {
-    debugf("%s%snum(%d)\n", prefix, branch, node->num);
-  }
-
-  else if (node->kind == NodeKind_VAR) {
-    debugf("%s%svar("sv_fmt")\n", prefix, branch, sv_arg(node->name));
-  }
-
-  else if (node->kind == NodeKind_FUN_DECL) {
-    debugf("%s%sfn\n", prefix, branch);
-    _debug_ast(node->body, child_prefix, true);
-  }
-
-  else if (node->kind == NodeKind_EXPR_STMT) {
-    debugf("%s%sexpr-stmt\n", prefix, branch);
-    _debug_ast(node->expr, child_prefix, true);
-  }
-
-  else if (node->kind == NodeKind_IF) {
-    debugf("%s%sif\n", prefix, branch);
-    _debug_ast(node->cond, child_prefix, false);
-    _debug_ast(node->body, child_prefix, true);
-  }
-
-  else if (node->kind == NodeKind_FOR) {
-    debugf("%s%sfor\n", prefix, branch);
-    _debug_ast(node->init, child_prefix, false);
-    _debug_ast(node->loop_cond, child_prefix, false);
-    _debug_ast(node->inc, child_prefix, false);
-    _debug_ast(node->loop_body, child_prefix, true);
-  }
-
-  else if (node_kind_is_unop(node->kind)) {
-    if (node->type) debugf("%s%s%s: %s\n",
-                           prefix, branch,
-                           node_kind_to_str(node->kind),
-                           type_to_str(node->type));
-
-    else            debugf("%s%s%s\n",
-                           prefix, branch,
-                           node_kind_to_str(node->kind));
-
-    _debug_ast(node->operand, child_prefix, true);
-  }
-
-  else if (node_kind_is_binop(node->kind)) {
-    if (node->type) debugf("%s%s%s: %s\n",
-                           prefix, branch,
-                           node_kind_to_str(node->kind),
-                           type_to_str(node->type));
-
-    else            debugf("%s%s%s\n",
-                           prefix, branch,
-                           node_kind_to_str(node->kind));
-
-    _debug_ast(node->lhs, child_prefix, false);
-    _debug_ast(node->rhs, child_prefix, true);
-  }
-
-  else if (node_kind_is_list(node->kind)) {
-    debugf("%s%s%s\n", prefix, branch, node_kind_to_str(node->kind));
-    Node *child = node->head;
-    while (child) {
-      _debug_ast(child, child_prefix, !(child->next));
-      child = child->next;
-    }
-  }
-
-  else failf("%s", node_kind_to_str(node->kind));
-}
-
-void debug_ast(const Node *node) {
-  _debug_ast(node, "", true);
 }

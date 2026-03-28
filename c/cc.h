@@ -35,11 +35,12 @@ struct StringBuilder {
   int size;
 };
 
-StringBuilder sb_create (const int capacity);
-void          sb_free   (StringBuilder *sb);
-void          sb_clear  (StringBuilder *sb);
-void          sb_appendv(StringBuilder *sb, const char *fmt, va_list ap);
-void          sb_appendf(StringBuilder *sb, const char *fmt, ...);
+StringBuilder sb_create   (const int capacity);
+void          sb_free     (StringBuilder *sb);
+void          sb_clear    (StringBuilder *sb);
+int           sb_appendv  (StringBuilder *sb, const char *fmt, va_list ap);
+int           sb_appendf  (StringBuilder *sb, const char *fmt, ...);
+void          sb_backspace(StringBuilder *sb, const int len);
 
 // debug
 
@@ -86,6 +87,12 @@ void this_loc(const Consumer consumer, const char *fmt, ...);
 
 // show message at current token lexeme
 void this_tok(const Consumer consumer, const char *fmt, ...);
+
+// stringify token stream
+void token_stream(const Consumer consumer, const Token *tok);
+
+// stringify ast
+void ast(const Consumer consumer, const Node *node);
 
 
 // assertion
@@ -177,8 +184,6 @@ Token *new_token(const TokenKind kind, const int len);
 
 Token *link(Token *tok, Token *next);
 
-void debug_token_stream(const Token *tok);
-
 
 // node
 
@@ -241,6 +246,8 @@ struct Node {
 
 const char *node_kind_to_str(const NodeKind kind);
 
+const char *node_to_str(const Node *node);
+
 bool node_kind_is_variant(const NodeKind kind);
 
 bool node_kind_is_unop(const NodeKind kind);
@@ -260,8 +267,6 @@ Node *new_unop_node(const NodeKind kind, Node *operand);
 Node *new_binop_node(const NodeKind kind, Node *lhs, Node *rhs);
 
 Node *new_list_node(const NodeKind kind, Node *head);
-
-void debug_ast(const Node *node);
 
 
 // var
