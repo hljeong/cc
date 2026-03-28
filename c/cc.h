@@ -3,6 +3,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+typedef struct Token Token;
+typedef struct Node Node;
+typedef struct Var Var;
+typedef struct Type Type;
+
 
 // debug
 
@@ -49,15 +54,38 @@ void _failf(const char *file, const int line,
 // compile error
 [[noreturn]] void errorf(const char *fmt, ...);
 
+void debugf_at_loc(const char *loc, const char *fmt, ...);
 
-// lexer
+// debug print at current loc
+void debugf_loc(const char *fmt, ...);
+
+// lex error at current loc
+[[noreturn]] void errorf_loc(const char *fmt, ...);
+
+void debugf_at_tok(const Token *tok, const char *fmt, ...);
+
+// debug log at current tok
+void debugf_tok(const char *fmt, ...);
+
+// parse error at current tok
+[[noreturn]] void errorf_tok(const char *fmt, ...);
+
+void debugf_at_node(const Node *node, const char *fmt, ...);
+
+[[noreturn]] void errorf_at_node(const Node *node, const char *fmt, ...);
+
+
+// string view
 
 typedef struct {
   const char *loc;
   int len;
 } StringView;
 
-StringView sv(const char *loc, const int len);
+static inline StringView sv(const char *loc, const int len)
+{
+  return (StringView) { .loc = loc, .len = len };
+}
 
 static inline int sv_eq(const StringView s, const StringView t) {
   return (s.len == t.len) && !strncmp(s.loc, t.loc, s.len);
@@ -65,6 +93,9 @@ static inline int sv_eq(const StringView s, const StringView t) {
 
 #define sv_fmt "%.*s"
 #define sv_arg(sv) (sv).len, (sv).loc
+
+
+// token
 
 typedef enum {
   TokenKind_NUM,
@@ -94,11 +125,9 @@ typedef enum {
   TokenKind_EOF,
 } TokenKind;
 
-typedef struct Token Token;
 struct Token {
   TokenKind kind;
-  Token *next;
-  Token *prev;
+  StringView lexeme;
   union {
     // TokenKind_NUM
     int num;
@@ -106,27 +135,21 @@ struct Token {
     // TokenKind_IDENT
     StringView ident;
   };
-  StringView lexeme;
+  Token *prev, *next;
 };
-
-void debugf_at_loc(const char *loc, const char *fmt, ...);
-
-// debug print at current loc
-void debugf_loc(const char *fmt, ...);
-
-// lex error at current loc
-[[noreturn]] void errorf_loc(const char *fmt, ...);
 
 const char *token_kind_to_str(const TokenKind kind);
 
 const char *token_to_str(const Token *tok);
 
+Token *new_token(const TokenKind kind, const int len);
+
+Token *link(Token *tok, Token *next);
+
 void debug_token_stream(const Token *tok);
 
-Token *lex();
 
-
-// parser
+// node
 
 typedef enum {
   NodeKind_NUM,
@@ -152,20 +175,9 @@ typedef enum {
   NodeKind_PROG,
 } NodeKind;
 
-typedef struct Type Type;
-typedef struct Node Node;
-
-typedef struct Var Var;
-struct Var {
-  StringView name;
-  Type *type;
-  Node *decl;
-  int offset;
-  Var *next;
-};
-
 struct Node {
   NodeKind kind;
+  StringView lexeme;
   union {
     int num;                     // NodeKind_NUM
     struct {
@@ -193,21 +205,10 @@ struct Node {
     };
   };
   Type *type;
-  StringView lexeme;
   Node *next;
 };
 
-void debugf_at_tok(const Token *tok, const char *fmt, ...);
-
-// debug log at current tok
-void debugf_tok(const char *fmt, ...);
-
-// parse error at current tok
-[[noreturn]] void errorf_tok(const char *fmt, ...);
-
 const char *node_kind_to_str(const NodeKind kind);
-
-void debug_ast(const Node *node);
 
 bool node_kind_is_variant(const NodeKind kind);
 
@@ -217,15 +218,37 @@ bool node_kind_is_binop(const NodeKind kind);
 
 bool node_kind_is_list(const NodeKind kind);
 
-// todo: token.c, node.c, type.c?
-Node *new_num(const int num);
+Node *new_node(const NodeKind kind);
 
-Node *new_binop(const NodeKind kind, Node *lhs, Node *rhs);
+Node *new_num_node(const int num);
 
-Node *parse();
+Node *new_var_node(const StringView name);
+
+Node *new_unop_node(const NodeKind kind, Node *operand);
+
+Node *new_binop_node(const NodeKind kind, Node *lhs, Node *rhs);
+
+Node *new_list_node(const NodeKind kind, Node *head);
+
+void debug_ast(const Node *node);
 
 
-// semantic analyzer
+// var
+
+struct Var {
+  StringView name;
+  Type *type;
+  Node *decl;
+  int offset;
+  Var *next;
+};
+
+Var *new_var(Node *decl);
+
+Var *lookup_or_new_var(Var *locals, Node *node);
+
+
+// type
 
 typedef enum {
   TypeKind_INT,
@@ -249,15 +272,20 @@ const char *type_kind_to_str(const TypeKind kind);
 
 const char *type_to_str(const Type *type);
 
-bool type_eq(const Type *t, const Type* u);
+bool type_eq(const Type *t, const Type *u);
 
-void debugf_at_node(const Node *node, const char *fmt, ...);
+Type *new_type(const TypeKind kind);
 
-[[noreturn]] void errorf_at_node(const Node *node, const char *fmt, ...);
+Type *new_pointer_type(Type *referenced);
+
+
+// action
+
+Token *lex();
+
+Node *parse();
 
 void analyze();
-
-// code generator
 
 void codegen();
 

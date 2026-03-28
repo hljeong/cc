@@ -1,65 +1,5 @@
 #include "cc.h"
 
-Types t = {
-  .int_ = { .kind = TypeKind_INT },
-};
-
-const char *type_kind_to_str(const TypeKind kind) {
-  if      (kind == TypeKind_INT) return "int";
-  else if (kind == TypeKind_PTR) return "ptr";
-  else                           failf("%d\n", kind);
-}
-
-const char *type_to_str(const Type *type) {
-  if (type->kind == TypeKind_PTR) {
-    // todo: figure out mem mgmt
-    const int BUFLEN = 256;
-    char *buf = calloc(BUFLEN, sizeof(char));
-    const int len = snprintf(buf, BUFLEN, "%s", type_to_str(type->referenced));
-    snprintf(buf + len, BUFLEN - len, "*");
-    return buf;
-  }
-
-  else return type_kind_to_str(type->kind);
-}
-
-bool type_eq(const Type *t, const Type *u) {
-  if (t->kind != u->kind) return false;
-
-  else if (t->kind == TypeKind_PTR) {
-    return type_eq(t->referenced, u->referenced);
-  }
-
-  return true;
-}
-
-static Type *new_type(const TypeKind kind) {
-  Type *type = calloc(1, sizeof(Type));
-  type->kind = kind;
-  return type;
-}
-
-static Type *new_pointer_type(Type *referenced) {
-  Type *type = new_type(TypeKind_PTR);
-  type->referenced = referenced;
-  return type;
-}
-
-static Var *new_var(Node *decl) {
-  assert(decl->kind == NodeKind_VAR);
-  Var *var = calloc(1, sizeof(Var));
-  var->name = decl->name;
-  var->decl = decl;
-  return var;
-}
-
-static Var *lookup_or_new_var(Var *locals, Node *node) {
-  assert(node->kind == NodeKind_VAR);
-  if (sv_eq(locals->name, node->name)) return locals;
-  else if (locals->next) return lookup_or_new_var(locals->next, node);
-  else return (locals->next = new_var(node));
-}
-
 static void visit(Node **node_ptr);
 static void visit(Node **node_ptr) {
   Node *node = *node_ptr;
@@ -154,9 +94,9 @@ static void visit(Node **node_ptr) {
         node->rhs = node->lhs;
       }
 
-      Node *stride = new_num(8);
+      Node *stride = new_num_node(8);
       stride->lexeme = node->rhs->lexeme;
-      node->rhs = new_binop(NodeKind_MUL, stride, node->rhs);
+      node->rhs = new_binop_node(NodeKind_MUL, stride, node->rhs);
 
       node->type = node->lhs->type;
     }
@@ -183,10 +123,9 @@ static void visit(Node **node_ptr) {
 
       node->type = &t.int_;
 
-      Node *stride = new_num(8);
+      Node *stride = new_num_node(8);
       stride->lexeme = node->lexeme;
-      // todo: return this
-      Node *new_node = new_binop(NodeKind_DIV, node, stride);
+      Node *new_node = new_binop_node(NodeKind_DIV, node, stride);
       new_node->type = &t.int_;
       new_node->lexeme = node->lexeme;
       *node_ptr = new_node;
@@ -194,9 +133,9 @@ static void visit(Node **node_ptr) {
 
     // `ptr - num`
     else if (t_lhs->kind == TypeKind_PTR && t_rhs->kind == TypeKind_INT) {
-      Node *stride = new_num(8);
+      Node *stride = new_num_node(8);
       stride->lexeme = node->rhs->lexeme;
-      node->rhs = new_binop(NodeKind_MUL, stride, node->rhs);
+      node->rhs = new_binop_node(NodeKind_MUL, stride, node->rhs);
 
       node->type = node->lhs->type;
     }
