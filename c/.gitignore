@@ -1,5 +1,7 @@
 *.o
+.cache/
 a.S
 a.out
 cc
+compile_commands.json
 test.err
