@@ -1,20 +1,95 @@
+#include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+typedef struct Consumer Consumer;
+typedef struct StringView StringView;
+typedef struct StringBuilder StringBuilder;
 typedef struct Token Token;
 typedef struct Node Node;
 typedef struct Var Var;
 typedef struct Type Type;
 
 
+// string view
+
+struct StringView {
+  const char *loc;
+  int len;
+};
+
+StringView sv_create(const char *loc, const int len);
+int        sv_eq    (const StringView s, const StringView t);
+
+#define    sv_fmt     "%.*s"
+#define    sv_arg(sv) (sv).len, (sv).loc
+
+
+// string builder
+
+struct StringBuilder {
+  char *buf;
+  int capacity;
+  int size;
+};
+
+StringBuilder sb_create (const int capacity);
+void          sb_free   (StringBuilder *sb);
+void          sb_clear  (StringBuilder *sb);
+void          sb_appendv(StringBuilder *sb, const char *fmt, va_list ap);
+void          sb_appendf(StringBuilder *sb, const char *fmt, ...);
+
 // debug
 
-// debug print
+// print to debug
 void debugf(const char *fmt, ...);
 
-// internal assertion
+// print to debug and abort
+void errorf(const char *fmt, ...);
+
+struct Consumer {
+  void *(*consume)(void *arg, void *ctx);
+  void *ctx;
+};
+
+static inline void *emit(Consumer consumer, void *arg) {
+  return consumer.consume(arg, consumer.ctx);
+}
+
+// print consumed string to debug
+void *consume_debug(void *arg, void *ctx);
+extern Consumer DEBUG;
+
+// print consumed string to debug and abort
+void *consume_error(void *arg, void *ctx);
+extern Consumer ERROR;
+
+// append consumed string to string builder
+void *consume_append(void *arg, void *ctx);
+static inline Consumer APPEND(StringBuilder *sb) {
+  return (Consumer) { .consume = consume_append, .ctx = sb };
+}
+
+// show message at cursor location
+void at_loc(const Consumer consumer, const char *loc, const char *fmt, ...);
+
+// show message at token lexeme
+void at_tok(const Consumer consumer, const Token *tok, const char *fmt, ...);
+
+// show message at node lexeme
+void at_node(const Consumer consumer, const Node *node, const char *fmt, ...);
+
+// show message at current cursor location
+void this_loc(const Consumer consumer, const char *fmt, ...);
+
+// show message at current token lexeme
+void this_tok(const Consumer consumer, const char *fmt, ...);
+
+
+// assertion
+
 [[noreturn]]
 void _assert(const char *file, const int line, const char *cond);
 
@@ -42,7 +117,6 @@ void _assertf(const char *file, const int line,
                #cond, fmt, __VA_ARGS__); \
   } while (0)
 
-// internal error
 [[noreturn]]
 void _failf(const char *file, const int line,
             const char *fmt, ...);
@@ -50,49 +124,6 @@ void _failf(const char *file, const int line,
 #define failf(fmt, ...) _failf(__FILE__, __LINE__, fmt, __VA_ARGS__)
 
 #define fail(msg) _failf(__FILE__, __LINE__, msg)
-
-// compile error
-[[noreturn]] void errorf(const char *fmt, ...);
-
-void debugf_at_loc(const char *loc, const char *fmt, ...);
-
-// debug print at current loc
-void debugf_loc(const char *fmt, ...);
-
-// lex error at current loc
-[[noreturn]] void errorf_loc(const char *fmt, ...);
-
-void debugf_at_tok(const Token *tok, const char *fmt, ...);
-
-// debug log at current tok
-void debugf_tok(const char *fmt, ...);
-
-// parse error at current tok
-[[noreturn]] void errorf_tok(const char *fmt, ...);
-
-void debugf_at_node(const Node *node, const char *fmt, ...);
-
-[[noreturn]] void errorf_at_node(const Node *node, const char *fmt, ...);
-
-
-// string view
-
-typedef struct {
-  const char *loc;
-  int len;
-} StringView;
-
-static inline StringView sv(const char *loc, const int len)
-{
-  return (StringView) { .loc = loc, .len = len };
-}
-
-static inline int sv_eq(const StringView s, const StringView t) {
-  return (s.len == t.len) && !strncmp(s.loc, t.loc, s.len);
-}
-
-#define sv_fmt "%.*s"
-#define sv_arg(sv) (sv).len, (sv).loc
 
 
 // token

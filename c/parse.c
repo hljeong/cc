@@ -21,9 +21,9 @@ static const Token *consume(const TokenKind kind) {
 
 static const Token *expect(const TokenKind kind) {
   const Token *tok = consume(kind);
-  if (!tok) errorf_tok("expected %s, got: %s",
-                       token_kind_to_str(kind),
-                       token_to_str(ctx.parser.tok));
+  if (!tok) this_tok(ERROR, "expected %s, got: %s",
+                     token_kind_to_str(kind),
+                     token_to_str(ctx.parser.tok));
   return tok;
 }
 
@@ -87,14 +87,14 @@ static Node *add_lexeme(Node *node) {
 // todo: temp
 // prog ::= fun_decl
 static Node *prog() {
-  if (debug_parse) debugf_tok("parsing prog");
+  if (debug_parse) this_tok(DEBUG, "parsing prog");
   return fun_decl();
 }
 
 // todo: temp
 // decl ::= "{" stmt* "}"
 static Node *fun_decl() {
-  if (debug_parse) debugf_tok("parsing fun_decl");
+  if (debug_parse) this_tok(DEBUG, "parsing fun_decl");
   src_push();
   Node *node = new_node(NodeKind_FUN_DECL);
   {
@@ -117,7 +117,7 @@ static Node *fun_decl() {
 //        | "while" "(" expr ")" stmt
 //        | expr? ";"
 static Node *stmt() {
-  if (debug_parse) debugf_tok("parsing stmt");
+  if (debug_parse) this_tok(DEBUG, "parsing stmt");
   src_push();
   Node *node = NULL;
 
@@ -192,14 +192,14 @@ static Node *stmt() {
 
 // expr ::= assign
 static Node *expr() {
-  if (debug_parse) debugf_tok("parsing expr");
+  if (debug_parse) this_tok(DEBUG, "parsing expr");
   return assign();
 }
 
 // note: right-associative
 // assign ::= equality ("=" assign)?
 static Node *assign() {
-  if (debug_parse) debugf_tok("parsing assign");
+  if (debug_parse) this_tok(DEBUG, "parsing assign");
   src_push();
   Node *node = equality();
   return consume(TokenKind_EQ) ? pop_lexeme(new_binop_node(NodeKind_ASSIGN, node, assign()))
@@ -208,7 +208,7 @@ static Node *assign() {
 
 // equality ::= relational ("==" relational | "!=" relational)*
 static Node *equality() {
-  if (debug_parse) debugf_tok("parsing equality");
+  if (debug_parse) this_tok(DEBUG, "parsing equality");
   src_push();
   Node *node = relational();
   const Token *tok = NULL;
@@ -223,7 +223,7 @@ static Node *equality() {
 
 // relational ::= add ("<" add | "<=" add | ">" add | ">=" add)*
 static Node *relational() {
-  if (debug_parse) debugf_tok("parsing relational");
+  if (debug_parse) this_tok(DEBUG, "parsing relational");
   src_push();
   Node *node = add();
   const Token *tok = NULL;
@@ -240,7 +240,7 @@ static Node *relational() {
 
 // add ::= mul ("+" mul | "-" mul)*
 static Node *add() {
-  if (debug_parse) debugf_tok("parsing add");
+  if (debug_parse) this_tok(DEBUG, "parsing add");
   src_push();
   Node *node = mul();
   const Token *tok = NULL;
@@ -254,7 +254,7 @@ static Node *add() {
 
 // mul ::= unary ("*" unary | "/" unary)*
 static Node *mul() {
-  if (debug_parse) debugf_tok("parsing mul");
+  if (debug_parse) this_tok(DEBUG, "parsing mul");
   src_push();
   Node *node = unary();
   const Token *tok = NULL;
@@ -269,7 +269,7 @@ static Node *mul() {
 // unary ::= ("+" | "-" | "&" | "*") unary
 //         | primary
 static Node *unary() {
-  if (debug_parse) debugf_tok("parsing unary");
+  if (debug_parse) this_tok(DEBUG, "parsing unary");
   src_push();
   const Token *tok = NULL;
   if      ((tok = consume(TokenKind_PLUS)))  return src_pop(), unary();
@@ -281,7 +281,7 @@ static Node *unary() {
 
 // primary ::= "(" expr ")" | ident | num
 static Node *primary() {
-  if (debug_parse) debugf_tok("parsing primary");
+  if (debug_parse) this_tok(DEBUG, "parsing primary");
   src_push();
   const Token *tok = NULL;
   if (consume(TokenKind_LPAREN)) {
@@ -291,7 +291,7 @@ static Node *primary() {
   }
   else if ((tok = consume(TokenKind_IDENT))) return pop_lexeme(new_var_node(tok->ident));
   else if ((tok = consume(TokenKind_NUM)))   return pop_lexeme(new_num_node(tok->num));
-  else                                       errorf_tok("expected expression");
+  else                                       this_tok(ERROR, "expected expression");
 }
 
 Node *parse() {
@@ -306,6 +306,6 @@ Node *parse() {
     failf("non-empty src stack: %d", size);
   }
   if (!match(TokenKind_EOF))
-    errorf_tok("extra token");
+    this_tok(ERROR, "extra token");
   return node;
 }

@@ -48,7 +48,7 @@ const char *token_to_str(const Token *tok) {
 Token *new_token(const TokenKind kind, const int len) {
   Token *tok = calloc(1, sizeof(Token));
   tok->kind = kind;
-  tok->lexeme = sv(ctx.lexer.loc - len, len);
+  tok->lexeme = sv_create(ctx.lexer.loc - len, len);
   return tok;
 }
 

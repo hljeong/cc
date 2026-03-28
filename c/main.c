@@ -1,7 +1,5 @@
 #include "cc.h"
 
-#include <string.h>
-
 bool debug = true;
 
 Context ctx = {};

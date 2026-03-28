@@ -33,8 +33,8 @@ static void visit(Node **node_ptr) {
     else if (node->kind == NodeKind_ADDR)  node->type = new_pointer_type(node->operand->type);
     else if (node->kind == NodeKind_DEREF) {
       if (node->operand->type->kind != TypeKind_PTR)
-        errorf_at_node(node, "not an lvalue: %s",
-                       type_to_str(node->operand->type));
+        at_node(ERROR, node, "not an lvalue: %s",
+                type_to_str(node->operand->type));
       node->type = node->operand->type->referenced;
     }
   }
@@ -47,8 +47,8 @@ static void visit(Node **node_ptr) {
       Var *var = lookup_or_new_var(&ctx.analyzer.locals, node->lhs);
       if (!var->type) {
         var->type = node->rhs->type;
-        debugf_at_node(node, "declaring "sv_fmt": %s",
-                       sv_arg(var->name), type_to_str(var->type));
+        at_node(DEBUG, node, "declaring "sv_fmt": %s",
+                sv_arg(var->name), type_to_str(var->type));
       }
     }
 
@@ -56,9 +56,9 @@ static void visit(Node **node_ptr) {
 
     // todo: how to check if lhs is an lvalue?
     if (!type_eq(node->lhs->type, node->rhs->type)) {
-      errorf_at_node(node, "cannot assign ("sv_fmt": %s) to ("sv_fmt": %s)",
-                     sv_arg(node->rhs->lexeme), type_to_str(node->rhs->type),
-                     sv_arg(node->lhs->lexeme), type_to_str(node->lhs->type));
+      at_node(ERROR, node, "cannot assign ("sv_fmt": %s) to ("sv_fmt": %s)",
+              sv_arg(node->rhs->lexeme), type_to_str(node->rhs->type),
+              sv_arg(node->lhs->lexeme), type_to_str(node->lhs->type));
     }
 
     node->type = node->lhs->type;
@@ -79,9 +79,9 @@ static void visit(Node **node_ptr) {
 
     // `ptr + ptr`
     else if (t_lhs->kind == TypeKind_PTR && t_rhs->kind == TypeKind_PTR) {
-      errorf_at_node(node, "cannot add ("sv_fmt": %s) to ("sv_fmt" %s)",
-                     sv_arg(node->rhs->lexeme), type_to_str(node->rhs->type),
-                     sv_arg(node->lhs->lexeme), type_to_str(node->lhs->type));
+      at_node(ERROR, node, "cannot add ("sv_fmt": %s) to ("sv_fmt" %s)",
+              sv_arg(node->rhs->lexeme), type_to_str(node->rhs->type),
+              sv_arg(node->lhs->lexeme), type_to_str(node->lhs->type));
     }
 
     // todo: dangerous catch-all
@@ -117,9 +117,9 @@ static void visit(Node **node_ptr) {
     // `ptr - ptr`
     else if (t_lhs->kind == TypeKind_PTR && t_rhs->kind == TypeKind_PTR) {
       if (!type_eq(t_lhs->referenced, t_rhs->referenced))
-        errorf_at_node(node, "cannot subtract ("sv_fmt": %s) from ("sv_fmt" %s)",
-                       sv_arg(node->rhs->lexeme), type_to_str(node->rhs->type),
-                       sv_arg(node->lhs->lexeme), type_to_str(node->lhs->type));
+        at_node(ERROR, node, "cannot subtract ("sv_fmt": %s) from ("sv_fmt" %s)",
+                sv_arg(node->rhs->lexeme), type_to_str(node->rhs->type),
+                sv_arg(node->lhs->lexeme), type_to_str(node->lhs->type));
 
       node->type = &t.int_;
 
@@ -142,9 +142,9 @@ static void visit(Node **node_ptr) {
 
     // `num - ptr`
     else if (t_lhs->kind == TypeKind_INT && t_rhs->kind == TypeKind_PTR) {
-      errorf_at_node(node, "cannot subtract ("sv_fmt": %s) from ("sv_fmt" %s)",
-                     sv_arg(node->rhs->lexeme), type_to_str(node->rhs->type),
-                     sv_arg(node->lhs->lexeme), type_to_str(node->lhs->type));
+      at_node(ERROR, node, "cannot subtract ("sv_fmt": %s) from ("sv_fmt" %s)",
+              sv_arg(node->rhs->lexeme), type_to_str(node->rhs->type),
+              sv_arg(node->lhs->lexeme), type_to_str(node->lhs->type));
     }
 
     else failf("("sv_fmt": %s) - ("sv_fmt" %s)",
@@ -168,7 +168,7 @@ static void visit(Node **node_ptr) {
     node->var = lookup_or_new_var(&ctx.analyzer.locals, node);
     if (!node->var->type) {
       node->type = &t.int_;
-      debugf_at_node(node, "undeclared variable");
+      at_node(DEBUG, node, "undeclared variable");
     }
     node->type = node->var->type;
   }

@@ -53,14 +53,14 @@ static int consume(const char *s) {
 // consume_ch(ch), except fail if unsuccesful
 static int expect_ch(const char ch) {
   const int len = consume_ch(ch);
-  if (!len) errorf_loc("expected '%c'", ch);
+  if (!len) this_loc(ERROR, "expected '%c'", ch);
   return len;
 }
 
 // consume(s), except fail if unsuccesful
 static int expect(const char *s) {
   const int len = consume(s);
-  if (!len) errorf_loc("expected \"%s\"");
+  if (!len) this_loc(ERROR, "expected \"%s\"");
   return len;
 }
 
@@ -110,7 +110,7 @@ Token *lex() {
     else if ((len = consume_ch('='))) cur = link(cur, new_token(TokenKind_EQ,        len));
     else if ((len = consume_ch('{'))) cur = link(cur, new_token(TokenKind_LBRACE,    len));
     else if ((len = consume_ch('}'))) cur = link(cur, new_token(TokenKind_RBRACE,    len));
-    else                              errorf_loc("invalid token");
+    else                              this_loc(ERROR, "invalid token");
   }
 
   cur = link(cur, new_token(TokenKind_EOF, 0));
