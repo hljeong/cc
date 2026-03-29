@@ -2,6 +2,7 @@
 #include <stdbool.h>
 
 typedef struct StrConsumer StrConsumer;
+typedef struct StrFormatter StrFormatter;
 typedef struct StrEmitter StrEmitter;
 typedef struct StringView StringView;
 typedef struct StringBuilder StringBuilder;
@@ -54,6 +55,14 @@ struct StrConsumer {
   void *ctx;
 };
 
+typedef void (*FormatStr)(const StrConsumer, va_list);
+struct StrFormatter {
+  const char *spec;
+  FormatStr fmt;
+};
+
+extern StrFormatter FORMATTERS[];
+
 typedef void (*EmitStr)(const StrConsumer, void *);
 struct StrEmitter {
   EmitStr emit;
@@ -63,47 +72,35 @@ struct StrEmitter {
 extern const StrEmitter HALT;
 
 void halt     (const StrConsumer c);
+void consume_e(const StrConsumer c, const StrEmitter e);
 void consume_v(const StrConsumer c, const char *fmt, va_list ap);
 void consume_f(const StrConsumer c, const char *fmt, ...);
 
 StrEmitter str_f(const char *fmt, ...);
 
+void fmt_at_loc      (const StrConsumer c, va_list ap);
+void fmt_at_cur_loc  (const StrConsumer c, va_list ap);
+void fmt_at_tok      (const StrConsumer c, va_list ap);
+void fmt_at_cur_tok  (const StrConsumer c, va_list ap);
+void fmt_at_node     (const StrConsumer c, va_list ap);
+void fmt_token_kind  (const StrConsumer c, va_list ap);
+void fmt_token       (const StrConsumer c, va_list ap);
+void fmt_token_stream(const StrConsumer c, va_list ap);
+void fmt_node_kind   (const StrConsumer c, va_list ap);
+void fmt_node        (const StrConsumer c, va_list ap);
+void fmt_ast         (const StrConsumer c, va_list ap);
+void fmt_type_kind   (const StrConsumer c, va_list ap);
+void fmt_type        (const StrConsumer c, va_list ap);
+
 
 // debug
 
 void _debug_f(const char *fmt, ...);
-#define debug_f(fmt, ...) _debug_f(fmt, __VA_ARGS__, HALT)
+#define debug_f(fmt, ...) _debug_f(fmt, ##__VA_ARGS__, HALT)
 
 [[noreturn]]
 void _error_f(const char *fmt, ...);
-#define error_f(fmt, ...) _error_f(fmt, __VA_ARGS__, HALT)
-
-// todo: convert these to format specifiers
-// show message at cursor location
-StrEmitter at_loc(const char *loc);
-
-// show message at token lexeme
-StrEmitter at_tok(const Token *tok);
-
-// show message at node lexeme
-StrEmitter at_node(const Node *node);
-
-// show message at current cursor location
-StrEmitter this_loc();
-
-// show message at current token lexeme
-StrEmitter this_tok();
-
-// stringify
-StrEmitter str_token_kind  (const TokenKind kind);
-StrEmitter str_token       (const Token *tok);
-StrEmitter str_token_stream(const Token *tok);
-StrEmitter str_node_kind   (const NodeKind kind);
-StrEmitter str_node        (const Node *node);
-StrEmitter str_ast         (const Node *node);
-StrEmitter str_type_kind   (const TypeKind kind);
-StrEmitter str_type        (const Type *type);
-
+#define error_f(fmt, ...) _error_f(fmt, ##__VA_ARGS__, HALT)
 
 // assertion
 
@@ -118,7 +115,6 @@ void _assert(const char *file, const int line, const char *cond);
       _assert(__FILE__, __LINE__, #cond); \
   } while (0)
 
-// todo: optional args (##__VA_ARGS__ or separate macro?)
 [[noreturn]]
 void _assert_f(const char *file, const int line, const char *cond,
                const char *fmt, ...);
@@ -126,7 +122,7 @@ void _assert_f(const char *file, const int line, const char *cond,
   do {                                     \
     if (!(cond))                           \
       _assert_f(__FILE__, __LINE__, #cond, \
-                fmt, __VA_ARGS__, HALT);   \
+                fmt, ##__VA_ARGS__, HALT); \
   } while (0)
 
 [[noreturn]]
@@ -135,7 +131,7 @@ void _fail(const char *file, const int line);
 
 [[noreturn]]
 void _fail_f(const char *file, const int line, const char * fmt, ...);
-#define fail_f(fmt, ...) _fail_f(__FILE__, __LINE__, fmt, __VA_ARGS__, HALT);
+#define fail_f(fmt, ...) _fail_f(__FILE__, __LINE__, fmt, ##__VA_ARGS__, HALT);
 
 
 // token

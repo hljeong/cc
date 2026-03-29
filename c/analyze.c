@@ -33,8 +33,8 @@ static void visit(Node **node_ptr) {
     else if (node->kind == NodeKind_ADDR)  node->type = new_pointer_type(node->operand->type);
     else if (node->kind == NodeKind_DEREF) {
       if (node->operand->type->kind != TypeKind_PTR)
-        error_f("%{} not an lvalue: %{type}",
-                at_node(node), node->operand->type);
+        error_f("%{@node} not an lvalue: %{type}",
+                node, node->operand->type);
       node->type = node->operand->type->referenced;
     }
   }
@@ -47,8 +47,8 @@ static void visit(Node **node_ptr) {
       Var *var = lookup_or_new_var(&ctx.analyzer.locals, node->lhs);
       if (!var->type) {
         var->type = node->rhs->type;
-        debug_f("%{} declaring %{sv}: %{type}",
-                at_node(node), var->name, var->type);
+        debug_f("%{@node} declaring %{sv}: %{type}",
+                node, var->name, var->type);
       }
     }
 
@@ -56,8 +56,8 @@ static void visit(Node **node_ptr) {
 
     // todo: how to check if lhs is an lvalue?
     if (!type_eq(node->lhs->type, node->rhs->type)) {
-      error_f("%{} cannot assign (%{sv}: %{type}) to (%{sv}: %{type})",
-              at_node(node),
+      error_f("%{@node} cannot assign (%{sv}: %{type}) to (%{sv}: %{type})",
+              node,
               node->rhs->lexeme, node->rhs->type,
               node->lhs->lexeme, node->lhs->type);
     }
@@ -80,8 +80,8 @@ static void visit(Node **node_ptr) {
 
     // `ptr + ptr`
     else if (t_lhs->kind == TypeKind_PTR && t_rhs->kind == TypeKind_PTR) {
-      error_f("%{} cannot assign (%{sv}: %{type}) to (%{sv}: %{type})",
-              at_node(node),
+      error_f("%{@node} cannot assign (%{sv}: %{type}) to (%{sv}: %{type})",
+              node,
               node->rhs->lexeme, node->rhs->type,
               node->lhs->lexeme, node->lhs->type);
     }
@@ -119,8 +119,8 @@ static void visit(Node **node_ptr) {
     // `ptr - ptr`
     else if (t_lhs->kind == TypeKind_PTR && t_rhs->kind == TypeKind_PTR) {
       if (!type_eq(t_lhs->referenced, t_rhs->referenced)) {
-        error_f("%{} cannot subtract (%{sv}: %{type}) from (%{sv}: %{type})",
-                at_node(node),
+        error_f("%{@node} cannot subtract (%{sv}: %{type}) from (%{sv}: %{type})",
+                node,
                 node->rhs->lexeme, node->rhs->type,
                 node->lhs->lexeme, node->lhs->type);
       }
@@ -146,8 +146,8 @@ static void visit(Node **node_ptr) {
 
     // `num - ptr`
     else if (t_lhs->kind == TypeKind_INT && t_rhs->kind == TypeKind_PTR) {
-      error_f("%{} cannot subtract (%{sv}: %{type}) from (%{sv}: %{type})",
-              at_node(node),
+      error_f("%{@node} cannot subtract (%{sv}: %{type}) from (%{sv}: %{type})",
+              node,
               node->rhs->lexeme, node->rhs->type,
               node->lhs->lexeme, node->lhs->type);
     }
@@ -173,7 +173,7 @@ static void visit(Node **node_ptr) {
     node->var = lookup_or_new_var(&ctx.analyzer.locals, node);
     if (!node->var->type) {
       node->type = &t.int_;
-      debug_f("%{} undeclared variable", at_node(node));
+      debug_f("%{@node} undeclared variable", node);
     }
     node->type = node->var->type;
   }

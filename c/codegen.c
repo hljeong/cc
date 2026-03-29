@@ -15,8 +15,8 @@ static void addr(const Node *node) {
     visit(node->operand);
   }
 
-  else error_f("%{} not an lvalue: %{node_kind}",
-               at_node(node), node->kind);
+  else error_f("%{@node} not an lvalue: %{node_kind}",
+               node, node->kind);
 }
 
 static void push(void) {

@@ -12,6 +12,11 @@ int sv_eq(const StringView s, const StringView t) {
   return (s.len == t.len) && !strncmp(s.loc, t.loc, s.len);
 }
 
+static void fmt_sv(const StrConsumer c, va_list ap) {
+  const StringView sv = va_arg(ap, StringView);
+  consume_f(c, sv_fmt, sv_arg(sv));
+}
+
 StringBuilder sb_create(const int capacity) {
   assert(capacity);
   char *buf = (char *) calloc(capacity, sizeof(char));
@@ -67,8 +72,13 @@ static void emit_halt(const StrConsumer c, void *data) {
 
 const StrEmitter HALT = { .emit = emit_halt };
 
-static void consume_e(const StrConsumer c, const StrEmitter e) {
+void consume_e(const StrConsumer c, const StrEmitter e) {
   e.emit(c, e.data);
+}
+
+static void fmt_e(const StrConsumer c, va_list ap) {
+  const StrEmitter e = va_arg(ap, StrEmitter);
+  consume_e(c, e);
 }
 
 void halt(const StrConsumer c) {
@@ -78,6 +88,25 @@ void halt(const StrConsumer c) {
 static void consume_s(const StrConsumer c, const char *s) {
   c.consume(s, c.ctx);
 }
+
+StrFormatter FORMATTERS[] = {
+  (StrFormatter) { .spec = "",             .fmt = fmt_e },
+  (StrFormatter) { .spec = "@loc",         .fmt = fmt_at_loc },
+  (StrFormatter) { .spec = "@cur_loc",     .fmt = fmt_at_cur_loc },
+  (StrFormatter) { .spec = "@tok",         .fmt = fmt_at_tok },
+  (StrFormatter) { .spec = "@cur_tok",     .fmt = fmt_at_cur_tok },
+  (StrFormatter) { .spec = "@node",        .fmt = fmt_at_node },
+  (StrFormatter) { .spec = "sv",           .fmt = fmt_sv },
+  (StrFormatter) { .spec = "token_kind",   .fmt = fmt_token_kind },
+  (StrFormatter) { .spec = "token",        .fmt = fmt_token },
+  (StrFormatter) { .spec = "token_stream", .fmt = fmt_token_stream },
+  (StrFormatter) { .spec = "node_kind",    .fmt = fmt_node_kind },
+  (StrFormatter) { .spec = "node",         .fmt = fmt_node },
+  (StrFormatter) { .spec = "ast",          .fmt = fmt_ast },
+  (StrFormatter) { .spec = "type_kind",    .fmt = fmt_type_kind },
+  (StrFormatter) { .spec = "type",         .fmt = fmt_type },
+  (StrFormatter) { .spec = NULL,           .fmt = NULL },
+};
 
 void consume_v(const StrConsumer c, const char *fmt, va_list ap) {
   char buf[BUF_LEN];
@@ -119,57 +148,15 @@ void consume_v(const StrConsumer c, const char *fmt, va_list ap) {
       fmt++;  // skip '}'
 
       // dispatch
-      if (!strcmp(spec, "")) {
-        const StrEmitter e = va_arg(ap, StrEmitter);
-        consume_e(c, e);
+      StrFormatter *formatter = &FORMATTERS[0];
+      while (formatter->spec) {
+        if (!strcmp(spec, formatter->spec)) {
+          formatter->fmt(c, ap);
+          break;
+        }
+        formatter++;
       }
-
-      else if (!strcmp(spec, "sv")) {
-        const StringView sv = va_arg(ap, StringView);
-        consume_f(c, sv_fmt, sv_arg(sv));
-      }
-
-      else if (!strcmp(spec, "token_kind")) {
-        const TokenKind kind = va_arg(ap, TokenKind);
-        consume_e(c, str_token_kind(kind));
-      }
-
-      else if (!strcmp(spec, "token")) {
-        const Token *tok = va_arg(ap, const Token *);
-        consume_e(c, str_token(tok));
-      }
-
-      else if (!strcmp(spec, "token_stream")) {
-        const Token *tok = va_arg(ap, const Token *);
-        consume_e(c, str_token_stream(tok));
-      }
-
-      else if (!strcmp(spec, "node_kind")) {
-        const NodeKind node_kind = va_arg(ap, NodeKind);
-        consume_e(c, str_node_kind(node_kind));
-      }
-
-      else if (!strcmp(spec, "node")) {
-        const Node *node = va_arg(ap, const Node *);
-        consume_e(c, str_node(node));
-      }
-
-      else if (!strcmp(spec, "ast")) {
-        const Node *node = va_arg(ap, const Node *);
-        consume_e(c, str_ast(node));
-      }
-
-      else if (!strcmp(spec, "type_kind")) {
-        const TypeKind type_kind = va_arg(ap, TypeKind);
-        consume_e(c, str_type_kind(type_kind));
-      }
-
-      else if (!strcmp(spec, "type")) {
-        const Type *type = va_arg(ap, const Type *);
-        consume_e(c, str_type(type));
-      }
-
-      else fail_f("unknown spec: %s", spec);
+      assert_f(formatter->spec, "unknown spec: %s", spec);
     }
 
     // start new segment

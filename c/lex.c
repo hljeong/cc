@@ -14,8 +14,7 @@ static int is_ident_rest(int c) {
 }
 
 static int consume_pred(int (*pred)(int)) {
-  // todo: ##__VA_ARGS__?
-  assert_f(!pred('\0'), "predicate accepts eof", NULL);
+  assert_f(!pred('\0'), "predicate accepts eof");
   const char *start = ctx.lexer.loc;
   while (pred(*ctx.lexer.loc)) ctx.lexer.loc++;
   return ctx.lexer.loc - start;
@@ -45,8 +44,7 @@ static int consume_ch(const char ch) {
 // otherwise return 0
 static int consume(const char *s) {
   const int len = strlen(s);
-  // todo: ##__VA_ARGS__?
-  assert_f(len > 0, "empty literal", NULL);
+  assert_f(len > 0, "empty literal");
   if (!strncmp(ctx.lexer.loc, s, len)) {
     ctx.lexer.loc += len;
     return len;
@@ -56,14 +54,14 @@ static int consume(const char *s) {
 // consume_ch(ch), except fail if unsuccesful
 static int expect_ch(const char ch) {
   const int len = consume_ch(ch);
-  if (!len) error_f("%{} expected '%c'", this_loc(), ch);
+  if (!len) error_f("%{@cur_loc} expected '%c'", ch);
   return len;
 }
 
 // consume(s), except fail if unsuccesful
 static int expect(const char *s) {
   const int len = consume(s);
-  if (!len) error_f("%{} expected \"%s\"", this_loc(), s);
+  if (!len) error_f("%{@cur_loc} expected \"%s\"", s);
   return len;
 }
 
@@ -113,7 +111,7 @@ Token *lex() {
     else if ((len = consume_ch('='))) cur = link(cur, new_token(TokenKind_EQ,        len));
     else if ((len = consume_ch('{'))) cur = link(cur, new_token(TokenKind_LBRACE,    len));
     else if ((len = consume_ch('}'))) cur = link(cur, new_token(TokenKind_RBRACE,    len));
-    else                              error_f("%{} invalid token", this_loc());
+    else                              error_f("%{@cur_loc} invalid token");
   }
 
   cur = link(cur, new_token(TokenKind_EOF, 0));

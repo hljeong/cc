@@ -2,7 +2,7 @@
 
 #include <stdlib.h>
 
-StrEmitter str_node_kind(const NodeKind kind) {
+static StrEmitter str_node_kind(const NodeKind kind) {
   if      (kind == NodeKind_NUM)       return str_f("num");
   else if (kind == NodeKind_VAR)       return str_f("var");
   else if (kind == NodeKind_ADD)       return str_f("+");
@@ -27,6 +27,11 @@ StrEmitter str_node_kind(const NodeKind kind) {
   else                                 fail_f("unexpected node kind: %d", kind);
 }
 
+void fmt_node_kind(const StrConsumer c, va_list ap) {
+  const NodeKind node_kind = va_arg(ap, NodeKind);
+  consume_e(c, str_node_kind(node_kind));
+}
+
 static void emit_node(const StrConsumer c, void *data) {
   const Node *node = *((const Node **) data);
 
@@ -41,10 +46,15 @@ static void emit_node(const StrConsumer c, void *data) {
   free(data);
 }
 
-StrEmitter str_node(const Node *node) {
+static StrEmitter str_node(const Node *node) {
   const Node **node_ptr = calloc(1, sizeof(const Node *));
   *node_ptr = node;
   return (StrEmitter) { .emit = emit_node, .data = node_ptr };
+}
+
+void fmt_node(const StrConsumer c, va_list ap) {
+  const Node *node = va_arg(ap, const Node *);
+  consume_e(c, str_node(node));
 }
 
 void _emit_ast(const StrConsumer c, const Node *node, StringBuilder *sb, const bool last) {
@@ -111,11 +121,16 @@ static void emit_ast(const StrConsumer c, void *data) {
   sb_free(&sb);
 }
 
-StrEmitter str_ast(const Node *node) {
+static StrEmitter str_ast(const Node *node) {
   assert(node);
   const Node **node_ptr = calloc(1, sizeof(const Node **));
   *node_ptr = node;
   return (StrEmitter) { .emit = emit_ast, .data = node_ptr };
+}
+
+void fmt_ast(const StrConsumer c, va_list ap) {
+  const Node *node = va_arg(ap, const Node *);
+  consume_e(c, str_ast(node));
 }
 
 bool node_kind_is_unop(const NodeKind kind) {
