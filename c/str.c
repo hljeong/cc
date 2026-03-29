@@ -41,7 +41,7 @@ void sb_append_s(StringBuilder *sb, const char *s) {
 }
 
 static void sb_append_consume(const char *s, void *ctx) {
-  if (!s) return;
+  assert(s);
   StringBuilder *sb = (StringBuilder *) ctx;
   sb_append_s(sb, s);
 }
@@ -55,7 +55,6 @@ void sb_append_f(StringBuilder *sb, const char *fmt, ...) {
   StrConsumer sb_append = SB_APPEND(sb);
   consume_v(sb_append, fmt, ap);
   va_end(ap);
-  halt(sb_append);
 }
 
 void sb_truncate(StringBuilder *sb, const int to) {
@@ -66,12 +65,6 @@ void sb_truncate(StringBuilder *sb, const int to) {
   sb->buf[sb->size] = '\0';
 }
 
-static void emit_halt(const StrConsumer c, void *data) {
-  c.consume(NULL, c.ctx);
-}
-
-const StrEmitter HALT = { .emit = emit_halt };
-
 void consume_e(const StrConsumer c, const StrEmitter e) {
   e.emit(c, e.data);
 }
@@ -79,10 +72,6 @@ void consume_e(const StrConsumer c, const StrEmitter e) {
 static void fmt_e(const StrConsumer c, va_list ap) {
   const StrEmitter e = va_arg(ap, StrEmitter);
   consume_e(c, e);
-}
-
-void halt(const StrConsumer c) {
-  consume_e(c, HALT);
 }
 
 static void consume_s(const StrConsumer c, const char *s) {

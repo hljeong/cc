@@ -4,8 +4,8 @@
 #include <stdlib.h>
 
 static void debug_consume(const char *s, void *ctx) {
-  if (s) fprintf(stderr, "%s", s);
-  else   fprintf(stderr, "\n");
+  assert(s);
+  fprintf(stderr, "%s", s);
 }
 
 static StrConsumer DEBUG = { .consume = debug_consume };
@@ -13,15 +13,15 @@ static StrConsumer DEBUG = { .consume = debug_consume };
 void _debug_f(const char *fmt, ...) {
   va_list ap; va_start(ap, fmt);
   consume_v(DEBUG, fmt, ap);
+  consume_f(DEBUG, "\n");
   va_end(ap);
-  halt(DEBUG);
 }
 
 void _error_f(const char *fmt, ...) {
   va_list ap; va_start(ap, fmt);
   consume_v(DEBUG, fmt, ap);
+  consume_f(DEBUG, "\n");
   va_end(ap);
-  halt(DEBUG);
   exit(1);
 }
 
@@ -107,8 +107,7 @@ void fmt_at_node(const StrConsumer c, va_list ap) {
 }
 
 void _assert(const char *file, const int line, const char *cond) {
-  consume_f(DEBUG, "%s:%d: assert(%s) failed", file, line, cond);
-  halt(DEBUG);
+  consume_f(DEBUG, "%s:%d: assert(%s) failed\n", file, line, cond);
   exit(1);
 }
 
@@ -117,14 +116,13 @@ void _assert_f(const char *file, const int line, const char *cond,
   va_list ap; va_start(ap, fmt);
   consume_f(DEBUG, "%s:%d: assert(%s) failed: ", file, line, cond);
   consume_v(DEBUG, fmt, ap);
+  consume_f(DEBUG, "\n");
   va_end(ap);
-  halt(DEBUG);
   exit(1);
 }
 
 void _fail(const char *file, const int line) {
-  consume_f(DEBUG, "%s:%d", file, line);
-  halt(DEBUG);
+  consume_f(DEBUG, "%s:%d: failed\n", file, line);
   exit(1);
 }
 
@@ -133,7 +131,7 @@ void _fail_f(const char *file, const int line,
   va_list ap; va_start(ap, fmt);
   consume_f(DEBUG, "%s:%d: failed: ", file, line);
   consume_v(DEBUG, fmt, ap);
+  consume_f(DEBUG, "\n");
   va_end(ap);
-  halt(DEBUG);
   exit(1);
 }

@@ -39,6 +39,7 @@ struct StringBuilder {
   int size;
 };
 
+// todo: make string builders grow dynamically
 StringBuilder sb_create  (const int capacity);
 void          sb_free    (StringBuilder *sb);
 void          sb_clear   (StringBuilder *sb);
@@ -63,15 +64,13 @@ struct StrFormatter {
 
 extern StrFormatter FORMATTERS[];
 
+// todo: delete StrEmitter
 typedef void (*EmitStr)(const StrConsumer, void *);
 struct StrEmitter {
   EmitStr emit;
   void *data;
 };
 
-extern const StrEmitter HALT;
-
-void halt     (const StrConsumer c);
 void consume_e(const StrConsumer c, const StrEmitter e);
 void consume_v(const StrConsumer c, const char *fmt, va_list ap);
 void consume_f(const StrConsumer c, const char *fmt, ...);
@@ -96,11 +95,11 @@ void fmt_type        (const StrConsumer c, va_list ap);
 // debug
 
 void _debug_f(const char *fmt, ...);
-#define debug_f(fmt, ...) _debug_f(fmt, ##__VA_ARGS__, HALT)
+#define debug_f(fmt, ...) _debug_f(fmt, ##__VA_ARGS__)
 
 [[noreturn]]
 void _error_f(const char *fmt, ...);
-#define error_f(fmt, ...) _error_f(fmt, ##__VA_ARGS__, HALT)
+#define error_f(fmt, ...) _error_f(fmt, ##__VA_ARGS__)
 
 // assertion
 
@@ -122,7 +121,7 @@ void _assert_f(const char *file, const int line, const char *cond,
   do {                                     \
     if (!(cond))                           \
       _assert_f(__FILE__, __LINE__, #cond, \
-                fmt, ##__VA_ARGS__, HALT); \
+                fmt, ##__VA_ARGS__);       \
   } while (0)
 
 [[noreturn]]
@@ -131,7 +130,7 @@ void _fail(const char *file, const int line);
 
 [[noreturn]]
 void _fail_f(const char *file, const int line, const char * fmt, ...);
-#define fail_f(fmt, ...) _fail_f(__FILE__, __LINE__, fmt, ##__VA_ARGS__, HALT);
+#define fail_f(fmt, ...) _fail_f(__FILE__, __LINE__, fmt, ##__VA_ARGS__);
 
 
 // token
