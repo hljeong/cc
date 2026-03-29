@@ -42,15 +42,15 @@ static void at_locv(const StrConsumer consumer, const char *loc, const char *fmt
           "invalid loc: %d, src_len=%d",
           col, ctx.src_len);
 
-  emit(consumer, ctx.src);
+  emit_s(consumer, ctx.src);
 
   StringBuilder sb = sb_create(256);
   sb_appendf(&sb, "\n%*s^ ", col, "");
   sb_appendv(&sb, fmt, ap);
-  emit(consumer, sb.buf);
+  emit_s(consumer, sb.buf);
   sb_free(&sb);
 
-  emit(consumer, NULL);
+  halt(consumer);
 }
 
 void at_loc(const StrConsumer consumer, const char *loc, const char *fmt, ...) {
@@ -72,17 +72,16 @@ static void at_spanv(const StrConsumer consumer, const StringView span, const ch
           col, span.len, ctx.src_len);
 
 
-  emit(consumer, ctx.src);
+  emit_s(consumer, ctx.src);
 
   StringBuilder sb = sb_create(256);
   sb_appendf(&sb, "\n%*s", col, "");
   for (int i = 0; i < span.len; i++) sb_appendf(&sb, "%c", '~');
   sb_appendf(&sb, " ");
   sb_appendv(&sb, fmt, ap);
-  emit(consumer, sb.buf);
+  emit_s(consumer, sb.buf);
   sb_free(&sb);
-
-  emit(consumer, NULL);
+  halt(consumer);
 }
 
 void at_tok(const StrConsumer consumer, const Token *tok, const char *fmt, ...) {
@@ -110,25 +109,24 @@ void token_stream(const StrConsumer consumer, const Token *tok) {
 
   {
     sb_appendf(&sb, "[[");
-    emit(consumer, sb.buf);
+    emit_s(consumer, sb.buf);
     sb_clear(&sb);
   }
 
   do {
     sb_appendf(&sb, " %s", token_to_str(tok));
-    emit(consumer, sb.buf);
+    emit_s(consumer, sb.buf);
     sb_clear(&sb);
   } while ((tok = tok->next));
 
   {
     sb_appendf(&sb, " ]]");
-    emit(consumer, sb.buf);
+    emit_s(consumer, sb.buf);
     sb_clear(&sb);
   }
 
   sb_free(&sb);
-
-  emit(consumer, NULL);
+  halt(consumer);
 }
 
 void _ast(const StrConsumer consumer, const Node *node, StringBuilder *sb, const bool last) {
@@ -137,7 +135,7 @@ void _ast(const StrConsumer consumer, const Node *node, StringBuilder *sb, const
   // emit string representation for this node
   {
     const int len = sb_appendf(sb, "%s%s\n", last ? "└─" : "├─", node_to_str(node));
-    emit(consumer, sb->buf);
+    emit_s(consumer, sb->buf);
     sb_backspace(sb, len);
   }
 
@@ -194,7 +192,7 @@ void ast(const StrConsumer consumer, const Node *node) {
   StringBuilder sb = sb_create(256);
   _ast(consumer, node, &sb, true);
   sb_free(&sb);
-  emit(consumer, NULL);
+  halt(consumer);
 }
 
 void _assert(const char *file, const int line, const char *cond) {

@@ -5,6 +5,7 @@
 #include <string.h>
 
 typedef struct StrConsumer StrConsumer;
+typedef struct StrEmitter StrEmitter;
 typedef struct StringView StringView;
 typedef struct StringBuilder StringBuilder;
 typedef struct Token Token;
@@ -42,6 +43,31 @@ int           sb_appendv  (StringBuilder *sb, const char *fmt, va_list ap);
 int           sb_appendf  (StringBuilder *sb, const char *fmt, ...);
 void          sb_backspace(StringBuilder *sb, const int len);
 
+
+// strings
+
+struct StrConsumer {
+  void (*consume)(const char *s, void *ctx);
+  void *ctx;
+};
+
+struct StrEmitter {
+  void (*emit)(const StrConsumer, void *data);
+  void *data;
+};
+
+void halt(const StrConsumer consumer);
+void emit_s(const StrConsumer consumer, const char *s);
+void emit_f(const StrConsumer consumer, const char *fmt, ...);
+void emit_e(const StrConsumer consumer, const StrEmitter emitter);
+
+void _emit_es(const StrConsumer consumer, ...);
+#define emit_es(consumer, ...) _emit_es(consumer, __VA_ARGS__, (StrEmitter) { .emit = NULL })
+
+
+StrEmitter str_f(const char *fmt, ...);
+
+
 // debug
 
 // print to debug
@@ -50,14 +76,9 @@ void debugf(const char *fmt, ...);
 // print to debug and abort
 void errorf(const char *fmt, ...);
 
-struct StrConsumer {
-  void (*consume)(const char *s, void *ctx);
-  void *ctx;
-};
-
-static inline void emit(StrConsumer consumer, const char *s) {
-  consumer.consume(s, consumer.ctx);
-}
+// static inline void emit(const StrConsumer consumer, const char *s) {
+//   consumer.consume(s, consumer.ctx);
+// }
 
 // print consumed string to debug
 void debug_consume(const char *s, void *ctx);

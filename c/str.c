@@ -44,3 +44,59 @@ void sb_backspace(StringBuilder *sb, const int len) {
           len, sb->size);
   sb->size -= len;
 }
+
+void halt(const StrConsumer consumer) {
+  consumer.consume(NULL, consumer.ctx);
+}
+
+void emit_s(const StrConsumer consumer, const char *s) {
+  consumer.consume(s, consumer.ctx);
+}
+
+static void emit_v(const StrConsumer consumer, const char *fmt, va_list ap) {
+  StringBuilder sb = sb_create(256);
+  sb_appendv(&sb, fmt, ap);
+  emit_s(consumer, sb.buf);
+  sb_free(&sb);
+}
+
+void emit_f(const StrConsumer consumer, const char *fmt, ...) {
+  va_list ap; va_start(ap, fmt);
+  emit_v(consumer, fmt, ap);
+  va_end(ap);
+}
+
+void emit_e(const StrConsumer consumer, const StrEmitter emitter) {
+  emitter.emit(consumer, emitter.data);
+}
+
+static void emit_sb(const StrConsumer consumer, void *data) {
+  StringBuilder *sb = (StringBuilder *) data;
+  emit_s(consumer, sb->buf);
+  sb_free(sb);
+  free(sb);
+}
+
+StrEmitter str_v(const char *fmt, va_list ap) {
+  StringBuilder *sb = calloc(1, sizeof(StringBuilder));
+  *sb = sb_create(256);
+  emit_v(APPEND(sb), fmt, ap);
+  return (StrEmitter) { .emit = emit_sb, .data = sb };
+}
+
+StrEmitter str_f(const char *fmt, ...) {
+  va_list ap; va_start(ap, fmt);
+  StrEmitter emitter = str_v(fmt, ap);
+  va_end(ap);
+  return emitter;
+}
+
+void _emit_es(const StrConsumer consumer, ...) {
+  va_list ap; va_start(ap, consumer);
+  while (true) {
+    const StrEmitter emitter = va_arg(ap, StrEmitter);
+    if (!emitter.emit) break;
+    emit_e(consumer, emitter);
+  }
+  va_end(ap);
+}
