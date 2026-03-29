@@ -65,21 +65,11 @@ void sb_truncate(StringBuilder *sb, const int to) {
   sb->buf[sb->size] = '\0';
 }
 
-void consume_e(const StrConsumer c, const StrEmitter e) {
-  e.emit(c, e.data);
-}
-
-static void fmt_e(const StrConsumer c, va_list ap) {
-  const StrEmitter e = va_arg(ap, StrEmitter);
-  consume_e(c, e);
-}
-
 static void consume_s(const StrConsumer c, const char *s) {
   c.consume(s, c.ctx);
 }
 
 StrFormatter FORMATTERS[] = {
-  (StrFormatter) { .spec = "",             .fmt = fmt_e },
   (StrFormatter) { .spec = "@loc",         .fmt = fmt_at_loc },
   (StrFormatter) { .spec = "@cur_loc",     .fmt = fmt_at_cur_loc },
   (StrFormatter) { .spec = "@tok",         .fmt = fmt_at_tok },
@@ -163,20 +153,4 @@ void consume_f(const StrConsumer c, const char *fmt, ...) {
   va_list ap; va_start(ap, fmt);
   consume_v(c, fmt, ap);
   va_end(ap);
-}
-
-static void emit_str(const StrConsumer c, void *data) {
-  const char *s = (const char *) data;
-  consume_s(c, s);
-  free(data);
-}
-
-StrEmitter str_f(const char *fmt, ...) {
-  va_list ap; va_start(ap, fmt);
-  char *s = calloc(BUF_LEN, sizeof(char));
-  const int len = vsnprintf(s, BUF_LEN, fmt, ap);
-  assert(len < BUF_LEN);
-  StrEmitter e = (StrEmitter) { .emit = emit_str, .data = s };
-  va_end(ap);
-  return e;
 }

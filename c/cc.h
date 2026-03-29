@@ -3,7 +3,6 @@
 
 typedef struct StrConsumer StrConsumer;
 typedef struct StrFormatter StrFormatter;
-typedef struct StrEmitter StrEmitter;
 typedef struct StringView StringView;
 typedef struct StringBuilder StringBuilder;
 typedef enum TokenKind TokenKind;
@@ -64,18 +63,8 @@ struct StrFormatter {
 
 extern StrFormatter FORMATTERS[];
 
-// todo: delete StrEmitter
-typedef void (*EmitStr)(const StrConsumer, void *);
-struct StrEmitter {
-  EmitStr emit;
-  void *data;
-};
-
-void consume_e(const StrConsumer c, const StrEmitter e);
 void consume_v(const StrConsumer c, const char *fmt, va_list ap);
 void consume_f(const StrConsumer c, const char *fmt, ...);
-
-StrEmitter str_f(const char *fmt, ...);
 
 void fmt_at_loc      (const StrConsumer c, va_list ap);
 void fmt_at_cur_loc  (const StrConsumer c, va_list ap);

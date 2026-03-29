@@ -25,8 +25,7 @@ void _error_f(const char *fmt, ...) {
   exit(1);
 }
 
-static void emit_at_loc(const StrConsumer c, void *data) {
-  const char *loc = *((const char **) data);
+static void consume_at_loc(const StrConsumer c, const char *loc) {
   const int col = loc - ctx.src;
   assert_f(0 <= col && col <= ctx.src_len,
            "invalid loc: %d, src_len=%d",
@@ -35,32 +34,17 @@ static void emit_at_loc(const StrConsumer c, void *data) {
   consume_f(c, "%s\n", ctx.src);
 
   consume_f(c, "%*s^", col, "");
-
-  free(data);
-}
-
-static StrEmitter at_loc(const char *loc) {
-  const char **loc_ptr = calloc(1, sizeof(const char *));
-  *loc_ptr = loc;
-  return (StrEmitter) { .emit = emit_at_loc, .data = loc_ptr };
 }
 
 void fmt_at_loc(const StrConsumer c, va_list ap) {
-  const char *loc = va_arg(ap, const char *);
-  consume_e(c, at_loc(loc));
-}
-
-static StrEmitter at_cur_loc() {
-  return at_loc(ctx.lexer.loc);
+  consume_at_loc(c, va_arg(ap, const char *));
 }
 
 void fmt_at_cur_loc(const StrConsumer c, va_list ap) {
-  consume_e(c, at_cur_loc());
+  consume_at_loc(c, ctx.lexer.loc);
 }
 
-static void emit_at_span(const StrConsumer c, void *data) {
-  const StringView span = *((const StringView *) data);
-
+static void consume_at_span(const StrConsumer c, const StringView span) {
   const int col = span.loc - ctx.src;
   assert_f(0 <= col && col + span.len <= ctx.src_len,
            "invalid span: (%d, %d), src_len=%d",
@@ -70,40 +54,20 @@ static void emit_at_span(const StrConsumer c, void *data) {
   consume_f(c, "%*s", col, "");
   for (int i = 0; i < span.len; i++)
     consume_f(c, "%c", '~');
-
-  free(data);
-}
-
-static StrEmitter at_span(const StringView span) {
-  StringView *span_ptr = calloc(1, sizeof(StringView));
-  *span_ptr = span;
-  return (StrEmitter) { .emit = emit_at_span, .data = span_ptr };
-}
-
-static StrEmitter at_tok(const Token *tok) {
-  return at_span(tok->lexeme);
 }
 
 void fmt_at_tok(const StrConsumer c, va_list ap) {
   const Token *tok = va_arg(ap, const Token *);
-  consume_e(c, at_tok(tok));
-}
-
-static StrEmitter at_cur_tok() {
-  return at_tok(ctx.parser.tok);
+  consume_at_span(c, tok->lexeme);
 }
 
 void fmt_at_cur_tok(const StrConsumer c, va_list ap) {
-  consume_e(c, at_cur_tok());
-}
-
-static StrEmitter at_node(const Node *node) {
-  return at_span(node->lexeme);
+  consume_at_span(c, ctx.parser.tok->lexeme);
 }
 
 void fmt_at_node(const StrConsumer c, va_list ap) {
   const Node *node = va_arg(ap, const Node *);
-  consume_e(c, at_node(node));
+  consume_at_span(c, node->lexeme);
 }
 
 void _assert(const char *file, const int line, const char *cond) {

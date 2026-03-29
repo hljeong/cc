@@ -2,39 +2,36 @@
 
 #include <stdlib.h>
 
-static StrEmitter str_node_kind(const NodeKind kind) {
-  if      (kind == NodeKind_NUM)       return str_f("num");
-  else if (kind == NodeKind_VAR)       return str_f("var");
-  else if (kind == NodeKind_ADD)       return str_f("+");
-  else if (kind == NodeKind_SUB)       return str_f("-");
-  else if (kind == NodeKind_MUL)       return str_f("*");
-  else if (kind == NodeKind_DIV)       return str_f("/");
-  else if (kind == NodeKind_NEG)       return str_f("-");
-  else if (kind == NodeKind_ADDR)      return str_f("addr");
-  else if (kind == NodeKind_DEREF)     return str_f("deref");
-  else if (kind == NodeKind_EQ)        return str_f("==");
-  else if (kind == NodeKind_NEQ)       return str_f("!=");
-  else if (kind == NodeKind_LT)        return str_f("<");
-  else if (kind == NodeKind_LEQ)       return str_f("<=");
-  else if (kind == NodeKind_ASSIGN)    return str_f("assign");
-  else if (kind == NodeKind_EXPR_STMT) return str_f("expr-stmt");
-  else if (kind == NodeKind_RETURN)    return str_f("return");
-  else if (kind == NodeKind_BLOCK)     return str_f("block");
-  else if (kind == NodeKind_IF)        return str_f("if");
-  else if (kind == NodeKind_FOR)       return str_f("for");
-  else if (kind == NodeKind_FUN_DECL)  return str_f("fun_decl");
-  else if (kind == NodeKind_PROG)      return str_f("prog");
+static void consume_node_kind(const StrConsumer c, const NodeKind kind) {
+  if      (kind == NodeKind_NUM)       consume_f(c, "num");
+  else if (kind == NodeKind_VAR)       consume_f(c, "var");
+  else if (kind == NodeKind_ADD)       consume_f(c, "+");
+  else if (kind == NodeKind_SUB)       consume_f(c, "-");
+  else if (kind == NodeKind_MUL)       consume_f(c, "*");
+  else if (kind == NodeKind_DIV)       consume_f(c, "/");
+  else if (kind == NodeKind_NEG)       consume_f(c, "-");
+  else if (kind == NodeKind_ADDR)      consume_f(c, "addr");
+  else if (kind == NodeKind_DEREF)     consume_f(c, "deref");
+  else if (kind == NodeKind_EQ)        consume_f(c, "==");
+  else if (kind == NodeKind_NEQ)       consume_f(c, "!=");
+  else if (kind == NodeKind_LT)        consume_f(c, "<");
+  else if (kind == NodeKind_LEQ)       consume_f(c, "<=");
+  else if (kind == NodeKind_ASSIGN)    consume_f(c, "assign");
+  else if (kind == NodeKind_EXPR_STMT) consume_f(c, "expr-stmt");
+  else if (kind == NodeKind_RETURN)    consume_f(c, "return");
+  else if (kind == NodeKind_BLOCK)     consume_f(c, "block");
+  else if (kind == NodeKind_IF)        consume_f(c, "if");
+  else if (kind == NodeKind_FOR)       consume_f(c, "for");
+  else if (kind == NodeKind_FUN_DECL)  consume_f(c, "fun_decl");
+  else if (kind == NodeKind_PROG)      consume_f(c, "prog");
   else                                 fail_f("unexpected node kind: %d", kind);
 }
 
 void fmt_node_kind(const StrConsumer c, va_list ap) {
-  const NodeKind node_kind = va_arg(ap, NodeKind);
-  consume_e(c, str_node_kind(node_kind));
+  consume_node_kind(c, va_arg(ap, const NodeKind));
 }
 
-static void emit_node(const StrConsumer c, void *data) {
-  const Node *node = *((const Node **) data);
-
+static void consume_node(const StrConsumer c, const Node *node) {
   consume_f(c, "%{node_kind}", node->kind);
 
   if      (node->kind == NodeKind_NUM) consume_f(c, "(%d)", node->num);
@@ -42,29 +39,20 @@ static void emit_node(const StrConsumer c, void *data) {
 
   // show type if applicable
   if      (node->type)                 consume_f(c, ": %{type}", node->type);
-
-  free(data);
-}
-
-static StrEmitter str_node(const Node *node) {
-  const Node **node_ptr = calloc(1, sizeof(const Node *));
-  *node_ptr = node;
-  return (StrEmitter) { .emit = emit_node, .data = node_ptr };
 }
 
 void fmt_node(const StrConsumer c, va_list ap) {
-  const Node *node = va_arg(ap, const Node *);
-  consume_e(c, str_node(node));
+  consume_node(c, va_arg(ap, const Node *));
 }
 
-void _emit_ast(const StrConsumer c, const Node *node, StringBuilder *sb, const bool last) {
+void _consume_ast(const StrConsumer c, const Node *node, StringBuilder *sb, const bool last) {
   if (!node) return;
 
-  // emit string representation for this node
+  // consume string representation for this node
   consume_f(c, "%s%s%{node}\n",
          sb->buf, last ? "└─" : "├─", node, "\n");
 
-  // recursively emit children representation
+  // recursively consume children representation
   const int truncate_to = sb->size;
   sb_append_f(sb, last ? "  " : "│ ");
 
@@ -72,38 +60,38 @@ void _emit_ast(const StrConsumer c, const Node *node, StringBuilder *sb, const b
   else if (node->kind == NodeKind_VAR) {}
 
   else if (node->kind == NodeKind_FUN_DECL) {
-    _emit_ast(c, node->body, sb, true);
+    _consume_ast(c, node->body, sb, true);
   }
 
   else if (node->kind == NodeKind_EXPR_STMT) {
-    _emit_ast(c, node->expr, sb, true);
+    _consume_ast(c, node->expr, sb, true);
   }
 
   else if (node->kind == NodeKind_IF) {
-    _emit_ast(c, node->cond, sb, false);
-    _emit_ast(c, node->body, sb, true);
+    _consume_ast(c, node->cond, sb, false);
+    _consume_ast(c, node->body, sb, true);
   }
 
   else if (node->kind == NodeKind_FOR) {
-    _emit_ast(c, node->init,      sb, false);
-    _emit_ast(c, node->loop_cond, sb, false);
-    _emit_ast(c, node->inc,       sb, false);
-    _emit_ast(c, node->loop_body, sb, true);
+    _consume_ast(c, node->init,      sb, false);
+    _consume_ast(c, node->loop_cond, sb, false);
+    _consume_ast(c, node->inc,       sb, false);
+    _consume_ast(c, node->loop_body, sb, true);
   }
 
   else if (node_kind_is_unop(node->kind)) {
-    _emit_ast(c, node->operand, sb, true);
+    _consume_ast(c, node->operand, sb, true);
   }
 
   else if (node_kind_is_binop(node->kind)) {
-    _emit_ast(c, node->lhs, sb, false);
-    _emit_ast(c, node->rhs, sb, true);
+    _consume_ast(c, node->lhs, sb, false);
+    _consume_ast(c, node->rhs, sb, true);
   }
 
   else if (node_kind_is_list(node->kind)) {
     Node *child = node->head;
     while (child) {
-      _emit_ast(c, child, sb, !(child->next));
+      _consume_ast(c, child, sb, !(child->next));
       child = child->next;
     }
   }
@@ -114,23 +102,14 @@ void _emit_ast(const StrConsumer c, const Node *node, StringBuilder *sb, const b
    sb_truncate(sb, truncate_to);
 }
 
-static void emit_ast(const StrConsumer c, void *data) {
-  const Node *node = *((const Node **) data);
+static void consume_ast(const StrConsumer c, const Node *node) {
   StringBuilder sb = sb_create(BUF_LEN);
-  _emit_ast(c, node, &sb, true);
+  _consume_ast(c, node, &sb, true);
   sb_free(&sb);
 }
 
-static StrEmitter str_ast(const Node *node) {
-  assert(node);
-  const Node **node_ptr = calloc(1, sizeof(const Node **));
-  *node_ptr = node;
-  return (StrEmitter) { .emit = emit_ast, .data = node_ptr };
-}
-
 void fmt_ast(const StrConsumer c, va_list ap) {
-  const Node *node = va_arg(ap, const Node *);
-  consume_e(c, str_ast(node));
+  consume_ast(c, va_arg(ap, const Node *));
 }
 
 bool node_kind_is_unop(const NodeKind kind) {

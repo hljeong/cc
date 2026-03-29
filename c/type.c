@@ -6,33 +6,23 @@ Types t = {
   .int_ = { .kind = TypeKind_INT },
 };
 
-static StrEmitter str_type_kind(const TypeKind kind) {
-  if      (kind == TypeKind_INT) return str_f("int");
-  else if (kind == TypeKind_PTR) return str_f("ptr");
+static void consume_type_kind(const StrConsumer c, const TypeKind kind) {
+  if      (kind == TypeKind_INT) consume_f(c, "int");
+  else if (kind == TypeKind_PTR) consume_f(c, "ptr");
   else                           fail_f("unexpected type kind: %d", kind);
 }
 
 void fmt_type_kind(const StrConsumer c, va_list ap) {
-  const TypeKind type_kind = va_arg(ap, TypeKind);
-  consume_e(c, str_type_kind(type_kind));
+  consume_type_kind(c, va_arg(ap, const TypeKind));
 }
 
-static void emit_type(const StrConsumer c, void *data) {
-  const Type *type = *((const Type **) data);
+static void consume_type(const StrConsumer c, const Type *type) {
   if (type->kind == TypeKind_PTR) consume_f(c, "%{type}*", type->referenced);
   else                            consume_f(c, "%{type_kind}", type->kind);
-  free(data);
-}
-
-static StrEmitter str_type(const Type *type) {
-  const Type **type_ptr = calloc(1, sizeof(const Type *));
-  *type_ptr = type;
-  return (StrEmitter) { .emit = emit_type, .data = type_ptr };
 }
 
 void fmt_type(const StrConsumer c, va_list ap) {
-  const Type *type = va_arg(ap, const Type *);
-  consume_e(c, str_type(type));
+  consume_type(c, va_arg(ap, const Type *));
 }
 
 bool type_eq(const Type *t, const Type *u) {
