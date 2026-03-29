@@ -48,52 +48,52 @@ void sb_backspace(StringBuilder *sb, const int len) {
   sb->buf[sb->size] = '\0';
 }
 
-static void emit_halt(const StrConsumer consumer, void *data) {
-  consumer.consume(NULL, consumer.ctx);
+static void emit_halt(const StrConsumer c, void *data) {
+  c.consume(NULL, c.ctx);
 }
 
 const StrEmitter HALT = { .emit = emit_halt };
 
-void emit_s(const StrConsumer consumer, const char *s) {
-  consumer.consume(s, consumer.ctx);
+void emit_s(const StrConsumer c, const char *s) {
+  c.consume(s, c.ctx);
 }
 
-void emit_v(const StrConsumer consumer, const char *fmt, va_list ap) {
+void emit_v(const StrConsumer c, const char *fmt, va_list ap) {
   StringBuilder sb = sb_create(256);
   sb_append_v(&sb, fmt, ap);
-  emit_s(consumer, sb.buf);
+  emit_s(c, sb.buf);
   sb_free(&sb);
 }
 
-void emit_f(const StrConsumer consumer, const char *fmt, ...) {
+void emit_f(const StrConsumer c, const char *fmt, ...) {
   va_list ap; va_start(ap, fmt);
-  emit_v(consumer, fmt, ap);
+  emit_v(c, fmt, ap);
   va_end(ap);
 }
 
-void emit_e(const StrConsumer consumer, const StrEmitter emitter) {
-  emitter.emit(consumer, emitter.data);
+void emit_e(const StrConsumer c, const StrEmitter emitter) {
+  emitter.emit(c, emitter.data);
 }
 
-void emit_all_v(const StrConsumer consumer, va_list ap) {
+void emit_all_v(const StrConsumer c, va_list ap) {
   while (true) {
     const StrEmitter emitter = va_arg(ap, StrEmitter);
     assert(emitter.emit, "todo: allow raw asserts");
-    emit_e(consumer, emitter);
+    emit_e(c, emitter);
     // send halt to consumer before breaking
     if (emitter.emit == emit_halt) break;
   }
 }
 
-void _emit_all(const StrConsumer consumer, ...) {
-  va_list ap; va_start(ap, consumer);
-  emit_all_v(consumer, ap);
+void _emit_all(const StrConsumer c, ...) {
+  va_list ap; va_start(ap, c);
+  emit_all_v(c, ap);
   va_end(ap);
 }
 
-static void emit_sb(const StrConsumer consumer, void *data) {
+static void emit_sb(const StrConsumer c, void *data) {
   StringBuilder *sb = (StringBuilder *) data;
-  emit_s(consumer, sb->buf);
+  emit_s(c, sb->buf);
   sb_free(sb);
   free(data);
 }
@@ -112,9 +112,9 @@ StrEmitter str_f(const char *fmt, ...) {
   return emitter;
 }
 
-static void emit_int(const StrConsumer consumer, void *data) {
+static void emit_int(const StrConsumer c, void *data) {
   int value = *((int *) data);
-  emit_f(consumer, "%d", value);
+  emit_f(c, "%d", value);
   free(data);
 }
 

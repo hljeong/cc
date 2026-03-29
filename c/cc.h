@@ -61,13 +61,13 @@ struct StrEmitter {
 
 extern const StrEmitter HALT;
 
-void emit_s(const StrConsumer consumer, const char *s);
-void emit_v(const StrConsumer consumer, const char *fmt, va_list ap);
-void emit_f(const StrConsumer consumer, const char *fmt, ...);
-void emit_e(const StrConsumer consumer, const StrEmitter emitter);
+void emit_s(const StrConsumer c, const char *s);
+void emit_v(const StrConsumer c, const char *fmt, va_list ap);
+void emit_f(const StrConsumer c, const char *fmt, ...);
+void emit_e(const StrConsumer c, const StrEmitter emitter);
 
-void emit_all_v(const StrConsumer consumer, va_list ap);
-void _emit_all(const StrConsumer consumer, ...);
+void emit_all_v(const StrConsumer c, va_list ap);
+void _emit_all(const StrConsumer c, ...);
 #define emit_all(consumer, ...) _emit_all(consumer, __VA_ARGS__, HALT)
 
 StrEmitter str_f(const char *fmt, ...);

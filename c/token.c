@@ -29,12 +29,12 @@ StrEmitter str_token_kind(const TokenKind kind) {
   else                                  fail(str_int(kind));
 }
 
-static void emit_token(const StrConsumer consumer, void *data) {
+static void emit_token(const StrConsumer c, void *data) {
   const Token *tok = *((const Token **) data);
-  emit_e(consumer, str_token_kind(tok->kind));
+  emit_e(c, str_token_kind(tok->kind));
 
-  if      (tok->kind == TokenKind_NUM)   emit_f(consumer, "(%d)", tok->num);
-  else if (tok->kind == TokenKind_IDENT) emit_f(consumer, "("sv_fmt")", sv_arg(tok->ident));
+  if      (tok->kind == TokenKind_NUM)   emit_f(c, "(%d)", tok->num);
+  else if (tok->kind == TokenKind_IDENT) emit_f(c, "("sv_fmt")", sv_arg(tok->ident));
 
   free(data);
 }
@@ -45,14 +45,14 @@ StrEmitter str_token(const Token *tok) {
   return (StrEmitter) { .emit = emit_token, .data = tok_ptr };
 }
 
-static void emit_token_stream(const StrConsumer consumer, void *data) {
+static void emit_token_stream(const StrConsumer c, void *data) {
   const Token *tok = *((const Token **) data);
-  emit_s(consumer, "[[");
+  emit_s(c, "[[");
   do {
-    emit_s(consumer, " ");
-    emit_e(consumer, str_token(tok));
+    emit_s(c, " ");
+    emit_e(c, str_token(tok));
   } while ((tok = tok->next));
-  emit_s(consumer, " ]]");
+  emit_s(c, " ]]");
   free(data);
 }
 

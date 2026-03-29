@@ -53,16 +53,16 @@ void _sb_append(StringBuilder *sb, ...) {
   va_end(ap);
 }
 
-static void emit_at_loc(const StrConsumer consumer, void *data) {
+static void emit_at_loc(const StrConsumer c, void *data) {
   const char *loc = *((const char **) data);
   const int col = loc - ctx.src;
   assert(0 <= col && col <= ctx.src_len,
          str_f("invalid loc: %d, src_len=%d",
                col, ctx.src_len));
 
-  emit_f(consumer, "%s\n", ctx.src);
+  emit_f(c, "%s\n", ctx.src);
 
-  emit_f(consumer, "%*s^ ", col, "");
+  emit_f(c, "%*s^ ", col, "");
 
   free(data);
 }
@@ -77,19 +77,19 @@ StrEmitter this_loc() {
   return at_loc(ctx.lexer.loc);
 }
 
-static void emit_at_span(const StrConsumer consumer, void *data) {
+static void emit_at_span(const StrConsumer c, void *data) {
   const StringView span = *((const StringView *) data);
 
   const int col = span.loc - ctx.src;
   assert(0 <= col && col + span.len <= ctx.src_len,
          str_f("invalid span: (%d, %d), src_len=%d",
                col, span.len, ctx.src_len));
-  emit_f(consumer, "%s\n", ctx.src);
+  emit_f(c, "%s\n", ctx.src);
 
-  emit_f(consumer, "%*s", col, "");
+  emit_f(c, "%*s", col, "");
   for (int i = 0; i < span.len; i++)
-    emit_s(consumer, "~");
-  emit_s(consumer, " ");
+    emit_s(c, "~");
+  emit_s(c, " ");
 
   free(data);
 }

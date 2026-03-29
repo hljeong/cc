@@ -25,18 +25,18 @@ StrEmitter str_node_kind(const NodeKind kind) {
   else                                 fail(str_int(kind));
 }
 
-static void emit_node(const StrConsumer consumer, void *data) {
+static void emit_node(const StrConsumer c, void *data) {
   const Node *node = *((const Node **) data);
 
-  emit_e(consumer, str_node_kind(node->kind));
+  emit_e(c, str_node_kind(node->kind));
 
-  if      (node->kind == NodeKind_NUM) emit_f(consumer, "(%d)", node->num);
-  else if (node->kind == NodeKind_VAR) emit_f(consumer, "("sv_fmt")", sv_arg(node->name));
+  if      (node->kind == NodeKind_NUM) emit_f(c, "(%d)", node->num);
+  else if (node->kind == NodeKind_VAR) emit_f(c, "("sv_fmt")", sv_arg(node->name));
 
   // show type if applicable
   if (node->type) {
-    emit_s(consumer, ": ");
-    emit_e(consumer, str_type(node->type));
+    emit_s(c, ": ");
+    emit_e(c, str_type(node->type));
   }
 
   free(data);
@@ -48,15 +48,15 @@ StrEmitter str_node(const Node *node) {
   return (StrEmitter) { .emit = emit_node, .data = node_ptr };
 }
 
-void _emit_ast(const StrConsumer consumer, const Node *node, StringBuilder *sb, const bool last) {
+void _emit_ast(const StrConsumer c, const Node *node, StringBuilder *sb, const bool last) {
   if (!node) return;
 
   // emit string representation for this node
   {
-    emit_s(consumer, sb->buf);
-    emit_s(consumer, last ? "└─" : "├─");
-    emit_e(consumer, str_node(node));
-    emit_s(consumer, "\n");
+    emit_s(c, sb->buf);
+    emit_s(c, last ? "└─" : "├─");
+    emit_e(c, str_node(node));
+    emit_s(c, "\n");
   }
 
   // recursively emit children representation
@@ -66,38 +66,38 @@ void _emit_ast(const StrConsumer consumer, const Node *node, StringBuilder *sb, 
   else if (node->kind == NodeKind_VAR) {}
 
   else if (node->kind == NodeKind_FUN_DECL) {
-    _emit_ast(consumer, node->body, sb, true);
+    _emit_ast(c, node->body, sb, true);
   }
 
   else if (node->kind == NodeKind_EXPR_STMT) {
-    _emit_ast(consumer, node->expr, sb, true);
+    _emit_ast(c, node->expr, sb, true);
   }
 
   else if (node->kind == NodeKind_IF) {
-    _emit_ast(consumer, node->cond, sb, false);
-    _emit_ast(consumer, node->body, sb, true);
+    _emit_ast(c, node->cond, sb, false);
+    _emit_ast(c, node->body, sb, true);
   }
 
   else if (node->kind == NodeKind_FOR) {
-    _emit_ast(consumer, node->init,      sb, false);
-    _emit_ast(consumer, node->loop_cond, sb, false);
-    _emit_ast(consumer, node->inc,       sb, false);
-    _emit_ast(consumer, node->loop_body, sb, true);
+    _emit_ast(c, node->init,      sb, false);
+    _emit_ast(c, node->loop_cond, sb, false);
+    _emit_ast(c, node->inc,       sb, false);
+    _emit_ast(c, node->loop_body, sb, true);
   }
 
   else if (node_kind_is_unop(node->kind)) {
-    _emit_ast(consumer, node->operand, sb, true);
+    _emit_ast(c, node->operand, sb, true);
   }
 
   else if (node_kind_is_binop(node->kind)) {
-    _emit_ast(consumer, node->lhs, sb, false);
-    _emit_ast(consumer, node->rhs, sb, true);
+    _emit_ast(c, node->lhs, sb, false);
+    _emit_ast(c, node->rhs, sb, true);
   }
 
   else if (node_kind_is_list(node->kind)) {
     Node *child = node->head;
     while (child) {
-      _emit_ast(consumer, child, sb, !(child->next));
+      _emit_ast(c, child, sb, !(child->next));
       child = child->next;
     }
   }
@@ -107,10 +107,10 @@ void _emit_ast(const StrConsumer consumer, const Node *node, StringBuilder *sb, 
    sb_backspace(sb, prefix_len);
 }
 
-static void emit_ast(const StrConsumer consumer, void *data) {
+static void emit_ast(const StrConsumer c, void *data) {
   const Node *node = *((const Node **) data);
   StringBuilder sb = sb_create(256);
-  _emit_ast(consumer, node, &sb, true);
+  _emit_ast(c, node, &sb, true);
   sb_free(&sb);
 }
 

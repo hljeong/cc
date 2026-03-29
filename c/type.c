@@ -10,15 +10,15 @@ StrEmitter str_type_kind(const TypeKind kind) {
   else                           fail(str_int(kind));
 }
 
-static void emit_type(const StrConsumer consumer, void *data) {
+static void emit_type(const StrConsumer c, void *data) {
   const Type *type = *((const Type **) data);
 
   if (type->kind == TypeKind_PTR) {
-    emit_e(consumer, str_type(type->referenced));
-    emit_s(consumer,"*");
+    emit_e(c, str_type(type->referenced));
+    emit_s(c,"*");
   }
 
-  else emit_e(consumer, str_type_kind(type->kind));
+  else emit_e(c, str_type_kind(type->kind));
 
   free(data);
 }
