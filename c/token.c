@@ -26,7 +26,7 @@ StrEmitter str_token_kind(const TokenKind kind) {
   else if (kind == TokenKind_FOR)       return str_f("for");
   else if (kind == TokenKind_WHILE)     return str_f("while");
   else if (kind == TokenKind_EOF)       return str_f("eof");
-  else                                  fail(str_int(kind));
+  else                                  fail_f("unexpected token kind: %d", kind);
 }
 
 static void emit_token(const StrConsumer c, void *data) {
@@ -57,7 +57,7 @@ static void emit_token_stream(const StrConsumer c, void *data) {
 }
 
 StrEmitter str_token_stream(const Token *tok) {
-  assert(tok, "todo: allow raw asserts");
+  assert(tok);
   const Token **tok_ptr = calloc(1, sizeof(const Token **));
   *tok_ptr = tok;
   return (StrEmitter) { .emit = emit_token_stream, .data = tok_ptr };

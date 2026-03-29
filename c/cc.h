@@ -61,6 +61,9 @@ struct StrEmitter {
 
 extern const StrEmitter HALT;
 
+void emit_v2(const StrConsumer c, const char *fmt, va_list ap);
+void emit_f2(const StrConsumer c, const char *fmt, ...);
+
 void emit_s(const StrConsumer c, const char *s);
 void emit_v(const StrConsumer c, const char *fmt, va_list ap);
 void emit_f(const StrConsumer c, const char *fmt, ...);
@@ -76,25 +79,27 @@ StrEmitter str_int(const int value);
 
 // debug
 
+// todo: delete
 // print to debug
 void debugf(const char *fmt, ...);
 
+// todo: delete
 // print to debug and abort
 void errorf(const char *fmt, ...);
 
-// print consumed string to debug
-void _debug(void *_, ...);  // c mandates named parameter before ellipsis
-#define debug(...) _debug(NULL, __VA_ARGS__, HALT)
+void _debug_f(const char *fmt, ...);
+#define debug_f(fmt, ...) _debug_f(fmt, __VA_ARGS__, HALT)
 
-// print consumed string to debug and abort
 [[noreturn]]
-void _error(void *_, ...);
-#define error(...) _error(NULL, __VA_ARGS__, HALT)
+void _error_f(const char *fmt, ...);
+#define error_f(fmt, ...) _error_f(fmt, __VA_ARGS__, HALT)
 
+// todo: supercharge sb_append_f
 // append consumed string to string builder
 void _sb_append(StringBuilder *sb, ...);
 #define sb_append(sb, ...) _sb_append(sb, __VA_ARGS__, HALT)
 
+// todo: convert these to format specifiers
 // show message at cursor location
 StrEmitter at_loc(const char *loc);
 
@@ -123,20 +128,35 @@ StrEmitter str_type        (const Type *type);
 
 // assertion
 
-// todo: optional args (##__VA_ARGS__ or separate macro?)
+// todo: possible to unify under one assert()/fail()? most likely requires ##__VA_ARGS__
+// todo: include __func__
+
 [[noreturn]]
-void _assert(const char *file, const int line, const char *cond, ...);
-#define assert(cond, ...)                 \
+void _assert(const char *file, const int line, const char *cond);
+#define assert(cond)                      \
   do {                                    \
     if (!(cond))                          \
-      _assert(__FILE__, __LINE__,  #cond, \
-              __VA_ARGS__, HALT);         \
+      _assert(__FILE__, __LINE__, #cond); \
   } while (0)
 
-// print consumed string to debug
+// todo: optional args (##__VA_ARGS__ or separate macro?)
 [[noreturn]]
-void _fail(const char *file, const int line, ...);
-#define fail(...) _fail(__FILE__, __LINE__, __VA_ARGS__, HALT);
+void _assert_f(const char *file, const int line, const char *cond,
+               const char *fmt, ...);
+#define assert_f(cond, fmt, ...)           \
+  do {                                     \
+    if (!(cond))                           \
+      _assert_f(__FILE__, __LINE__, #cond, \
+                fmt, __VA_ARGS__, HALT);   \
+  } while (0)
+
+[[noreturn]]
+void _fail(const char *file, const int line);
+#define fail() _fail(__FILE__, __LINE__);
+
+[[noreturn]]
+void _fail_f(const char *file, const int line, const char * fmt, ...);
+#define fail_f(fmt, ...) _fail_f(__FILE__, __LINE__, fmt, __VA_ARGS__, HALT);
 
 
 // token

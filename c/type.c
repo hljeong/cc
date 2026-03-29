@@ -7,7 +7,7 @@ Types t = {
 StrEmitter str_type_kind(const TypeKind kind) {
   if      (kind == TypeKind_INT) return str_f("int");
   else if (kind == TypeKind_PTR) return str_f("ptr");
-  else                           fail(str_int(kind));
+  else                           fail_f("unexpected type kind: %d", kind);
 }
 
 static void emit_type(const StrConsumer c, void *data) {

@@ -21,11 +21,8 @@ static const Token *consume(const TokenKind kind) {
 
 static const Token *expect(const TokenKind kind) {
   const Token *tok = consume(kind);
-  if (!tok) error(this_tok(),
-                  str_f("expected "),
-                  str_token_kind(kind),
-                  str_f(", got: "),
-                  str_token(ctx.parser.tok));
+  if (!tok) error_f("%{} expected %{token_kind}, got: %{token}",
+                    this_tok(), kind, ctx.parser.tok);
   return tok;
 }
 
@@ -58,8 +55,9 @@ static void src_push() {
 }
 
 static StringView src_peek() {
-  assert(src_stack, str_f("empty src stack"));
-  assert(ctx.parser.tok->prev, str_f("no tokens consumed before "), str_token(ctx.parser.tok));
+  // todo: ##__VA_ARGS__?
+  assert_f(src_stack, "empty src stack", NULL);
+  assert_f(ctx.parser.tok->prev, "no tokens consumed before %{token}", ctx.parser.tok);
   const StringView last = ctx.parser.tok->prev->lexeme;
   const char *start = src_stack->loc;
   return (StringView) {
@@ -69,7 +67,8 @@ static StringView src_peek() {
 }
 
 static void src_pop() {
-  assert(src_stack, str_f("empty src stack"));
+  // todo: ##__VA_ARGS__?
+  assert_f(src_stack, "empty src stack", NULL);
   SourceStack *last_src_stack = src_stack->last;
   free(src_stack);
   src_stack = last_src_stack;
@@ -89,14 +88,14 @@ static Node *add_lexeme(Node *node) {
 // todo: temp
 // prog ::= fun_decl
 static Node *prog() {
-  if (debug_parse) debug(this_tok(), str_f("parsing prog"));
+  if (debug_parse) debug_f("%{} parsing prog", this_tok());
   return fun_decl();
 }
 
 // todo: temp
 // decl ::= "{" stmt* "}"
 static Node *fun_decl() {
-  if (debug_parse) debug(this_tok(), str_f("parsing fun_decl"));
+  if (debug_parse) debug_f("%{} parsing fun_decl", this_tok());
   src_push();
   Node *node = new_node(NodeKind_FUN_DECL);
   {
@@ -119,7 +118,7 @@ static Node *fun_decl() {
 //        | "while" "(" expr ")" stmt
 //        | expr? ";"
 static Node *stmt() {
-  if (debug_parse) debug(this_tok(), str_f("parsing stmt"));
+  if (debug_parse) debug_f("%{} parsing stmt", this_tok());
   src_push();
   Node *node = NULL;
 
@@ -194,7 +193,7 @@ static Node *stmt() {
 
 // expr ::= assign
 static Node *expr() {
-  if (debug_parse) debug(this_tok(), str_f("parsing expr"));
+  if (debug_parse) debug_f("%{} parsing expr", this_tok());
   // if (debug_parse) this_tok(DEBUG, "parsing expr");
   return assign();
 }
@@ -202,7 +201,7 @@ static Node *expr() {
 // note: right-associative
 // assign ::= equality ("=" assign)?
 static Node *assign() {
-  if (debug_parse) debug(this_tok(), str_f("parsing assign"));
+  if (debug_parse) debug_f("%{} parsing assign", this_tok());
   src_push();
   Node *node = equality();
   return consume(TokenKind_EQ) ? pop_lexeme(new_binop_node(NodeKind_ASSIGN, node, assign()))
@@ -211,7 +210,7 @@ static Node *assign() {
 
 // equality ::= relational ("==" relational | "!=" relational)*
 static Node *equality() {
-  if (debug_parse) debug(this_tok(), str_f("parsing equality"));
+  if (debug_parse) debug_f("%{} parsing equality", this_tok());
   src_push();
   Node *node = relational();
   const Token *tok = NULL;
@@ -226,7 +225,7 @@ static Node *equality() {
 
 // relational ::= add ("<" add | "<=" add | ">" add | ">=" add)*
 static Node *relational() {
-  if (debug_parse) debug(this_tok(), str_f("parsing relational"));
+  if (debug_parse) debug_f("%{} parsing relational", this_tok());
   src_push();
   Node *node = add();
   const Token *tok = NULL;
@@ -243,7 +242,7 @@ static Node *relational() {
 
 // add ::= mul ("+" mul | "-" mul)*
 static Node *add() {
-  if (debug_parse) debug(this_tok(), str_f("parsing add"));
+  if (debug_parse) debug_f("%{} parsing add", this_tok());
   src_push();
   Node *node = mul();
   const Token *tok = NULL;
@@ -257,7 +256,7 @@ static Node *add() {
 
 // mul ::= unary ("*" unary | "/" unary)*
 static Node *mul() {
-  if (debug_parse) debug(this_tok(), str_f("parsing mul"));
+  if (debug_parse) debug_f("%{} parsing mul", this_tok());
   src_push();
   Node *node = unary();
   const Token *tok = NULL;
@@ -272,7 +271,7 @@ static Node *mul() {
 // unary ::= ("+" | "-" | "&" | "*") unary
 //         | primary
 static Node *unary() {
-  if (debug_parse) debug(this_tok(), str_f("parsing unary"));
+  if (debug_parse) debug_f("%{} parsing unary", this_tok());
   src_push();
   const Token *tok = NULL;
   if      ((tok = consume(TokenKind_PLUS)))  return src_pop(), unary();
@@ -284,7 +283,7 @@ static Node *unary() {
 
 // primary ::= "(" expr ")" | ident | num
 static Node *primary() {
-  if (debug_parse) debug(this_tok(), str_f("parsing primary"));
+  if (debug_parse) debug_f("%{} parsing primary", this_tok());
   src_push();
   const Token *tok = NULL;
   if (consume(TokenKind_LPAREN)) {
@@ -294,7 +293,7 @@ static Node *primary() {
   }
   else if ((tok = consume(TokenKind_IDENT))) return pop_lexeme(new_var_node(tok->ident));
   else if ((tok = consume(TokenKind_NUM)))   return pop_lexeme(new_num_node(tok->num));
-  else                                       error(this_tok(), str_f("expected expression"));
+  else                                       error_f("%{} expected expression", this_tok());
 }
 
 Node *parse() {
@@ -306,9 +305,9 @@ Node *parse() {
       size++;
       cur = cur->last;
     }
-    fail(str_f("non-empty src stack: %d", size));
+    fail_f("non-empty src stack: %d", size);
   }
   if (!match(TokenKind_EOF))
-    error(this_tok(), str_f("extra token"));
+    error_f("%{} extra token", this_tok());
   return node;
 }

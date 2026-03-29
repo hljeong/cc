@@ -22,7 +22,7 @@ StrEmitter str_node_kind(const NodeKind kind) {
   else if (kind == NodeKind_FOR)       return str_f("for");
   else if (kind == NodeKind_FUN_DECL)  return str_f("fun_decl");
   else if (kind == NodeKind_PROG)      return str_f("prog");
-  else                                 fail(str_int(kind));
+  else                                 fail_f("unexpected node kind: %d", kind);
 }
 
 static void emit_node(const StrConsumer c, void *data) {
@@ -102,7 +102,8 @@ void _emit_ast(const StrConsumer c, const Node *node, StringBuilder *sb, const b
     }
   }
 
-  else fail(str_node_kind(node->kind));
+  else fail_f("unexpected node kind: {%node_kind}",
+              node->kind);
 
    sb_backspace(sb, prefix_len);
 }
@@ -115,7 +116,7 @@ static void emit_ast(const StrConsumer c, void *data) {
 }
 
 StrEmitter str_ast(const Node *node) {
-  assert(node, "todo: allow raw asserts");
+  assert(node);
   const Node **node_ptr = calloc(1, sizeof(const Node **));
   *node_ptr = node;
   return (StrEmitter) { .emit = emit_ast, .data = node_ptr };
@@ -163,14 +164,14 @@ Node *new_var_node(const StringView name) {
 }
 
 Node *new_unop_node(const NodeKind kind, Node *operand) {
-  assert(node_kind_is_unop(kind), str_node_kind(kind));
+  assert_f(node_kind_is_unop(kind), "not an unop: %{node_kind}", kind);
   Node *node = new_node(kind);
   node->operand = operand;
   return node;
 }
 
 Node *new_binop_node(const NodeKind kind, Node *lhs, Node *rhs) {
-  assert(node_kind_is_binop(kind), str_node_kind(kind));
+  assert_f(node_kind_is_binop(kind), "not a binop: %{node_kind}", kind);
   Node *node = new_node(kind);
   node->lhs = lhs;
   node->rhs = rhs;
@@ -178,7 +179,7 @@ Node *new_binop_node(const NodeKind kind, Node *lhs, Node *rhs) {
 }
 
 Node *new_list_node(const NodeKind kind, Node *head) {
-  assert(node_kind_is_list(kind), str_node_kind(kind));
+  assert_f(node_kind_is_list(kind), "not a list: %{node_kind}", kind);
   Node *node = new_node(kind);
   node->head = head;
   return node;
