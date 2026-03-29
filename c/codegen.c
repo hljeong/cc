@@ -13,8 +13,8 @@ static void addr(const Node *node) {
     visit(node->operand);
   }
 
-  else at_node(ERROR, node, "not an lvalue: %s",
-               node_kind_to_str(node->kind));
+  else error(at_node(node), str_f("not an lvalue: %s",
+             node_kind_to_str(node->kind)));
 }
 
 static void push(void) {

@@ -23,7 +23,7 @@ void sb_clear(StringBuilder *sb) {
   sb->size = 0;
 }
 
-int sb_appendv(StringBuilder *sb, const char *fmt, va_list ap) {
+int sb_append_v(StringBuilder *sb, const char *fmt, va_list ap) {
   const int space = sb->capacity - sb->size;
   const int len = vsnprintf(sb->buf + sb->size, space, fmt, ap);
   assertf(len < space, "not enough space: len=%d, space=%d",
@@ -32,9 +32,9 @@ int sb_appendv(StringBuilder *sb, const char *fmt, va_list ap) {
   return len;
 }
 
-int sb_appendf(StringBuilder *sb, const char *fmt, ...) {
+int sb_append_f(StringBuilder *sb, const char *fmt, ...) {
   va_list ap; va_start(ap, fmt);
-  const int len = sb_appendv(sb, fmt, ap);
+  const int len = sb_append_v(sb, fmt, ap);
   va_end(ap);
   return len;
 }
@@ -55,7 +55,7 @@ void emit_s(const StrConsumer consumer, const char *s) {
 
 void emit_v(const StrConsumer consumer, const char *fmt, va_list ap) {
   StringBuilder sb = sb_create(256);
-  sb_appendv(&sb, fmt, ap);
+  sb_append_v(&sb, fmt, ap);
   emit_s(consumer, sb.buf);
   sb_free(&sb);
 }
@@ -74,13 +74,13 @@ static void emit_sb(const StrConsumer consumer, void *data) {
   StringBuilder *sb = (StringBuilder *) data;
   emit_s(consumer, sb->buf);
   sb_free(sb);
-  free(sb);
+  free(data);
 }
 
 StrEmitter str_v(const char *fmt, va_list ap) {
   StringBuilder *sb = calloc(1, sizeof(StringBuilder));
   *sb = sb_create(256);
-  emit_v(APPEND(sb), fmt, ap);
+  sb_append_v(sb, fmt, ap);
   return (StrEmitter) { .emit = emit_sb, .data = sb };
 }
 
@@ -91,12 +91,17 @@ StrEmitter str_f(const char *fmt, ...) {
   return emitter;
 }
 
-void _emit_es(const StrConsumer consumer, ...) {
-  va_list ap; va_start(ap, consumer);
+void emit_all_v(const StrConsumer consumer, va_list ap) {
   while (true) {
     const StrEmitter emitter = va_arg(ap, StrEmitter);
     if (!emitter.emit) break;
     emit_e(consumer, emitter);
   }
+  halt(consumer);
+}
+
+void _emit_all(const StrConsumer consumer, ...) {
+  va_list ap; va_start(ap, consumer);
+  emit_all_v(consumer, ap);
   va_end(ap);
 }

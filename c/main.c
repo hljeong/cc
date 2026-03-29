@@ -1,6 +1,6 @@
 #include "cc.h"
 
-bool debug = true;
+bool enable_debug = true;
 
 Context ctx = {};
 
@@ -11,16 +11,16 @@ int main(int argc, char **argv) {
   ctx.src_len = strlen(ctx.src);
 
   ctx.lexer.loc = ctx.src;
-  if (debug) debugf("src: %s\n", ctx.lexer.loc);
+  if (enable_debug) debugf("src: %s\n", ctx.lexer.loc);
 
   ctx.parser.tok = lex();
-  if (debug) token_stream(DEBUG, ctx.parser.tok);
+  if (enable_debug) debug(str_token_stream(ctx.parser.tok));
 
   ctx.ast = parse();
-  if (debug) ast(DEBUG, ctx.ast);
+  if (enable_debug) debug(str_ast(ctx.ast));
 
   analyze();
-  if (debug) ast(DEBUG, ctx.ast);
+  if (enable_debug) debug(str_ast(ctx.ast));
 
   codegen();
 

@@ -46,6 +46,78 @@ const char *node_to_str(const Node *node) {
   return buf;
 }
 
+void _emit_ast(const StrConsumer consumer, const Node *node, StringBuilder *sb, const bool last) {
+  if (!node) return;
+
+  // emit string representation for this node
+  {
+    const int len = sb_append_f(sb, "%s%s\n", last ? "└─" : "├─", node_to_str(node));
+    emit_s(consumer, sb->buf);
+    sb_backspace(sb, len);
+  }
+
+  // recursively emit children representation
+  const int prefix_len = sb_append_f(sb, last ? "  " : "│ ");
+
+  if      (node->kind == NodeKind_NUM) {}
+  else if (node->kind == NodeKind_VAR) {}
+
+  else if (node->kind == NodeKind_FUN_DECL) {
+    _emit_ast(consumer, node->body, sb, true);
+  }
+
+  else if (node->kind == NodeKind_EXPR_STMT) {
+    _emit_ast(consumer, node->expr, sb, true);
+  }
+
+  else if (node->kind == NodeKind_IF) {
+    _emit_ast(consumer, node->cond, sb, true);
+    _emit_ast(consumer, node->body, sb, true);
+  }
+
+  else if (node->kind == NodeKind_FOR) {
+    _emit_ast(consumer, node->init, sb, true);
+    _emit_ast(consumer, node->loop_cond, sb, true);
+    _emit_ast(consumer, node->inc, sb, true);
+    _emit_ast(consumer, node->loop_body, sb, true);
+  }
+
+  else if (node_kind_is_unop(node->kind)) {
+    _emit_ast(consumer, node->operand, sb, true);
+  }
+
+  else if (node_kind_is_binop(node->kind)) {
+    _emit_ast(consumer, node->lhs, sb, false);
+    _emit_ast(consumer, node->rhs, sb, true);
+  }
+
+  else if (node_kind_is_list(node->kind)) {
+    Node *child = node->head;
+    while (child) {
+      _emit_ast(consumer, child, sb, !(child->next));
+      child = child->next;
+    }
+  }
+
+  else failf("%s", node_kind_to_str(node->kind));
+
+  sb_backspace(sb, prefix_len);
+}
+
+static void emit_ast(const StrConsumer consumer, void *data) {
+  const Node *node = *((const Node **) data);
+  StringBuilder sb = sb_create(256);
+  _emit_ast(consumer, node, &sb, true);
+  sb_free(&sb);
+}
+
+StrEmitter str_ast(const Node *node) {
+  assert(node);
+  const Node **node_ptr = calloc(1, sizeof(const Node **));
+  *node_ptr = node;
+  return (StrEmitter) { .emit = emit_ast, .data = node_ptr };
+}
+
 bool node_kind_is_unop(const NodeKind kind) {
   return (kind == NodeKind_NEG)       ||
          (kind == NodeKind_ADDR)      ||

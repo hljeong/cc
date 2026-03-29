@@ -45,6 +45,22 @@ const char *token_to_str(const Token *tok) {
   return buf;
 }
 
+static void emit_token_stream(const StrConsumer consumer, void *data) {
+  const Token *tok = *((const Token **) data);
+  emit_s(consumer, "[[");
+  do emit_f(consumer, " %s", token_to_str(tok));
+  while ((tok = tok->next));
+  emit_s(consumer, " ]]");
+  free(data);
+}
+
+StrEmitter str_token_stream(const Token *tok) {
+  assert(tok);
+  const Token **tok_ptr = calloc(1, sizeof(const Token **));
+  *tok_ptr = tok;
+  return (StrEmitter) { .emit = emit_token_stream, .data = tok_ptr };
+}
+
 Token *new_token(const TokenKind kind, const int len) {
   Token *tok = calloc(1, sizeof(Token));
   tok->kind = kind;

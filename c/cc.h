@@ -39,8 +39,8 @@ struct StringBuilder {
 StringBuilder sb_create   (const int capacity);
 void          sb_free     (StringBuilder *sb);
 void          sb_clear    (StringBuilder *sb);
-int           sb_appendv  (StringBuilder *sb, const char *fmt, va_list ap);
-int           sb_appendf  (StringBuilder *sb, const char *fmt, ...);
+int           sb_append_v (StringBuilder *sb, const char *fmt, va_list ap);
+int           sb_append_f (StringBuilder *sb, const char *fmt, ...);
 void          sb_backspace(StringBuilder *sb, const int len);
 
 
@@ -62,9 +62,9 @@ void emit_v(const StrConsumer consumer, const char *fmt, va_list ap);
 void emit_f(const StrConsumer consumer, const char *fmt, ...);
 void emit_e(const StrConsumer consumer, const StrEmitter emitter);
 
-void _emit_es(const StrConsumer consumer, ...);
-#define emit_es(consumer, ...) _emit_es(consumer, __VA_ARGS__, (StrEmitter) { .emit = NULL })
-
+void emit_all_v(const StrConsumer consumer, va_list ap);
+void _emit_all(const StrConsumer consumer, ...);
+#define emit_all(consumer, ...) _emit_all(consumer, __VA_ARGS__, (StrEmitter) { .emit = NULL })
 
 StrEmitter str_f(const char *fmt, ...);
 
@@ -77,44 +77,39 @@ void debugf(const char *fmt, ...);
 // print to debug and abort
 void errorf(const char *fmt, ...);
 
-// static inline void emit(const StrConsumer consumer, const char *s) {
-//   consumer.consume(s, consumer.ctx);
-// }
-
 // print consumed string to debug
-void debug_consume(const char *s, void *ctx);
-extern StrConsumer DEBUG;
+void _debug(void *_, ...);  // c mandates named parameter before ellipsis
+#define debug(...) _debug(NULL, __VA_ARGS__, (StrEmitter) { .emit = NULL })
 
 // print consumed string to debug and abort
-void error_consume(const char *s, void *ctx);
-extern StrConsumer ERROR;
+[[noreturn]]
+void _error(void *_, ...);
+#define error(...) _error(NULL, __VA_ARGS__, (StrEmitter) { .emit = NULL })
 
 // append consumed string to string builder
-void append_consume(const char *s, void *ctx);
-static inline StrConsumer APPEND(StringBuilder *sb) {
-  return (StrConsumer) { .consume = append_consume, .ctx = sb };
-}
+void _sb_append(StringBuilder *sb, ...);
+#define sb_append(sb, ...) _sb_append(sb, __VA_ARGS__, (StrEmitter) { .emit = NULL })
 
 // show message at cursor location
-void at_loc(const StrConsumer consumer, const char *loc, const char *fmt, ...);
+StrEmitter at_loc(const char *loc);
 
 // show message at token lexeme
-void at_tok(const StrConsumer consumer, const Token *tok, const char *fmt, ...);
+StrEmitter at_tok(const Token *tok);
 
 // show message at node lexeme
-void at_node(const StrConsumer consumer, const Node *node, const char *fmt, ...);
+StrEmitter at_node(const Node *node);
 
 // show message at current cursor location
-void this_loc(const StrConsumer consumer, const char *fmt, ...);
+StrEmitter this_loc();
 
 // show message at current token lexeme
-void this_tok(const StrConsumer consumer, const char *fmt, ...);
+StrEmitter this_tok();
 
 // stringify token stream
-void token_stream(const StrConsumer consumer, const Token *tok);
+StrEmitter str_token_stream(const Token *tok);
 
 // stringify ast
-void ast(const StrConsumer consumer, const Node *node);
+StrEmitter str_ast(const Node *node);
 
 
 // assertion
