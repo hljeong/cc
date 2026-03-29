@@ -63,7 +63,6 @@ struct StrFormatter {
 
 extern StrFormatter FORMATTERS[];
 
-// todo: allow format strings?
 void consume_v(const StrConsumer c, const char *fmt, va_list ap);
 void consume_f(const StrConsumer c, const char *fmt, ...);
 
