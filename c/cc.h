@@ -93,33 +93,34 @@ void _error_f(const char *fmt, ...);
 // assertion
 
 // todo: possible to unify under one assert()/fail()? most likely requires ##__VA_ARGS__
-// todo: include __func__
 
 [[noreturn]]
-void _assert(const char *file, const int line, const char *cond);
-#define assert(cond)                      \
-  do {                                    \
-    if (!(cond))                          \
-      _assert(__FILE__, __LINE__, #cond); \
+void _assert(const char *file, const int line, const char *func, const char *cond);
+#define assert(cond)                                \
+  do {                                              \
+    if (!(cond))                                    \
+      _assert(__FILE__, __LINE__, __func__, #cond); \
   } while (0)
 
 [[noreturn]]
-void _assert_f(const char *file, const int line, const char *cond,
+void _assert_f(const char *file, const int line, const char *func, const char *cond,
                const char *fmt, ...);
-#define assert_f(cond, fmt, ...)           \
-  do {                                     \
-    if (!(cond))                           \
-      _assert_f(__FILE__, __LINE__, #cond, \
-                fmt, ##__VA_ARGS__);       \
+#define assert_f(cond, fmt, ...)                     \
+  do {                                               \
+    if (!(cond))                                     \
+      _assert_f(__FILE__, __LINE__, __func__, #cond, \
+                fmt, ##__VA_ARGS__);                 \
   } while (0)
 
 [[noreturn]]
-void _fail(const char *file, const int line);
-#define fail() _fail(__FILE__, __LINE__);
+void _fail(const char *file, const int line, const char *func);
+#define fail() _fail(__FILE__, __LINE__, __func__);
 
 [[noreturn]]
-void _fail_f(const char *file, const int line, const char * fmt, ...);
-#define fail_f(fmt, ...) _fail_f(__FILE__, __LINE__, fmt, ##__VA_ARGS__);
+void _fail_f(const char *file, const int line, const char *func,
+             const char * fmt, ...);
+#define fail_f(fmt, ...) _fail_f(__FILE__, __LINE__, __func__, \
+                                 fmt, ##__VA_ARGS__);
 
 
 // token

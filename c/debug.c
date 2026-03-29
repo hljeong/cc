@@ -70,30 +70,30 @@ void fmt_at_node(const StrConsumer c, va_list ap) {
   consume_at_span(c, node->lexeme);
 }
 
-void _assert(const char *file, const int line, const char *cond) {
-  consume_f(DEBUG, "%s:%d: assert(%s) failed\n", file, line, cond);
+void _assert(const char *file, const int line, const char *func, const char *cond) {
+  consume_f(DEBUG, "%s:%d: assert(%s) failed in %s()\n", file, line, cond, func);
   exit(1);
 }
 
-void _assert_f(const char *file, const int line, const char *cond,
+void _assert_f(const char *file, const int line, const char *func, const char *cond,
                const char *fmt, ...) {
   va_list ap; va_start(ap, fmt);
-  consume_f(DEBUG, "%s:%d: assert(%s) failed: ", file, line, cond);
+  consume_f(DEBUG, "%s:%d: assert(%s) failed in %s(): ", file, line, cond, func);
   consume_v(DEBUG, fmt, ap);
   consume_f(DEBUG, "\n");
   va_end(ap);
   exit(1);
 }
 
-void _fail(const char *file, const int line) {
-  consume_f(DEBUG, "%s:%d: failed\n", file, line);
+void _fail(const char *file, const int line, const char *func) {
+  consume_f(DEBUG, "%s:%d: failed in %s()\n", file, line, func);
   exit(1);
 }
 
-void _fail_f(const char *file, const int line,
+void _fail_f(const char *file, const int line, const char *func,
              const char *fmt, ...) {
   va_list ap; va_start(ap, fmt);
-  consume_f(DEBUG, "%s:%d: failed: ", file, line);
+  consume_f(DEBUG, "%s:%d: failed in %s(): ", file, line, func);
   consume_v(DEBUG, fmt, ap);
   consume_f(DEBUG, "\n");
   va_end(ap);
