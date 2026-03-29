@@ -51,6 +51,19 @@ static int consume(const char *s) {
   } else return 0;
 }
 
+// keywords are otherwise-identifiers that
+// have special meanings. make sure consumed
+// keywords are not prefixes of identifiers
+static int consume_kw(const char *s) {
+  const int len = consume(s);
+  if (!len) return 0;
+  if (is_ident_rest(*ctx.lexer.loc)) {
+    ctx.lexer.loc -= len;  // spit consumed chars back out
+    return 0;
+  }
+  return len;
+}
+
 // consume_ch(ch), except fail if unsuccesful
 static int expect_ch(const char ch) {
   const int len = consume_ch(ch);
@@ -75,11 +88,11 @@ void lex() {
   while ((ch = *ctx.lexer.loc)) {
     if (consume_pred(isspace)) ;  // skip whitespace
 
-    else if ((len = consume("return"))) cur = link(cur, new_token(TokenKind_RETURN, len));
-    else if ((len = consume("if")))     cur = link(cur, new_token(TokenKind_IF,     len));
-    else if ((len = consume("else")))   cur = link(cur, new_token(TokenKind_ELSE,   len));
-    else if ((len = consume("for")))    cur = link(cur, new_token(TokenKind_FOR,    len));
-    else if ((len = consume("while")))  cur = link(cur, new_token(TokenKind_WHILE,  len));
+    else if ((len = consume_kw("return"))) cur = link(cur, new_token(TokenKind_RETURN, len));
+    else if ((len = consume_kw("if")))     cur = link(cur, new_token(TokenKind_IF,     len));
+    else if ((len = consume_kw("else")))   cur = link(cur, new_token(TokenKind_ELSE,   len));
+    else if ((len = consume_kw("for")))    cur = link(cur, new_token(TokenKind_FOR,    len));
+    else if ((len = consume_kw("while")))  cur = link(cur, new_token(TokenKind_WHILE,  len));
 
     else if (isdigit(ch)) {
       const char *start = ctx.lexer.loc;
