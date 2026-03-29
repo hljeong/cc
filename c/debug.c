@@ -26,10 +26,10 @@ void _error_f(const char *fmt, ...) {
 }
 
 static void consume_at_loc(const StrConsumer c, const char *loc) {
-  const int col = loc - ctx.src;
-  assert_f(0 <= col && col <= ctx.src_len,
-           "invalid loc: %d, src_len=%d",
-            col, ctx.src_len);
+  const int col = loc - ctx.src.loc;
+  assert_f(0 <= col && col <= ctx.src.len,
+           "invalid loc: %d, src.len=%d",
+            col, ctx.src.len);
 
   consume_f(c, "%s\n", ctx.src);
 
@@ -45,10 +45,10 @@ void fmt_at_cur_loc(const StrConsumer c, va_list ap) {
 }
 
 static void consume_at_span(const StrConsumer c, const StringView span) {
-  const int col = span.loc - ctx.src;
-  assert_f(0 <= col && col + span.len <= ctx.src_len,
-           "invalid span: (%d, %d), src_len=%d",
-           col, span.len, ctx.src_len);
+  const int col = span.loc - ctx.src.loc;
+  assert_f(0 <= col && col + span.len <= ctx.src.len,
+           "invalid span: (%d, %d), src.len=%d",
+           col, span.len, ctx.src.len);
   consume_f(c, "%s\n", ctx.src);
 
   consume_f(c, "%*s", col, "");

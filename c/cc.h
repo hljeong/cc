@@ -63,6 +63,7 @@ struct StrFormatter {
 
 extern StrFormatter FORMATTERS[];
 
+// todo: allow format strings?
 void consume_v(const StrConsumer c, const char *fmt, va_list ap);
 void consume_f(const StrConsumer c, const char *fmt, ...);
 
@@ -230,24 +231,16 @@ struct Node {
 };
 
 bool node_kind_is_variant(const NodeKind kind);
+bool node_kind_is_unop   (const NodeKind kind);
+bool node_kind_is_binop  (const NodeKind kind);
+bool node_kind_is_list   (const NodeKind kind);
 
-bool node_kind_is_unop(const NodeKind kind);
-
-bool node_kind_is_binop(const NodeKind kind);
-
-bool node_kind_is_list(const NodeKind kind);
-
-Node *new_node(const NodeKind kind);
-
-Node *new_num_node(const int num);
-
-Node *new_var_node(const StringView name);
-
-Node *new_unop_node(const NodeKind kind, Node *operand);
-
+Node *new_node      (const NodeKind kind);
+Node *new_num_node  (const int num);
+Node *new_var_node  (const StringView name);
+Node *new_unop_node (const NodeKind kind, Node *operand);
 Node *new_binop_node(const NodeKind kind, Node *lhs, Node *rhs);
-
-Node *new_list_node(const NodeKind kind, Node *head);
+Node *new_list_node (const NodeKind kind, Node *head);
 
 
 // var
@@ -287,27 +280,24 @@ extern Types t;
 
 bool type_eq(const Type *t, const Type *u);
 
-Type *new_type(const TypeKind kind);
-
+Type *new_type        (const TypeKind kind);
 Type *new_pointer_type(Type *referenced);
 
 
 // action
 
-Token *lex();
-
-Node *parse();
-
+void lex();
+void parse();
 void analyze();
-
 void codegen();
 
 
 // global context
 
 typedef struct {
-  const char *src;
-  int src_len;
+  StringView src;
+  const Token *toks;
+  const Node *ast;
 
   struct {
     const char *loc;
@@ -316,8 +306,6 @@ typedef struct {
   struct {
     const Token *tok;
   } parser;
-
-  Node *ast;
 
   struct {
     Var locals;

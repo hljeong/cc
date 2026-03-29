@@ -65,7 +65,8 @@ static int expect(const char *s) {
   return len;
 }
 
-Token *lex() {
+void lex() {
+  ctx.lexer.loc = ctx.src.loc;
   Token head = {};
   Token *cur = &head;
 
@@ -115,5 +116,5 @@ Token *lex() {
   }
 
   cur = link(cur, new_token(TokenKind_EOF, 0));
-  return head.next;
+  ctx.toks = head.next;
 }

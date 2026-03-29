@@ -294,7 +294,8 @@ static Node *primary() {
   else                                       error_f("%{@cur_tok} expected expression");
 }
 
-Node *parse() {
+void parse() {
+  ctx.parser.tok = ctx.toks;
   Node *node = prog();
   if (src_stack) {
     int size = 0;
@@ -307,5 +308,5 @@ Node *parse() {
   }
   if (!match(TokenKind_EOF))
     error_f("%{@cur_tok} extra token");
-  return node;
+  ctx.ast = node;
 }
