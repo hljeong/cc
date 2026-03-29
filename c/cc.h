@@ -8,9 +8,12 @@ typedef struct StrConsumer StrConsumer;
 typedef struct StrEmitter StrEmitter;
 typedef struct StringView StringView;
 typedef struct StringBuilder StringBuilder;
+typedef enum TokenKind TokenKind;
 typedef struct Token Token;
+typedef enum NodeKind NodeKind;
 typedef struct Node Node;
 typedef struct Var Var;
+typedef enum TypeKind TypeKind;
 typedef struct Type Type;
 
 
@@ -62,11 +65,14 @@ void emit_v(const StrConsumer consumer, const char *fmt, va_list ap);
 void emit_f(const StrConsumer consumer, const char *fmt, ...);
 void emit_e(const StrConsumer consumer, const StrEmitter emitter);
 
+extern const StrEmitter HALT;
+
 void emit_all_v(const StrConsumer consumer, va_list ap);
 void _emit_all(const StrConsumer consumer, ...);
-#define emit_all(consumer, ...) _emit_all(consumer, __VA_ARGS__, (StrEmitter) { .emit = NULL })
+#define emit_all(consumer, ...) _emit_all(consumer, __VA_ARGS__, HALT)
 
 StrEmitter str_f(const char *fmt, ...);
+StrEmitter str_int(const int value);
 
 
 // debug
@@ -105,54 +111,38 @@ StrEmitter this_loc();
 // show message at current token lexeme
 StrEmitter this_tok();
 
-// stringify token stream
+// stringify
+StrEmitter str_token_kind  (const TokenKind kind);
+StrEmitter str_token       (const Token *tok);
 StrEmitter str_token_stream(const Token *tok);
-
-// stringify ast
-StrEmitter str_ast(const Node *node);
+StrEmitter str_node_kind   (const NodeKind kind);
+StrEmitter str_node        (const Node *node);
+StrEmitter str_ast         (const Node *node);
+StrEmitter str_type_kind   (const TypeKind kind);
+StrEmitter str_type        (const Type *type);
 
 
 // assertion
 
+// todo: optional args (##__VA_ARGS__ or separate macro?)
 [[noreturn]]
-void _assert(const char *file, const int line, const char *cond);
-
-[[noreturn]]
-void _assertf(const char *file, const int line,
-              const char *cond, const char *fmt, ...);
-
-#define assert(cond)                      \
+void _assert(const char *file, const int line, const char *cond, ...);
+#define assert(cond, ...)                 \
   do {                                    \
     if (!(cond))                          \
-      _assert(__FILE__, __LINE__, #cond); \
+      _assert(__FILE__, __LINE__,  #cond, \
+              __VA_ARGS__, HALT);         \
   } while (0)
 
-#define assertm(cond, msg)         \
-  do {                             \
-    if (!(cond))                   \
-      _assertf(__FILE__, __LINE__, \
-               #cond, msg);        \
-  } while (0)
-
-#define assertf(cond, fmt, ...)          \
-  do {                                   \
-    if (!(cond))                         \
-      _assertf(__FILE__, __LINE__,       \
-               #cond, fmt, __VA_ARGS__); \
-  } while (0)
-
+// print consumed string to debug
 [[noreturn]]
-void _failf(const char *file, const int line,
-            const char *fmt, ...);
-
-#define failf(fmt, ...) _failf(__FILE__, __LINE__, fmt, __VA_ARGS__)
-
-#define fail(msg) _failf(__FILE__, __LINE__, msg)
+void _fail(const char *file, const int line, ...);
+#define fail(...) _fail(__FILE__, __LINE__, __VA_ARGS__, HALT);
 
 
 // token
 
-typedef enum {
+enum TokenKind {
   TokenKind_NUM,
   TokenKind_IDENT,
   TokenKind_PLUS,
@@ -178,7 +168,7 @@ typedef enum {
   TokenKind_FOR,
   TokenKind_WHILE,
   TokenKind_EOF,
-} TokenKind;
+};
 
 struct Token {
   TokenKind kind;
@@ -193,10 +183,6 @@ struct Token {
   Token *prev, *next;
 };
 
-const char *token_kind_to_str(const TokenKind kind);
-
-const char *token_to_str(const Token *tok);
-
 Token *new_token(const TokenKind kind, const int len);
 
 Token *link(Token *tok, Token *next);
@@ -204,7 +190,7 @@ Token *link(Token *tok, Token *next);
 
 // node
 
-typedef enum {
+enum NodeKind {
   NodeKind_NUM,
   NodeKind_VAR,
   NodeKind_ADD,
@@ -226,7 +212,7 @@ typedef enum {
   NodeKind_FOR,
   NodeKind_FUN_DECL,  // todo
   NodeKind_PROG,
-} NodeKind;
+};
 
 struct Node {
   NodeKind kind;
@@ -260,10 +246,6 @@ struct Node {
   Type *type;
   Node *next;
 };
-
-const char *node_kind_to_str(const NodeKind kind);
-
-const char *node_to_str(const Node *node);
 
 bool node_kind_is_variant(const NodeKind kind);
 
@@ -303,10 +285,10 @@ Var *lookup_or_new_var(Var *locals, Node *node);
 
 // type
 
-typedef enum {
+enum TypeKind {
   TypeKind_INT,
   TypeKind_PTR,
-} TypeKind;
+};
 
 struct Type {
   TypeKind kind;
@@ -320,10 +302,6 @@ typedef struct {
 } Types;
 
 extern Types t;
-
-const char *type_kind_to_str(const TypeKind kind);
-
-const char *type_to_str(const Type *type);
 
 bool type_eq(const Type *t, const Type *u);
 

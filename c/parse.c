@@ -21,9 +21,11 @@ static const Token *consume(const TokenKind kind) {
 
 static const Token *expect(const TokenKind kind) {
   const Token *tok = consume(kind);
-  if (!tok) error(this_tok(), str_f("expected %s, got: %s",
-                  token_kind_to_str(kind),
-                  token_to_str(ctx.parser.tok)));
+  if (!tok) error(this_tok(),
+                  str_f("expected "),
+                  str_token_kind(kind),
+                  str_f(", got: "),
+                  str_token(ctx.parser.tok));
   return tok;
 }
 
@@ -56,8 +58,8 @@ static void src_push() {
 }
 
 static StringView src_peek() {
-  assertm(src_stack, "empty src stack");
-  assertf(ctx.parser.tok->prev, "no tokens consumed before %s", token_to_str(ctx.parser.tok));
+  assert(src_stack, str_f("empty src stack"));
+  assert(ctx.parser.tok->prev, str_f("no tokens consumed before "), str_token(ctx.parser.tok));
   const StringView last = ctx.parser.tok->prev->lexeme;
   const char *start = src_stack->loc;
   return (StringView) {
@@ -67,7 +69,7 @@ static StringView src_peek() {
 }
 
 static void src_pop() {
-  assertm(src_stack, "empty src stack");
+  assert(src_stack, str_f("empty src stack"));
   SourceStack *last_src_stack = src_stack->last;
   free(src_stack);
   src_stack = last_src_stack;
@@ -304,7 +306,7 @@ Node *parse() {
       size++;
       cur = cur->last;
     }
-    failf("non-empty src stack: %d", size);
+    fail(str_f("non-empty src stack: %d", size));
   }
   if (!match(TokenKind_EOF))
     error(this_tok(), str_f("extra token"));

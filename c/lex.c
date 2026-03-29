@@ -13,7 +13,7 @@ static int is_ident_rest(int c) {
 }
 
 static int consume_pred(int (*pred)(int)) {
-  assertm(!pred('\0'), "predicate accepts eof");
+  assert(!pred('\0'), str_f("predicate accepts eof"));
   const char *start = ctx.lexer.loc;
   while (pred(*ctx.lexer.loc)) ctx.lexer.loc++;
   return ctx.lexer.loc - start;
@@ -43,7 +43,7 @@ static int consume_ch(const char ch) {
 // otherwise return 0
 static int consume(const char *s) {
   const int len = strlen(s);
-  assertm(len > 0, "empty literal");
+  assert(len > 0, str_f("empty literal"));
   if (!strncmp(ctx.lexer.loc, s, len)) {
     ctx.lexer.loc += len;
     return len;
@@ -110,7 +110,7 @@ Token *lex() {
     else if ((len = consume_ch('='))) cur = link(cur, new_token(TokenKind_EQ,        len));
     else if ((len = consume_ch('{'))) cur = link(cur, new_token(TokenKind_LBRACE,    len));
     else if ((len = consume_ch('}'))) cur = link(cur, new_token(TokenKind_RBRACE,    len));
-    else                              error(this_loc(), "invalid token");
+    else                              error(this_loc(), str_f("invalid token"));
   }
 
   cur = link(cur, new_token(TokenKind_EOF, 0));

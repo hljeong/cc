@@ -1,49 +1,51 @@
 #include "cc.h"
 
-const char *node_kind_to_str(const NodeKind kind) {
-  if      (kind == NodeKind_NUM)       return "num";
-  else if (kind == NodeKind_VAR)       return "var";
-  else if (kind == NodeKind_ADD)       return "+";
-  else if (kind == NodeKind_SUB)       return "-";
-  else if (kind == NodeKind_MUL)       return "*";
-  else if (kind == NodeKind_DIV)       return "/";
-  else if (kind == NodeKind_NEG)       return "-";
-  else if (kind == NodeKind_ADDR)      return "addr";
-  else if (kind == NodeKind_DEREF)     return "deref";
-  else if (kind == NodeKind_EQ)        return "==";
-  else if (kind == NodeKind_NEQ)       return "!=";
-  else if (kind == NodeKind_LT)        return "<";
-  else if (kind == NodeKind_LEQ)       return "<=";
-  else if (kind == NodeKind_ASSIGN)    return "assign";
-  else if (kind == NodeKind_EXPR_STMT) return "expr-stmt";
-  else if (kind == NodeKind_RETURN)    return "return";
-  else if (kind == NodeKind_BLOCK)     return "block";
-  else if (kind == NodeKind_IF)        return "if";
-  else if (kind == NodeKind_FOR)       return "for";
-  else if (kind == NodeKind_FUN_DECL)  return "fun_decl";
-  else if (kind == NodeKind_PROG)      return "prog";
-  else                                 failf("%d", kind);
+StrEmitter str_node_kind(const NodeKind kind) {
+  if      (kind == NodeKind_NUM)       return str_f("num");
+  else if (kind == NodeKind_VAR)       return str_f("var");
+  else if (kind == NodeKind_ADD)       return str_f("+");
+  else if (kind == NodeKind_SUB)       return str_f("-");
+  else if (kind == NodeKind_MUL)       return str_f("*");
+  else if (kind == NodeKind_DIV)       return str_f("/");
+  else if (kind == NodeKind_NEG)       return str_f("-");
+  else if (kind == NodeKind_ADDR)      return str_f("addr");
+  else if (kind == NodeKind_DEREF)     return str_f("deref");
+  else if (kind == NodeKind_EQ)        return str_f("==");
+  else if (kind == NodeKind_NEQ)       return str_f("!=");
+  else if (kind == NodeKind_LT)        return str_f("<");
+  else if (kind == NodeKind_LEQ)       return str_f("<=");
+  else if (kind == NodeKind_ASSIGN)    return str_f("assign");
+  else if (kind == NodeKind_EXPR_STMT) return str_f("expr-stmt");
+  else if (kind == NodeKind_RETURN)    return str_f("return");
+  else if (kind == NodeKind_BLOCK)     return str_f("block");
+  else if (kind == NodeKind_IF)        return str_f("if");
+  else if (kind == NodeKind_FOR)       return str_f("for");
+  else if (kind == NodeKind_FUN_DECL)  return str_f("fun_decl");
+  else if (kind == NodeKind_PROG)      return str_f("prog");
+  else                                 fail(str_int(kind));
 }
 
-// todo: this cant be safe... what if theres a printf with 2 token_to_str()'s?
-const char *node_to_str(const Node *node) {
-  static char buf[256];
-  int off = snprintf(buf, sizeof(buf), "%s", node_kind_to_str(node->kind));
+static void emit_node(const StrConsumer consumer, void *data) {
+  const Node *node = *((const Node **) data);
 
-  if (node->kind == NodeKind_NUM) {
-    off += snprintf(buf + off, sizeof(buf) - off, "(%d)", node->num);
-  }
+  emit_e(consumer, str_node_kind(node->kind));
 
-  else if (node->kind == NodeKind_VAR) {
-    off += snprintf(buf + off, sizeof(buf) - off, "("sv_fmt")", sv_arg(node->name));
-  }
+  if      (node->kind == NodeKind_NUM) emit_f(consumer, "(%d)", node->num);
+  else if (node->kind == NodeKind_VAR) emit_f(consumer, "("sv_fmt")", sv_arg(node->name));
 
   // show type if applicable
   if (node->type) {
-    off += snprintf(buf + off, sizeof(buf) - off, ": %s", type_to_str(node->type));
+    emit_s(consumer, ": ");
+    emit_e(consumer, str_type(node->type));
   }
 
-  return buf;
+  free(data);
+}
+
+StrEmitter str_node(const Node *node) {
+  const Node **node_ptr = calloc(1, sizeof(const Node *));
+  *node_ptr = node;
+  return (StrEmitter) { .emit = emit_node, .data = node_ptr };
 }
 
 void _emit_ast(const StrConsumer consumer, const Node *node, StringBuilder *sb, const bool last) {
@@ -51,9 +53,10 @@ void _emit_ast(const StrConsumer consumer, const Node *node, StringBuilder *sb, 
 
   // emit string representation for this node
   {
-    const int len = sb_append_f(sb, "%s%s\n", last ? "└─" : "├─", node_to_str(node));
     emit_s(consumer, sb->buf);
-    sb_backspace(sb, len);
+    emit_s(consumer, last ? "└─" : "├─");
+    emit_e(consumer, str_node(node));
+    emit_s(consumer, "\n");
   }
 
   // recursively emit children representation
@@ -71,14 +74,14 @@ void _emit_ast(const StrConsumer consumer, const Node *node, StringBuilder *sb, 
   }
 
   else if (node->kind == NodeKind_IF) {
-    _emit_ast(consumer, node->cond, sb, true);
+    _emit_ast(consumer, node->cond, sb, false);
     _emit_ast(consumer, node->body, sb, true);
   }
 
   else if (node->kind == NodeKind_FOR) {
-    _emit_ast(consumer, node->init, sb, true);
-    _emit_ast(consumer, node->loop_cond, sb, true);
-    _emit_ast(consumer, node->inc, sb, true);
+    _emit_ast(consumer, node->init,      sb, false);
+    _emit_ast(consumer, node->loop_cond, sb, false);
+    _emit_ast(consumer, node->inc,       sb, false);
     _emit_ast(consumer, node->loop_body, sb, true);
   }
 
@@ -99,9 +102,9 @@ void _emit_ast(const StrConsumer consumer, const Node *node, StringBuilder *sb, 
     }
   }
 
-  else failf("%s", node_kind_to_str(node->kind));
+  else fail(str_node_kind(node->kind));
 
-  sb_backspace(sb, prefix_len);
+   sb_backspace(sb, prefix_len);
 }
 
 static void emit_ast(const StrConsumer consumer, void *data) {
@@ -112,7 +115,7 @@ static void emit_ast(const StrConsumer consumer, void *data) {
 }
 
 StrEmitter str_ast(const Node *node) {
-  assert(node);
+  assert(node, "todo: allow raw asserts");
   const Node **node_ptr = calloc(1, sizeof(const Node **));
   *node_ptr = node;
   return (StrEmitter) { .emit = emit_ast, .data = node_ptr };
@@ -160,16 +163,14 @@ Node *new_var_node(const StringView name) {
 }
 
 Node *new_unop_node(const NodeKind kind, Node *operand) {
-  assertf(node_kind_is_unop(kind),
-          "%s", node_kind_to_str(kind));
+  assert(node_kind_is_unop(kind), str_node_kind(kind));
   Node *node = new_node(kind);
   node->operand = operand;
   return node;
 }
 
 Node *new_binop_node(const NodeKind kind, Node *lhs, Node *rhs) {
-  assertf(node_kind_is_binop(kind),
-          "%s", node_kind_to_str(kind));
+  assert(node_kind_is_binop(kind), str_node_kind(kind));
   Node *node = new_node(kind);
   node->lhs = lhs;
   node->rhs = rhs;
@@ -177,8 +178,7 @@ Node *new_binop_node(const NodeKind kind, Node *lhs, Node *rhs) {
 }
 
 Node *new_list_node(const NodeKind kind, Node *head) {
-  assertf(node_kind_is_list(kind),
-          "%s", node_kind_to_str(kind));
+  assert(node_kind_is_list(kind), str_node_kind(kind));
   Node *node = new_node(kind);
   node->head = head;
   return node;

@@ -4,23 +4,29 @@ Types t = {
   .int_ = { .kind = TypeKind_INT },
 };
 
-const char *type_kind_to_str(const TypeKind kind) {
-  if      (kind == TypeKind_INT) return "int";
-  else if (kind == TypeKind_PTR) return "ptr";
-  else                           failf("%d\n", kind);
+StrEmitter str_type_kind(const TypeKind kind) {
+  if      (kind == TypeKind_INT) return str_f("int");
+  else if (kind == TypeKind_PTR) return str_f("ptr");
+  else                           fail(str_int(kind));
 }
 
-const char *type_to_str(const Type *type) {
+static void emit_type(const StrConsumer consumer, void *data) {
+  const Type *type = *((const Type **) data);
+
   if (type->kind == TypeKind_PTR) {
-    // todo: figure out mem mgmt
-    const int BUFLEN = 256;
-    char *buf = calloc(BUFLEN, sizeof(char));
-    const int len = snprintf(buf, BUFLEN, "%s", type_to_str(type->referenced));
-    snprintf(buf + len, BUFLEN - len, "*");
-    return buf;
+    emit_e(consumer, str_type(type->referenced));
+    emit_s(consumer,"*");
   }
 
-  else return type_kind_to_str(type->kind);
+  else emit_e(consumer, str_type_kind(type->kind));
+
+  free(data);
+}
+
+StrEmitter str_type(const Type *type) {
+  const Type **type_ptr = calloc(1, sizeof(const Type *));
+  *type_ptr = type;
+  return (StrEmitter) { .emit = emit_type, .data = type_ptr };
 }
 
 bool type_eq(const Type *t, const Type *u) {

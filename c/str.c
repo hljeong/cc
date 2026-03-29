@@ -9,7 +9,7 @@ int sv_eq(const StringView s, const StringView t) {
 }
 
 StringBuilder sb_create(const int capacity) {
-  assert(capacity);
+  assert(capacity, "todo: allow raw asserts");
   char *buf = (char *) calloc(capacity, sizeof(char));
   return (StringBuilder) { .buf = buf, .capacity = capacity, .size = 0 };
 }
@@ -26,8 +26,9 @@ void sb_clear(StringBuilder *sb) {
 int sb_append_v(StringBuilder *sb, const char *fmt, va_list ap) {
   const int space = sb->capacity - sb->size;
   const int len = vsnprintf(sb->buf + sb->size, space, fmt, ap);
-  assertf(len < space, "not enough space: len=%d, space=%d",
-          len, space);
+  assert(len < space,
+         str_f("not enough space: len=%d, space=%d",
+               len, space));
   sb->size += len;
   return len;
 }
@@ -40,9 +41,11 @@ int sb_append_f(StringBuilder *sb, const char *fmt, ...) {
 }
 
 void sb_backspace(StringBuilder *sb, const int len) {
-  assertf(len <= sb->size, "len=%d, sb->size=%d",
-          len, sb->size);
+  assert(len <= sb->size,
+         str_f("len=%d, sb->size=%d",
+               len, sb->size));
   sb->size -= len;
+  sb->buf[sb->size] = '\0';
 }
 
 void halt(const StrConsumer consumer) {
@@ -70,6 +73,24 @@ void emit_e(const StrConsumer consumer, const StrEmitter emitter) {
   emitter.emit(consumer, emitter.data);
 }
 
+const StrEmitter HALT = { .emit = NULL };
+
+void emit_all_v(const StrConsumer consumer, va_list ap) {
+  while (true) {
+    const StrEmitter emitter = va_arg(ap, StrEmitter);
+    if (!emitter.emit) break;
+    emit_e(consumer, emitter);
+  }
+  // todo: does this make sense?
+  halt(consumer);
+}
+
+void _emit_all(const StrConsumer consumer, ...) {
+  va_list ap; va_start(ap, consumer);
+  emit_all_v(consumer, ap);
+  va_end(ap);
+}
+
 static void emit_sb(const StrConsumer consumer, void *data) {
   StringBuilder *sb = (StringBuilder *) data;
   emit_s(consumer, sb->buf);
@@ -91,17 +112,14 @@ StrEmitter str_f(const char *fmt, ...) {
   return emitter;
 }
 
-void emit_all_v(const StrConsumer consumer, va_list ap) {
-  while (true) {
-    const StrEmitter emitter = va_arg(ap, StrEmitter);
-    if (!emitter.emit) break;
-    emit_e(consumer, emitter);
-  }
-  halt(consumer);
+static void emit_int(const StrConsumer consumer, void *data) {
+  int value = *((int *) data);
+  emit_f(consumer, "%d", value);
+  free(data);
 }
 
-void _emit_all(const StrConsumer consumer, ...) {
-  va_list ap; va_start(ap, consumer);
-  emit_all_v(consumer, ap);
-  va_end(ap);
+StrEmitter str_int(const int value) {
+  int *int_ptr = calloc(1, sizeof(int *));
+  *int_ptr = value;
+  return (StrEmitter) { .emit = emit_int, .data = int_ptr };
 }

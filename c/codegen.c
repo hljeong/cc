@@ -13,8 +13,9 @@ static void addr(const Node *node) {
     visit(node->operand);
   }
 
-  else error(at_node(node), str_f("not an lvalue: %s",
-             node_kind_to_str(node->kind)));
+  else error(at_node(node),
+             str_f("not an lvalue: "),
+             str_node_kind(node->kind));
 }
 
 static void push(void) {
@@ -99,7 +100,7 @@ static void visit(Node *node) {
 
   else if (node->kind == NodeKind_EXPR_STMT) {
     visit(node->expr);
-    assert(ctx.codegen.depth == 0);
+    assert(ctx.codegen.depth == 0, "todo: allow raw asserts");
   }
 
   else if (node->kind == NodeKind_NUM) {
@@ -159,17 +160,17 @@ static void visit(Node *node) {
           case NodeKind_NEQ: { printf("  setne %%al\n"); break; }
           case NodeKind_LT:  { printf("  setl  %%al\n"); break; }
           case NodeKind_LEQ: { printf("  setle %%al\n"); break; }
-          default:           failf("%s", node_kind_to_str(node->kind));
+          default:           fail(str_node_kind(node->kind));
         }
         printf("  movzb %%al, %%rax\n");
         break;
       }
 
-      default: failf("%s", node_kind_to_str(node->kind));
+      default: fail(str_node_kind(node->kind));
     }
   }
 
-  else failf("%s", node_kind_to_str(node->kind));
+  else fail(str_node_kind(node->kind));
 }
 
 void codegen() {

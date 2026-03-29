@@ -64,9 +64,9 @@ void _sb_append(StringBuilder *sb, ...) {
 static void emit_at_loc(const StrConsumer consumer, void *data) {
   const char *loc = *((const char **) data);
   const int col = loc - ctx.src;
-  assertf(0 <= col && col <= ctx.src_len,
-          "invalid loc: %d, src_len=%d",
-          col, ctx.src_len);
+  assert(0 <= col && col <= ctx.src_len,
+         str_f("invalid loc: %d, src_len=%d",
+               col, ctx.src_len));
 
   emit_f(consumer, "%s\n", ctx.src);
 
@@ -89,9 +89,9 @@ static void emit_at_span(const StrConsumer consumer, void *data) {
   const StringView span = *((const StringView *) data);
 
   const int col = span.loc - ctx.src;
-  assertf(0 <= col && col + span.len <= ctx.src_len,
-          "invalid span: (%d, %d), src_len=%d",
-          col, span.len, ctx.src_len);
+  assert(0 <= col && col + span.len <= ctx.src_len,
+         str_f("invalid span: (%d, %d), src_len=%d",
+               col, span.len, ctx.src_len));
   emit_f(consumer, "%s\n", ctx.src);
 
   emit_f(consumer, "%*s", col, "");
@@ -120,25 +120,18 @@ StrEmitter at_node(const Node *node) {
   return at_span(node->lexeme);
 }
 
-void _assert(const char *file, const int line, const char *cond) {
-  debugf("%s:%d: assert(%s) failed\n", file, line, cond);
-  exit(2);
+void _assert(const char *file, const int line, const char *cond, ...) {
+  va_list ap; va_start(ap, cond);
+  emit_f(DEBUG, "%s%d: assert(%s) failed: ", file, line,cond);
+  emit_all_v(DEBUG, ap);
+  va_end(ap);
+  exit(1);
 }
 
-void _assertf(const char *file, const int line, const char *cond,
-              const char *fmt, ...) {
-  va_list ap; va_start(ap, fmt);
-  debugf("%s:%d: assert(%s) failed: ", file, line, cond);
-  debugv(fmt, ap);
-  debugf("\n");
-  exit(2);
-}
-
-void _failf(const char *file, const int line,
-            const char *fmt, ...) {
-  va_list ap; va_start(ap, fmt);
-  debugf("%s:%d: ", file, line);
-  debugv(fmt, ap);
-  debugf("\n");
-  exit(2);
+void _fail(const char *file, const int line, ...) {
+  va_list ap; va_start(ap, line);
+  emit_f(DEBUG, "%s%d: ", file, line);
+  emit_all_v(DEBUG, ap);
+  va_end(ap);
+  exit(1);
 }
