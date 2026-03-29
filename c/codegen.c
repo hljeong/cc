@@ -15,8 +15,8 @@ static void addr(const Node *node) {
     visit(node->operand);
   }
 
-  else error_f("%{@node} not an lvalue: %{node_kind}",
-               node, node->kind);
+  else error("%{@node} not an lvalue: %{node_kind}",
+             node, node->kind);
 }
 
 static void push(void) {
@@ -161,20 +161,20 @@ static void visit(Node *node) {
           case NodeKind_NEQ: { printf("  setne %%al\n"); break; }
           case NodeKind_LT:  { printf("  setl  %%al\n"); break; }
           case NodeKind_LEQ: { printf("  setle %%al\n"); break; }
-          default:           fail_f("unexpected comparison: %{node_kind}",
-                                    node->kind);
+          default:           fail("unexpected comparison: %{node_kind}",
+                                  node->kind);
         }
         printf("  movzb %%al, %%rax\n");
         break;
       }
 
-      default: fail_f("unexpected binop: %{node_kind}",
-                      node->kind);
+      default: fail("unexpected binop: %{node_kind}",
+                    node->kind);
     }
   }
 
-  else fail_f("unexpected node kind: %{node_kind}",
-              node->kind);
+  else fail("unexpected node kind: %{node_kind}",
+            node->kind);
 }
 
 void codegen() {

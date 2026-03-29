@@ -28,7 +28,7 @@ static void consume_token_kind(const StrConsumer c, const TokenKind kind) {
   else if (kind == TokenKind_FOR)       consume_f(c, "for");
   else if (kind == TokenKind_WHILE)     consume_f(c, "while");
   else if (kind == TokenKind_EOF)       consume_f(c, "eof");
-  else                                  fail_f("unexpected token kind: %d", kind);
+  else                                  fail("unexpected token kind: %d", kind);
 }
 
 void fmt_token_kind(const StrConsumer c, va_list ap) {

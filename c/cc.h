@@ -1,5 +1,6 @@
 #include <stdarg.h>
 #include <stdbool.h>
+#include <stddef.h>
 
 typedef struct StrConsumer StrConsumer;
 typedef struct StrFormatter StrFormatter;
@@ -83,44 +84,29 @@ void fmt_type        (const StrConsumer c, va_list ap);
 
 // debug
 
-void _debug_f(const char *fmt, ...);
-#define debug_f(fmt, ...) _debug_f(fmt, ##__VA_ARGS__)
+void _debug(const char *fmt, ...);
+#define debug(fmt, ...) _debug(fmt, ##__VA_ARGS__)
 
 [[noreturn]]
-void _error_f(const char *fmt, ...);
-#define error_f(fmt, ...) _error_f(fmt, ##__VA_ARGS__)
+void _error(const char *fmt, ...);
+#define error(fmt, ...) _error(fmt, ##__VA_ARGS__)
 
 // assertion
 
-// todo: possible to unify under one assert()/fail()? most likely requires ##__VA_ARGS__
-
 [[noreturn]]
-void _assert(const char *file, const int line, const char *func, const char *cond);
-#define assert(cond)                                \
-  do {                                              \
-    if (!(cond))                                    \
-      _assert(__FILE__, __LINE__, __func__, #cond); \
+void _assert(const char *file, const int line, const char *func, const char *cond,
+             const char *fmt, ...);
+#define assert(cond, ...)                          \
+  do {                                             \
+    if (!(cond))                                   \
+      _assert(__FILE__, __LINE__, __func__, #cond, \
+              ##__VA_ARGS__, NULL);                \
   } while (0)
 
 [[noreturn]]
-void _assert_f(const char *file, const int line, const char *func, const char *cond,
-               const char *fmt, ...);
-#define assert_f(cond, fmt, ...)                     \
-  do {                                               \
-    if (!(cond))                                     \
-      _assert_f(__FILE__, __LINE__, __func__, #cond, \
-                fmt, ##__VA_ARGS__);                 \
-  } while (0)
-
-[[noreturn]]
-void _fail(const char *file, const int line, const char *func);
-#define fail() _fail(__FILE__, __LINE__, __func__);
-
-[[noreturn]]
-void _fail_f(const char *file, const int line, const char *func,
-             const char * fmt, ...);
-#define fail_f(fmt, ...) _fail_f(__FILE__, __LINE__, __func__, \
-                                 fmt, ##__VA_ARGS__);
+void _fail(const char *file, const int line, const char *func,
+           const char *fmt, ...);
+#define fail(...) _fail(__FILE__, __LINE__, __func__, ##__VA_ARGS__, NULL)
 
 
 // token

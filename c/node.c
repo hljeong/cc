@@ -24,7 +24,7 @@ static void consume_node_kind(const StrConsumer c, const NodeKind kind) {
   else if (kind == NodeKind_FOR)       consume_f(c, "for");
   else if (kind == NodeKind_FUN_DECL)  consume_f(c, "fun_decl");
   else if (kind == NodeKind_PROG)      consume_f(c, "prog");
-  else                                 fail_f("unexpected node kind: %d", kind);
+  else                                 fail("unexpected node kind: %d", kind);
 }
 
 void fmt_node_kind(const StrConsumer c, va_list ap) {
@@ -96,8 +96,8 @@ void _consume_ast(const StrConsumer c, const Node *node, StringBuilder *sb, cons
     }
   }
 
-  else fail_f("unexpected node kind: {%node_kind}",
-              node->kind);
+  else fail("unexpected node kind: {%node_kind}",
+            node->kind);
 
    sb_truncate(sb, truncate_to);
 }
@@ -154,14 +154,14 @@ Node *new_var_node(const StringView name) {
 }
 
 Node *new_unop_node(const NodeKind kind, Node *operand) {
-  assert_f(node_kind_is_unop(kind), "not an unop: %{node_kind}", kind);
+  assert(node_kind_is_unop(kind), "not an unop: %{node_kind}", kind);
   Node *node = new_node(kind);
   node->operand = operand;
   return node;
 }
 
 Node *new_binop_node(const NodeKind kind, Node *lhs, Node *rhs) {
-  assert_f(node_kind_is_binop(kind), "not a binop: %{node_kind}", kind);
+  assert(node_kind_is_binop(kind), "not a binop: %{node_kind}", kind);
   Node *node = new_node(kind);
   node->lhs = lhs;
   node->rhs = rhs;
@@ -169,7 +169,7 @@ Node *new_binop_node(const NodeKind kind, Node *lhs, Node *rhs) {
 }
 
 Node *new_list_node(const NodeKind kind, Node *head) {
-  assert_f(node_kind_is_list(kind), "not a list: %{node_kind}", kind);
+  assert(node_kind_is_list(kind), "not a list: %{node_kind}", kind);
   Node *node = new_node(kind);
   node->head = head;
   return node;

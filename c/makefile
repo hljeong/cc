@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wno-attributes -std=c11 -g
+CFLAGS = -Wno-attributes -std=gnu11 -g
 BIN = cc
 SRCS = analyze.c codegen.c debug.c lex.c parse.c main.c node.c token.c str.c type.c var.c
 OBJS = $(SRCS:.c=.o)

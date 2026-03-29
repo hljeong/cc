@@ -9,7 +9,7 @@ Types t = {
 static void consume_type_kind(const StrConsumer c, const TypeKind kind) {
   if      (kind == TypeKind_INT) consume_f(c, "int");
   else if (kind == TypeKind_PTR) consume_f(c, "ptr");
-  else                           fail_f("unexpected type kind: %d", kind);
+  else                           fail("unexpected type kind: %d", kind);
 }
 
 void fmt_type_kind(const StrConsumer c, va_list ap) {

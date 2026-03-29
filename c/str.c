@@ -41,7 +41,7 @@ void sb_append_s(StringBuilder *sb, const char *s) {
     char *new_buf = realloc(sb->buf, new_capacity * sizeof(char));
     if (!new_buf) {
       free(sb->buf);
-      fail_f("failed to grow string buffer to %d bytes", sb->capacity);
+      fail("failed to grow string buffer to %d bytes", sb->capacity);
     }
     sb->buf = new_buf;
     sb->capacity = new_capacity;
@@ -69,9 +69,9 @@ void sb_append_f(StringBuilder *sb, const char *fmt, ...) {
 }
 
 void sb_truncate(StringBuilder *sb, const int to) {
-  assert_f(0 <= to && to < sb->size,
-           "to=%d, sb->size=%d",
-           to, sb->size);
+  assert(0 <= to && to < sb->size,
+         "to=%d, sb->size=%d",
+         to, sb->size);
   sb->size = to;
   sb->buf[sb->size] = '\0';
 }
@@ -147,7 +147,7 @@ void consume_v(const StrConsumer c, const char *fmt, va_list ap) {
         }
         formatter++;
       }
-      assert_f(formatter->spec, "unknown spec: %s", spec);
+      assert(formatter->spec, "unknown spec: %s", spec);
     }
 
     // start new segment
