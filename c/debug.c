@@ -1,71 +1,28 @@
 #include "cc.h"
 
-static void debugv(const char *fmt, va_list ap) {
-  vfprintf(stderr, fmt, ap);
-}
-
-void debugf(const char *fmt, ...) {
-  va_list ap; va_start(ap, fmt);
-  debugv(fmt, ap);
-  va_end(ap);
-}
-
-void errorf(const char *fmt, ...) {
-  va_list ap; va_start(ap, fmt);
-  debugv(fmt, ap);
-  va_end(ap);
-  exit(1);
-}
+#include <stdio.h>
+#include <stdlib.h>
 
 static void debug_consume(const char *s, void *ctx) {
-  if (s) debugf("%s", s);
-  else   debugf("\n");
+  if (s) fprintf(stderr, "%s", s);
+  else   fprintf(stderr, "\n");
 }
 
 static StrConsumer DEBUG = { .consume = debug_consume };
 
-void _debug(void *_, ...) {
-  va_list ap; va_start(ap, _);
-  emit_all_v(DEBUG, ap);
-  va_end(ap);
-}
-
 void _debug_f(const char *fmt, ...) {
   va_list ap; va_start(ap, fmt);
-  emit_v2(DEBUG, fmt, ap);
+  consume_v(DEBUG, fmt, ap);
   va_end(ap);
-  emit_e(DEBUG, HALT);
-}
-
-void _error(void *_, ...) {
-  va_list ap; va_start(ap, _);
-  emit_all_v(DEBUG, ap);
-  va_end(ap);
-  exit(1);
+  halt(DEBUG);
 }
 
 void _error_f(const char *fmt, ...) {
   va_list ap; va_start(ap, fmt);
-  emit_v2(DEBUG, fmt, ap);
+  consume_v(DEBUG, fmt, ap);
   va_end(ap);
-  emit_e(DEBUG, HALT);
+  halt(DEBUG);
   exit(1);
-}
-
-static void append_consume(const char *s, void *ctx) {
-  if (!s) return;
-  StringBuilder *sb = (StringBuilder *) ctx;
-  sb_append_f(sb, s);
-}
-
-static StrConsumer SB_APPEND(StringBuilder *sb) {
-  return (StrConsumer) { .consume = append_consume, .ctx = sb };
-}
-
-void _sb_append(StringBuilder *sb, ...) {
-  va_list ap; va_start(ap, sb);
-  emit_all_v(SB_APPEND(sb), ap);
-  va_end(ap);
 }
 
 static void emit_at_loc(const StrConsumer c, void *data) {
@@ -75,9 +32,9 @@ static void emit_at_loc(const StrConsumer c, void *data) {
            "invalid loc: %d, src_len=%d",
             col, ctx.src_len);
 
-  emit_f(c, "%s\n", ctx.src);
+  consume_f(c, "%s\n", ctx.src);
 
-  emit_f(c, "%*s^", col, "");
+  consume_f(c, "%*s^", col, "");
 
   free(data);
 }
@@ -99,11 +56,11 @@ static void emit_at_span(const StrConsumer c, void *data) {
   assert_f(0 <= col && col + span.len <= ctx.src_len,
            "invalid span: (%d, %d), src_len=%d",
            col, span.len, ctx.src_len);
-  emit_f(c, "%s\n", ctx.src);
+  consume_f(c, "%s\n", ctx.src);
 
-  emit_f(c, "%*s", col, "");
+  consume_f(c, "%*s", col, "");
   for (int i = 0; i < span.len; i++)
-    emit_s(c, "~");
+    consume_f(c, "%c", '~');
 
   free(data);
 }
@@ -127,33 +84,33 @@ StrEmitter at_node(const Node *node) {
 }
 
 void _assert(const char *file, const int line, const char *cond) {
-  emit_f2(DEBUG, "%s:%d: assert(%s) failed", file, line, cond);
-  emit_e(DEBUG, HALT);
+  consume_f(DEBUG, "%s:%d: assert(%s) failed", file, line, cond);
+  halt(DEBUG);
   exit(1);
 }
 
 void _assert_f(const char *file, const int line, const char *cond,
                const char *fmt, ...) {
   va_list ap; va_start(ap, fmt);
-  emit_f2(DEBUG, "%s:%d: assert(%s) failed: ", file, line, cond);
-  emit_v2(DEBUG, fmt, ap);
+  consume_f(DEBUG, "%s:%d: assert(%s) failed: ", file, line, cond);
+  consume_v(DEBUG, fmt, ap);
   va_end(ap);
-  emit_e(DEBUG, HALT);
+  halt(DEBUG);
   exit(1);
 }
 
 void _fail(const char *file, const int line) {
-  emit_f(DEBUG, "%s:%d", file, line);
-  emit_e(DEBUG, HALT);
+  consume_f(DEBUG, "%s:%d", file, line);
+  halt(DEBUG);
   exit(1);
 }
 
 void _fail_f(const char *file, const int line,
              const char *fmt, ...) {
   va_list ap; va_start(ap, fmt);
-  emit_f2(DEBUG, "%s:%d: failed: ", file, line);
-  emit_v2(DEBUG, fmt, ap);
+  consume_f(DEBUG, "%s:%d: failed: ", file, line);
+  consume_v(DEBUG, fmt, ap);
   va_end(ap);
-  emit_e(DEBUG, HALT);
+  halt(DEBUG);
   exit(1);
 }

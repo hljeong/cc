@@ -1,5 +1,7 @@
 #include "cc.h"
 
+#include <stdlib.h>
+
 Var *new_var(Node *decl) {
   assert(decl->kind == NodeKind_VAR);
   Var *var = calloc(1, sizeof(Var));

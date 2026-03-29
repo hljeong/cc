@@ -1,8 +1,5 @@
 #include <stdarg.h>
 #include <stdbool.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 typedef struct StrConsumer StrConsumer;
 typedef struct StrEmitter StrEmitter;
@@ -15,6 +12,8 @@ typedef struct Node Node;
 typedef struct Var Var;
 typedef enum TypeKind TypeKind;
 typedef struct Type Type;
+
+#define BUF_LEN (512)
 
 
 // string view
@@ -39,53 +38,38 @@ struct StringBuilder {
   int size;
 };
 
-StringBuilder sb_create   (const int capacity);
-void          sb_free     (StringBuilder *sb);
-void          sb_clear    (StringBuilder *sb);
-int           sb_append_v (StringBuilder *sb, const char *fmt, va_list ap);
-int           sb_append_f (StringBuilder *sb, const char *fmt, ...);
-void          sb_backspace(StringBuilder *sb, const int len);
+StringBuilder sb_create  (const int capacity);
+void          sb_free    (StringBuilder *sb);
+void          sb_clear   (StringBuilder *sb);
+void          sb_append_s(StringBuilder *sb, const char *s);
+void          sb_append_f(StringBuilder *sb, const char *fmt, ...);
+void          sb_truncate(StringBuilder *sb, const int to);
 
 
 // strings
 
+typedef void (*ConsumeStr)(const char *s, void *);
 struct StrConsumer {
-  void (*consume)(const char *s, void *ctx);
+  ConsumeStr consume;
   void *ctx;
 };
 
+typedef void (*EmitStr)(const StrConsumer, void *);
 struct StrEmitter {
-  void (*emit)(const StrConsumer, void *data);
+  EmitStr emit;
   void *data;
 };
 
 extern const StrEmitter HALT;
 
-void emit_v2(const StrConsumer c, const char *fmt, va_list ap);
-void emit_f2(const StrConsumer c, const char *fmt, ...);
-
-void emit_s(const StrConsumer c, const char *s);
-void emit_v(const StrConsumer c, const char *fmt, va_list ap);
-void emit_f(const StrConsumer c, const char *fmt, ...);
-void emit_e(const StrConsumer c, const StrEmitter emitter);
-
-void emit_all_v(const StrConsumer c, va_list ap);
-void _emit_all(const StrConsumer c, ...);
-#define emit_all(consumer, ...) _emit_all(consumer, __VA_ARGS__, HALT)
+void halt     (const StrConsumer c);
+void consume_v(const StrConsumer c, const char *fmt, va_list ap);
+void consume_f(const StrConsumer c, const char *fmt, ...);
 
 StrEmitter str_f(const char *fmt, ...);
-StrEmitter str_int(const int value);
 
 
 // debug
-
-// todo: delete
-// print to debug
-void debugf(const char *fmt, ...);
-
-// todo: delete
-// print to debug and abort
-void errorf(const char *fmt, ...);
 
 void _debug_f(const char *fmt, ...);
 #define debug_f(fmt, ...) _debug_f(fmt, __VA_ARGS__, HALT)
@@ -93,11 +77,6 @@ void _debug_f(const char *fmt, ...);
 [[noreturn]]
 void _error_f(const char *fmt, ...);
 #define error_f(fmt, ...) _error_f(fmt, __VA_ARGS__, HALT)
-
-// todo: supercharge sb_append_f
-// append consumed string to string builder
-void _sb_append(StringBuilder *sb, ...);
-#define sb_append(sb, ...) _sb_append(sb, __VA_ARGS__, HALT)
 
 // todo: convert these to format specifiers
 // show message at cursor location

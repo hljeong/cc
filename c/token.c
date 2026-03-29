@@ -1,5 +1,7 @@
 #include "cc.h"
 
+#include <stdlib.h>
+
 StrEmitter str_token_kind(const TokenKind kind) {
   if      (kind == TokenKind_NUM)       return str_f("num");
   else if (kind == TokenKind_IDENT)     return str_f("ident");
@@ -31,10 +33,10 @@ StrEmitter str_token_kind(const TokenKind kind) {
 
 static void emit_token(const StrConsumer c, void *data) {
   const Token *tok = *((const Token **) data);
-  emit_e(c, str_token_kind(tok->kind));
+  consume_f(c, "%{token_kind}", tok->kind);
 
-  if      (tok->kind == TokenKind_NUM)   emit_f(c, "(%d)", tok->num);
-  else if (tok->kind == TokenKind_IDENT) emit_f(c, "("sv_fmt")", sv_arg(tok->ident));
+  if      (tok->kind == TokenKind_NUM)   consume_f(c, "(%d)", tok->num);
+  else if (tok->kind == TokenKind_IDENT) consume_f(c, "("sv_fmt")", sv_arg(tok->ident));
 
   free(data);
 }
@@ -47,12 +49,11 @@ StrEmitter str_token(const Token *tok) {
 
 static void emit_token_stream(const StrConsumer c, void *data) {
   const Token *tok = *((const Token **) data);
-  emit_s(c, "[[");
+  consume_f(c, "[[");
   do {
-    emit_s(c, " ");
-    emit_e(c, str_token(tok));
+    consume_f(c, " %{token}", tok);
   } while ((tok = tok->next));
-  emit_s(c, " ]]");
+  consume_f(c, " ]]");
   free(data);
 }
 

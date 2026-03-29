@@ -1,6 +1,7 @@
 #include "cc.h"
 
 #include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 
 const bool debug_parse = false;

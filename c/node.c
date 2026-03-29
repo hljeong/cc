@@ -1,5 +1,7 @@
 #include "cc.h"
 
+#include <stdlib.h>
+
 StrEmitter str_node_kind(const NodeKind kind) {
   if      (kind == NodeKind_NUM)       return str_f("num");
   else if (kind == NodeKind_VAR)       return str_f("var");
@@ -28,16 +30,13 @@ StrEmitter str_node_kind(const NodeKind kind) {
 static void emit_node(const StrConsumer c, void *data) {
   const Node *node = *((const Node **) data);
 
-  emit_e(c, str_node_kind(node->kind));
+  consume_f(c, "%{node_kind}", node->kind);
 
-  if      (node->kind == NodeKind_NUM) emit_f(c, "(%d)", node->num);
-  else if (node->kind == NodeKind_VAR) emit_f(c, "("sv_fmt")", sv_arg(node->name));
+  if      (node->kind == NodeKind_NUM) consume_f(c, "(%d)", node->num);
+  else if (node->kind == NodeKind_VAR) consume_f(c, "("sv_fmt")", sv_arg(node->name));
 
   // show type if applicable
-  if (node->type) {
-    emit_s(c, ": ");
-    emit_e(c, str_type(node->type));
-  }
+  if      (node->type)                 consume_f(c, ": %{type}", node->type);
 
   free(data);
 }
@@ -52,15 +51,12 @@ void _emit_ast(const StrConsumer c, const Node *node, StringBuilder *sb, const b
   if (!node) return;
 
   // emit string representation for this node
-  {
-    emit_s(c, sb->buf);
-    emit_s(c, last ? "└─" : "├─");
-    emit_e(c, str_node(node));
-    emit_s(c, "\n");
-  }
+  consume_f(c, "%s%s%{node}\n",
+         sb->buf, last ? "└─" : "├─", node, "\n");
 
   // recursively emit children representation
-  const int prefix_len = sb_append_f(sb, last ? "  " : "│ ");
+  const int truncate_to = sb->size;
+  sb_append_f(sb, last ? "  " : "│ ");
 
   if      (node->kind == NodeKind_NUM) {}
   else if (node->kind == NodeKind_VAR) {}
@@ -105,12 +101,12 @@ void _emit_ast(const StrConsumer c, const Node *node, StringBuilder *sb, const b
   else fail_f("unexpected node kind: {%node_kind}",
               node->kind);
 
-   sb_backspace(sb, prefix_len);
+   sb_truncate(sb, truncate_to);
 }
 
 static void emit_ast(const StrConsumer c, void *data) {
   const Node *node = *((const Node **) data);
-  StringBuilder sb = sb_create(256);
+  StringBuilder sb = sb_create(BUF_LEN);
   _emit_ast(c, node, &sb, true);
   sb_free(&sb);
 }

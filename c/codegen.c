@@ -1,5 +1,7 @@
 #include "cc.h"
 
+#include <stdio.h>
+
 // todo: comment
 
 static void visit(Node *node);

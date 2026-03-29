@@ -1,5 +1,7 @@
 #include "cc.h"
 
+#include <stdlib.h>
+
 Types t = {
   .int_ = { .kind = TypeKind_INT },
 };
@@ -12,14 +14,8 @@ StrEmitter str_type_kind(const TypeKind kind) {
 
 static void emit_type(const StrConsumer c, void *data) {
   const Type *type = *((const Type **) data);
-
-  if (type->kind == TypeKind_PTR) {
-    emit_e(c, str_type(type->referenced));
-    emit_s(c,"*");
-  }
-
-  else emit_e(c, str_type_kind(type->kind));
-
+  if (type->kind == TypeKind_PTR) consume_f(c, "%{type}*", type->referenced);
+  else                            consume_f(c, "%{type_kind}", type->kind);
   free(data);
 }
 
