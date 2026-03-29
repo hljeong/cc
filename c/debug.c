@@ -42,13 +42,10 @@ static void at_locv(const StrConsumer consumer, const char *loc, const char *fmt
           "invalid loc: %d, src_len=%d",
           col, ctx.src_len);
 
-  emit_s(consumer, ctx.src);
+  emit_f(consumer, "%s\n", ctx.src);
 
-  StringBuilder sb = sb_create(256);
-  sb_appendf(&sb, "\n%*s^ ", col, "");
-  sb_appendv(&sb, fmt, ap);
-  emit_s(consumer, sb.buf);
-  sb_free(&sb);
+  emit_f(consumer, "%*s^ ", col, "");
+  emit_v(consumer, fmt, ap);
 
   halt(consumer);
 }
@@ -72,15 +69,14 @@ static void at_spanv(const StrConsumer consumer, const StringView span, const ch
           col, span.len, ctx.src_len);
 
 
-  emit_s(consumer, ctx.src);
+  emit_f(consumer, "%s\n", ctx.src);
 
-  StringBuilder sb = sb_create(256);
-  sb_appendf(&sb, "\n%*s", col, "");
-  for (int i = 0; i < span.len; i++) sb_appendf(&sb, "%c", '~');
-  sb_appendf(&sb, " ");
-  sb_appendv(&sb, fmt, ap);
-  emit_s(consumer, sb.buf);
-  sb_free(&sb);
+  emit_f(consumer, "%*s", col, "");
+  for (int i = 0; i < span.len; i++)
+    emit_s(consumer, "~");
+  emit_s(consumer, " ");
+  emit_v(consumer, fmt, ap);
+
   halt(consumer);
 }
 
@@ -105,27 +101,13 @@ void at_node(const StrConsumer consumer, const Node *node, const char *fmt, ...)
 void token_stream(const StrConsumer consumer, const Token *tok) {
   assert(tok);
 
-  StringBuilder sb = sb_create(256);
+  emit_s(consumer, "[[");
 
-  {
-    sb_appendf(&sb, "[[");
-    emit_s(consumer, sb.buf);
-    sb_clear(&sb);
-  }
+  do emit_f(consumer, " %s", token_to_str(tok));
+  while ((tok = tok->next));
 
-  do {
-    sb_appendf(&sb, " %s", token_to_str(tok));
-    emit_s(consumer, sb.buf);
-    sb_clear(&sb);
-  } while ((tok = tok->next));
+  emit_s(consumer, " ]]");
 
-  {
-    sb_appendf(&sb, " ]]");
-    emit_s(consumer, sb.buf);
-    sb_clear(&sb);
-  }
-
-  sb_free(&sb);
   halt(consumer);
 }
 

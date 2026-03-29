@@ -53,7 +53,7 @@ void emit_s(const StrConsumer consumer, const char *s) {
   consumer.consume(s, consumer.ctx);
 }
 
-static void emit_v(const StrConsumer consumer, const char *fmt, va_list ap) {
+void emit_v(const StrConsumer consumer, const char *fmt, va_list ap) {
   StringBuilder sb = sb_create(256);
   sb_appendv(&sb, fmt, ap);
   emit_s(consumer, sb.buf);

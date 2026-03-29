@@ -58,6 +58,7 @@ struct StrEmitter {
 
 void halt(const StrConsumer consumer);
 void emit_s(const StrConsumer consumer, const char *s);
+void emit_v(const StrConsumer consumer, const char *fmt, va_list ap);
 void emit_f(const StrConsumer consumer, const char *fmt, ...);
 void emit_e(const StrConsumer consumer, const StrEmitter emitter);
 
