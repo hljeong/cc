@@ -30,17 +30,9 @@ void _debug(void *_, ...) {
   va_end(ap);
 }
 
-static void error_consume(const char *s, void *ctx) {
-  debug_consume(s, ctx);
-  if (!s) exit(1);
-}
-
-static StrConsumer ERROR = { .consume = error_consume };
-
 void _error(void *_, ...) {
   va_list ap; va_start(ap, _);
-  emit_all_v(ERROR, ap);
-  fail("unreachable");
+  emit_all_v(DEBUG, ap);
   va_end(ap);
   exit(1);
 }
@@ -122,7 +114,7 @@ StrEmitter at_node(const Node *node) {
 
 void _assert(const char *file, const int line, const char *cond, ...) {
   va_list ap; va_start(ap, cond);
-  emit_f(DEBUG, "%s%d: assert(%s) failed: ", file, line,cond);
+  emit_f(DEBUG, "%s:%d: assert(%s) failed: ", file, line,cond);
   emit_all_v(DEBUG, ap);
   va_end(ap);
   exit(1);
@@ -130,7 +122,7 @@ void _assert(const char *file, const int line, const char *cond, ...) {
 
 void _fail(const char *file, const int line, ...) {
   va_list ap; va_start(ap, line);
-  emit_f(DEBUG, "%s%d: ", file, line);
+  emit_f(DEBUG, "%s:%d: ", file, line);
   emit_all_v(DEBUG, ap);
   va_end(ap);
   exit(1);

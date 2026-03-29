@@ -59,13 +59,12 @@ struct StrEmitter {
   void *data;
 };
 
-void halt(const StrConsumer consumer);
+extern const StrEmitter HALT;
+
 void emit_s(const StrConsumer consumer, const char *s);
 void emit_v(const StrConsumer consumer, const char *fmt, va_list ap);
 void emit_f(const StrConsumer consumer, const char *fmt, ...);
 void emit_e(const StrConsumer consumer, const StrEmitter emitter);
-
-extern const StrEmitter HALT;
 
 void emit_all_v(const StrConsumer consumer, va_list ap);
 void _emit_all(const StrConsumer consumer, ...);
@@ -85,16 +84,16 @@ void errorf(const char *fmt, ...);
 
 // print consumed string to debug
 void _debug(void *_, ...);  // c mandates named parameter before ellipsis
-#define debug(...) _debug(NULL, __VA_ARGS__, (StrEmitter) { .emit = NULL })
+#define debug(...) _debug(NULL, __VA_ARGS__, HALT)
 
 // print consumed string to debug and abort
 [[noreturn]]
 void _error(void *_, ...);
-#define error(...) _error(NULL, __VA_ARGS__, (StrEmitter) { .emit = NULL })
+#define error(...) _error(NULL, __VA_ARGS__, HALT)
 
 // append consumed string to string builder
 void _sb_append(StringBuilder *sb, ...);
-#define sb_append(sb, ...) _sb_append(sb, __VA_ARGS__, (StrEmitter) { .emit = NULL })
+#define sb_append(sb, ...) _sb_append(sb, __VA_ARGS__, HALT)
 
 // show message at cursor location
 StrEmitter at_loc(const char *loc);

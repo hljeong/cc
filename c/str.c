@@ -48,9 +48,11 @@ void sb_backspace(StringBuilder *sb, const int len) {
   sb->buf[sb->size] = '\0';
 }
 
-void halt(const StrConsumer consumer) {
+static void emit_halt(const StrConsumer consumer, void *data) {
   consumer.consume(NULL, consumer.ctx);
 }
+
+const StrEmitter HALT = { .emit = emit_halt };
 
 void emit_s(const StrConsumer consumer, const char *s) {
   consumer.consume(s, consumer.ctx);
@@ -73,16 +75,14 @@ void emit_e(const StrConsumer consumer, const StrEmitter emitter) {
   emitter.emit(consumer, emitter.data);
 }
 
-const StrEmitter HALT = { .emit = NULL };
-
 void emit_all_v(const StrConsumer consumer, va_list ap) {
   while (true) {
     const StrEmitter emitter = va_arg(ap, StrEmitter);
-    if (!emitter.emit) break;
+    assert(emitter.emit, "todo: allow raw asserts");
     emit_e(consumer, emitter);
+    // send halt to consumer before breaking
+    if (emitter.emit == emit_halt) break;
   }
-  // todo: does this make sense?
-  halt(consumer);
 }
 
 void _emit_all(const StrConsumer consumer, ...) {
