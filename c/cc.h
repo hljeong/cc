@@ -28,9 +28,6 @@ struct StringView {
 StringView sv_create(const char *loc, const int len);
 int        sv_eq    (const StringView s, const StringView t);
 
-#define    sv_fmt     "%.*s"
-#define    sv_arg(sv) (sv).len, (sv).loc
-
 
 // string builder
 
@@ -43,8 +40,7 @@ struct StringBuilder {
 StringBuilder sb_create  ();
 void          sb_free    (StringBuilder *sb);
 void          sb_clear   (StringBuilder *sb);
-void          sb_append_s(StringBuilder *sb, const char *s);
-void          sb_append_f(StringBuilder *sb, const char *fmt, ...);
+void          sb_append  (StringBuilder *sb, const char *fmt, ...);
 void          sb_truncate(StringBuilder *sb, const int to);
 
 

@@ -32,7 +32,6 @@ static void consume_at_loc(const StrConsumer c, const char *loc) {
          col, ctx.src.len);
 
   consume_f(c, "%s\n", ctx.src);
-
   consume_f(c, "%*s^", col, "");
 }
 
@@ -49,8 +48,8 @@ static void consume_at_span(const StrConsumer c, const StringView span) {
   assert(0 <= col && col + span.len <= ctx.src.len,
          "invalid span: (%d, %d), src.len=%d",
          col, span.len, ctx.src.len);
-  consume_f(c, "%s\n", ctx.src);
 
+  consume_f(c, "%s\n", ctx.src);
   consume_f(c, "%*s", col, "");
   for (int i = 0; i < span.len; i++)
     consume_f(c, "%c", '~');

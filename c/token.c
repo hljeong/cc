@@ -38,7 +38,7 @@ void fmt_token_kind(const StrConsumer c, va_list ap) {
 static void consume_token(const StrConsumer c, const Token *tok) {
   consume_f(c, "%{token_kind}", tok->kind);
   if      (tok->kind == TokenKind_NUM)   consume_f(c, "(%d)", tok->num);
-  else if (tok->kind == TokenKind_IDENT) consume_f(c, "("sv_fmt")", sv_arg(tok->ident));
+  else if (tok->kind == TokenKind_IDENT) consume_f(c, "(%{sv})", tok->ident);
 }
 
 void fmt_token(const StrConsumer c, va_list ap) {

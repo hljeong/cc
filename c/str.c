@@ -14,7 +14,7 @@ int sv_eq(const StringView s, const StringView t) {
 
 static void fmt_sv(const StrConsumer c, va_list ap) {
   const StringView sv = va_arg(ap, StringView);
-  consume_f(c, sv_fmt, sv_arg(sv));
+  consume_f(c, "%.*s", sv.len, sv.loc);
 }
 
 StringBuilder sb_create() {
@@ -30,7 +30,7 @@ void sb_clear(StringBuilder *sb) {
   sb_truncate(sb, 0);
 }
 
-void sb_append_s(StringBuilder *sb, const char *s) {
+static void sb_append_s(StringBuilder *sb, const char *s) {
   const int s_len = strlen(s);
   const int end_size = sb->size + s_len;
   // make sure to leave sace for null terminator
@@ -61,7 +61,7 @@ static StrConsumer SB_APPEND(StringBuilder *sb) {
   return (StrConsumer) { .consume = sb_append_consume, .ctx = sb };
 }
 
-void sb_append_f(StringBuilder *sb, const char *fmt, ...) {
+void sb_append(StringBuilder *sb, const char *fmt, ...) {
   va_list ap; va_start(ap, fmt);
   StrConsumer sb_append = SB_APPEND(sb);
   consume_v(sb_append, fmt, ap);
@@ -103,7 +103,7 @@ void consume_v(const StrConsumer c, const char *fmt, va_list ap) {
   const char *seg = fmt;
 
   while (*fmt) {
-    // not a specifier
+    // not a specifier, skip
     if (*fmt++ != '%') continue;
 
     // standard specifier, skip
@@ -153,10 +153,11 @@ void consume_v(const StrConsumer c, const char *fmt, va_list ap) {
     seg = fmt;
   }
 
+  // flush remaining segment
   if (*seg) {
-      const int len = vsnprintf(buf, sizeof(buf), seg, ap);
-      assert(len < sizeof(buf));
-      consume_s(c, buf);
+    const int len = vsnprintf(buf, sizeof(buf), seg, ap);
+    assert(len < sizeof(buf));
+    consume_s(c, buf);
   }
 }
 

@@ -35,7 +35,7 @@ static void consume_node(const StrConsumer c, const Node *node) {
   consume_f(c, "%{node_kind}", node->kind);
 
   if      (node->kind == NodeKind_NUM) consume_f(c, "(%d)", node->num);
-  else if (node->kind == NodeKind_VAR) consume_f(c, "("sv_fmt")", sv_arg(node->name));
+  else if (node->kind == NodeKind_VAR) consume_f(c, "(%{sv})", node->name);
 
   // show type if applicable
   if      (node->type)                 consume_f(c, ": %{type}", node->type);
@@ -48,13 +48,11 @@ void fmt_node(const StrConsumer c, va_list ap) {
 void _consume_ast(const StrConsumer c, const Node *node, StringBuilder *sb, const bool last) {
   if (!node) return;
 
-  // consume string representation for this node
   consume_f(c, "%s%s%{node}\n",
-         sb->buf, last ? "└─" : "├─", node, "\n");
+            sb->buf, last ? "└─" : "├─", node, "\n");
 
-  // recursively consume children representation
   const int truncate_to = sb->size;
-  sb_append_f(sb, last ? "  " : "│ ");
+  sb_append(sb, last ? "  " : "│ ");
 
   if      (node->kind == NodeKind_NUM) {}
   else if (node->kind == NodeKind_VAR) {}
