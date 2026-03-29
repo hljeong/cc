@@ -14,7 +14,8 @@ typedef struct Var Var;
 typedef enum TypeKind TypeKind;
 typedef struct Type Type;
 
-#define BUF_LEN (256)
+#define BUF_LEN     (4096)
+#define SB_INIT_LEN (256)
 
 
 // string view
@@ -89,8 +90,6 @@ void _debug(const char *fmt, ...);
 [[noreturn]]
 void _error(const char *fmt, ...);
 #define error(fmt, ...) _error(fmt, ##__VA_ARGS__)
-
-// assertion
 
 [[noreturn]]
 void _assert(const char *file, const int line, const char *func, const char *cond,

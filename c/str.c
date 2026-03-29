@@ -18,7 +18,7 @@ static void fmt_sv(const StrConsumer c, va_list ap) {
 }
 
 StringBuilder sb_create() {
-  char *buf = (char *) calloc(BUF_LEN, sizeof(char));
+  char *buf = (char *) calloc(SB_INIT_LEN, sizeof(char));
   return (StringBuilder) { .buf = buf, .capacity = BUF_LEN, .size = 0 };
 }
 
@@ -110,7 +110,6 @@ void consume_v(const StrConsumer c, const char *fmt, va_list ap) {
     if (*fmt++ != '{') continue;
 
     // flush current segment up to right before '%'
-    // todo: or when we hit some run-length?
     {
       char seg_fmt[BUF_LEN];
       const int seg_len = (fmt - 2) - seg;
