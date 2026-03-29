@@ -17,10 +17,9 @@ static void fmt_sv(const StrConsumer c, va_list ap) {
   consume_f(c, sv_fmt, sv_arg(sv));
 }
 
-StringBuilder sb_create(const int capacity) {
-  assert(capacity);
-  char *buf = (char *) calloc(capacity, sizeof(char));
-  return (StringBuilder) { .buf = buf, .capacity = capacity, .size = 0 };
+StringBuilder sb_create() {
+  char *buf = (char *) calloc(BUF_LEN, sizeof(char));
+  return (StringBuilder) { .buf = buf, .capacity = BUF_LEN, .size = 0 };
 }
 
 void sb_free(StringBuilder *sb) {
@@ -32,12 +31,24 @@ void sb_clear(StringBuilder *sb) {
 }
 
 void sb_append_s(StringBuilder *sb, const char *s) {
-  const int space = sb->capacity - sb->size;
-  const int len = snprintf(sb->buf + sb->size, space, "%s", s);
-  assert_f(len < space,
-           "not enough space: len=%d, space=%d, sb->size=%d, sb->capacity=%d",
-           len, space, sb->size, sb->capacity);
-  sb->size += len;
+  const int s_len = strlen(s);
+  const int end_size = sb->size + s_len;
+  // make sure to leave sace for null terminator
+  if (end_size + 1 > sb->capacity) {
+    int new_capacity = sb->capacity;
+    while (end_size + 1 > new_capacity)
+      new_capacity = new_capacity * 3 / 2;
+    char *new_buf = realloc(sb->buf, new_capacity * sizeof(char));
+    if (!new_buf) {
+      free(sb->buf);
+      fail_f("failed to grow string buffer to %d bytes", sb->capacity);
+    }
+    sb->buf = new_buf;
+    sb->capacity = new_capacity;
+  }
+  // include null terminator
+  memcpy(sb->buf + sb->size, s, s_len + 1);
+  sb->size += s_len;
 }
 
 static void sb_append_consume(const char *s, void *ctx) {
@@ -99,6 +110,7 @@ void consume_v(const StrConsumer c, const char *fmt, va_list ap) {
     if (*fmt++ != '{') continue;
 
     // flush current segment up to right before '%'
+    // todo: or when we hit some run-length?
     {
       char seg_fmt[BUF_LEN];
       const int seg_len = (fmt - 2) - seg;

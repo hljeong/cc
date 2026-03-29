@@ -13,7 +13,7 @@ typedef struct Var Var;
 typedef enum TypeKind TypeKind;
 typedef struct Type Type;
 
-#define BUF_LEN (512)
+#define BUF_LEN (256)
 
 
 // string view
@@ -38,8 +38,7 @@ struct StringBuilder {
   int size;
 };
 
-// todo: make string builders grow dynamically
-StringBuilder sb_create  (const int capacity);
+StringBuilder sb_create  ();
 void          sb_free    (StringBuilder *sb);
 void          sb_clear   (StringBuilder *sb);
 void          sb_append_s(StringBuilder *sb, const char *s);
@@ -297,7 +296,7 @@ void codegen();
 typedef struct {
   StringView src;
   const Token *toks;
-  const Node *ast;
+  Node *ast;
 
   struct {
     const char *loc;

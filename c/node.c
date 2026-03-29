@@ -103,7 +103,7 @@ void _consume_ast(const StrConsumer c, const Node *node, StringBuilder *sb, cons
 }
 
 static void consume_ast(const StrConsumer c, const Node *node) {
-  StringBuilder sb = sb_create(BUF_LEN);
+  StringBuilder sb = sb_create();
   _consume_ast(c, node, &sb, true);
   sb_free(&sb);
 }
