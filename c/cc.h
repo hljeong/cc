@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-typedef struct Consumer Consumer;
+typedef struct StrConsumer StrConsumer;
 typedef struct StringView StringView;
 typedef struct StringBuilder StringBuilder;
 typedef struct Token Token;
@@ -50,49 +50,49 @@ void debugf(const char *fmt, ...);
 // print to debug and abort
 void errorf(const char *fmt, ...);
 
-struct Consumer {
-  void *(*consume)(void *arg, void *ctx);
+struct StrConsumer {
+  void (*consume)(const char *s, void *ctx);
   void *ctx;
 };
 
-static inline void *emit(Consumer consumer, void *arg) {
-  return consumer.consume(arg, consumer.ctx);
+static inline void emit(StrConsumer consumer, const char *s) {
+  consumer.consume(s, consumer.ctx);
 }
 
 // print consumed string to debug
-void *consume_debug(void *arg, void *ctx);
-extern Consumer DEBUG;
+void debug_consume(const char *s, void *ctx);
+extern StrConsumer DEBUG;
 
 // print consumed string to debug and abort
-void *consume_error(void *arg, void *ctx);
-extern Consumer ERROR;
+void error_consume(const char *s, void *ctx);
+extern StrConsumer ERROR;
 
 // append consumed string to string builder
-void *consume_append(void *arg, void *ctx);
-static inline Consumer APPEND(StringBuilder *sb) {
-  return (Consumer) { .consume = consume_append, .ctx = sb };
+void append_consume(const char *s, void *ctx);
+static inline StrConsumer APPEND(StringBuilder *sb) {
+  return (StrConsumer) { .consume = append_consume, .ctx = sb };
 }
 
 // show message at cursor location
-void at_loc(const Consumer consumer, const char *loc, const char *fmt, ...);
+void at_loc(const StrConsumer consumer, const char *loc, const char *fmt, ...);
 
 // show message at token lexeme
-void at_tok(const Consumer consumer, const Token *tok, const char *fmt, ...);
+void at_tok(const StrConsumer consumer, const Token *tok, const char *fmt, ...);
 
 // show message at node lexeme
-void at_node(const Consumer consumer, const Node *node, const char *fmt, ...);
+void at_node(const StrConsumer consumer, const Node *node, const char *fmt, ...);
 
 // show message at current cursor location
-void this_loc(const Consumer consumer, const char *fmt, ...);
+void this_loc(const StrConsumer consumer, const char *fmt, ...);
 
 // show message at current token lexeme
-void this_tok(const Consumer consumer, const char *fmt, ...);
+void this_tok(const StrConsumer consumer, const char *fmt, ...);
 
 // stringify token stream
-void token_stream(const Consumer consumer, const Token *tok);
+void token_stream(const StrConsumer consumer, const Token *tok);
 
 // stringify ast
-void ast(const Consumer consumer, const Node *node);
+void ast(const StrConsumer consumer, const Node *node);
 
 
 // assertion
