@@ -81,7 +81,10 @@ void fmt_var         (const StrConsumer c, va_list ap);
 void fmt_vars        (const StrConsumer c, va_list ap);
 
 
-// debug
+// io
+
+void _print(const char *fmt, ...);
+#define print(fmt, ...) _print(fmt, ##__VA_ARGS__)
 
 void _debug(const char *fmt, ...);
 #define debug(fmt, ...) _debug(fmt, ##__VA_ARGS__)

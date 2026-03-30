@@ -1,14 +1,12 @@
 #include "cc.h"
 
-#include <stdio.h>
-
 // todo: comment
 
 static void visit(Node *node);
 
 static void addr(const Node *node) {
   if (node->kind == NodeKind_VAR) {
-    printf("  lea   %d(%%rbp), %%rax\n", node->var->offset);
+    print("  lea   %d(%%rbp), %%rax", node->var->offset);
   }
 
   else if (node->kind == NodeKind_DEREF) {
@@ -20,12 +18,12 @@ static void addr(const Node *node) {
 }
 
 static void push(void) {
-  printf("  push  %%rax\n");
+  print("  push  %%rax");
   ctx.codegen.depth++;
 }
 
 static void pop(const char *arg) {
-  printf("  pop   %s\n", arg);
+  print("  pop   %s", arg);
   ctx.codegen.depth--;
 }
 
@@ -33,11 +31,11 @@ static void visit(Node *node) {
   if (!node) return;
 
   if (node->kind == NodeKind_FUN_DECL) {
-    printf("  .globl main\n");
-    printf("main:\n");
+    print("  .globl main");
+    print("main:");
 
-    printf("  push  %%rbp\n");
-    printf("  mov   %%rsp, %%rbp\n");
+    print("  push  %%rbp");
+    print("  mov   %%rsp, %%rbp");
 
     int offset = 0;
     for (Var *local = ctx.analyzer.locals.next; local; local = local->next) {
@@ -45,7 +43,7 @@ static void visit(Node *node) {
       // todo: why is this negative?
       local->offset = -offset;
     }
-    printf("  sub   $%d,  %%rsp\n", (offset + 15) / 16 * 16);
+    print("  sub   $%d,  %%rsp", (offset + 15) / 16 * 16);
 
     Node *cur = node->body->head;
     while (cur) {
@@ -53,10 +51,10 @@ static void visit(Node *node) {
       cur = cur->next;
     }
 
-    printf(".L.return:\n");
-    printf("  mov   %%rbp, %%rsp\n");
-    printf("  pop   %%rbp\n");
-    printf("  ret\n");
+    print(".L.return:");
+    print("  mov   %%rbp, %%rsp");
+    print("  pop   %%rbp");
+    print("  ret");
   }
 
   else if (node->kind == NodeKind_BLOCK) {
@@ -82,33 +80,33 @@ static void visit(Node *node) {
   else if (node->kind == NodeKind_IF) {
       const int label = ctx.codegen.label++;
       visit(node->cond);
-      printf("  cmp   $0, %%rax\n");
-      printf("  je    .L.%d.else\n", label);
+      print("  cmp   $0, %%rax");
+      print("  je    .L.%d.else", label);
       visit(node->then);
-      printf("  je    .L.%d.end\n", label);
-      printf(".L.%d.else:\n", label);
+      print("  je    .L.%d.end", label);
+      print(".L.%d.else:", label);
       visit(node->else_);
-      printf(".L.%d.end:\n", label);
+      print(".L.%d.end:", label);
   }
 
   else if (node->kind == NodeKind_FOR) {
       const int label = ctx.codegen.label++;
       visit(node->init);
-      printf(".L.%d.cond:\n", label);
+      print(".L.%d.cond:", label);
       if (node->loop_cond) {
         visit(node->loop_cond);
-        printf("  cmp   $0, %%rax\n");
-        printf("  je    .L.%d.end\n", label);
+        print("  cmp   $0, %%rax");
+        print("  je    .L.%d.end", label);
       }
       visit(node->loop_body);
       visit(node->inc);
-      printf("  jmp   .L.%d.cond\n", label);
-      printf(".L.%d.end:\n", label);
+      print("  jmp   .L.%d.cond", label);
+      print(".L.%d.end:", label);
   }
 
   else if (node->kind == NodeKind_RETURN) {
       visit(node->operand);
-      printf("  jmp .L.return\n");
+      print("  jmp .L.return");
   }
 
   else if (node->kind == NodeKind_EXPR_STMT) {
@@ -117,12 +115,12 @@ static void visit(Node *node) {
   }
 
   else if (node->kind == NodeKind_NUM) {
-    printf("  mov   $%d, %%rax\n", node->num);
+    print("  mov   $%d, %%rax", node->num);
   }
 
   else if (node->kind == NodeKind_VAR) {
     addr(node);
-    printf("  mov   (%%rax), %%rax\n");
+    print("  mov   (%%rax), %%rax");
   }
 
   else if (node->kind == NodeKind_ASSIGN) {
@@ -130,12 +128,12 @@ static void visit(Node *node) {
     push();
     visit(node->rhs);
     pop("%rdi");
-    printf("  mov   %%rax, (%%rdi)\n");
+    print("  mov   %%rax, (%%rdi)");
   }
 
   else if (node->kind == NodeKind_NEG) {
     visit(node->operand);
-    printf("  neg   %%rax\n");
+    print("  neg   %%rax");
   }
 
   else if (node->kind == NodeKind_ADDR) {
@@ -144,7 +142,7 @@ static void visit(Node *node) {
 
   else if (node->kind == NodeKind_DEREF) {
     visit(node->operand);
-    printf("  mov   (%%rax), %%rax\n");
+    print("  mov   (%%rax), %%rax");
   }
 
   else if (node_kind_is_binop(node->kind)) {
@@ -154,12 +152,12 @@ static void visit(Node *node) {
     pop("%rdi");
 
     switch (node->kind) {
-      case NodeKind_ADD: { printf("  add   %%rdi, %%rax\n"); break; }
-      case NodeKind_SUB: { printf("  sub   %%rdi, %%rax\n"); break; }
-      case NodeKind_MUL: { printf("  imul  %%rdi, %%rax\n"); break; }
+      case NodeKind_ADD: { print("  add   %%rdi, %%rax"); break; }
+      case NodeKind_SUB: { print("  sub   %%rdi, %%rax"); break; }
+      case NodeKind_MUL: { print("  imul  %%rdi, %%rax"); break; }
       case NodeKind_DIV: {
-        printf("  cqo\n");
-        printf("  idiv  %%rdi, %%rax\n");
+        print("  cqo");
+        print("  idiv  %%rdi, %%rax");
         break;
       }
 
@@ -167,16 +165,16 @@ static void visit(Node *node) {
       case NodeKind_NEQ:
       case NodeKind_LT:
       case NodeKind_LEQ: {
-        printf("  cmp   %%rdi, %%rax\n");
+        print("  cmp   %%rdi, %%rax");
         switch (node->kind) {
-          case NodeKind_EQ:  { printf("  sete  %%al\n"); break; }
-          case NodeKind_NEQ: { printf("  setne %%al\n"); break; }
-          case NodeKind_LT:  { printf("  setl  %%al\n"); break; }
-          case NodeKind_LEQ: { printf("  setle %%al\n"); break; }
+          case NodeKind_EQ:  { print("  sete  %%al"); break; }
+          case NodeKind_NEQ: { print("  setne %%al"); break; }
+          case NodeKind_LT:  { print("  setl  %%al"); break; }
+          case NodeKind_LEQ: { print("  setle %%al"); break; }
           default:           fail("unexpected comparison: %{node_kind}",
                                   node->kind);
         }
-        printf("  movzb %%al, %%rax\n");
+        print("  movzb %%al, %%rax");
         break;
       }
 

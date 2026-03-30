@@ -3,6 +3,20 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+static void print_consume(const char *s, void *ctx) {
+  assert(s);
+  printf("%s", s);
+}
+
+static StrConsumer PRINT = { .consume = print_consume };
+
+void _print(const char *fmt, ...) {
+  va_list ap; va_start(ap, fmt);
+  consume_v(PRINT, fmt, ap);
+  consume_f(PRINT, "\n");
+  va_end(ap);
+}
+
 static void debug_consume(const char *s, void *ctx) {
   assert(s);
   fprintf(stderr, "%s", s);
