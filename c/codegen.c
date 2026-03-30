@@ -67,6 +67,18 @@ static void visit(Node *node) {
     }
   }
 
+  else if (node->kind == NodeKind_DECL_STMT) {
+    Node *cur = node->head;
+    while (cur) {
+      visit(cur);
+      cur = cur->next;
+    }
+  }
+
+  else if (node->kind ==NodeKind_VAR_DECL) {
+    visit(node->var_init);
+  }
+
   else if (node->kind == NodeKind_IF) {
       const int label = ctx.codegen.label++;
       visit(node->cond);

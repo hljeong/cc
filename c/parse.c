@@ -31,6 +31,9 @@ static const Token *expect(const TokenKind kind) {
 static Node *prog();
 static Node *fun_decl();
 static Node *stmt();
+static Type *var_declspec();
+static Node *var_declr(Type *base_type);
+static Node *var_decl(Type *base_type);
 static Node *expr();
 static Node *assign();
 static Node *equality();
@@ -91,6 +94,11 @@ static Node *prog() {
   return fun_decl();
 }
 
+static bool is_type(const Token *tok) {
+  assert(tok->kind == TokenKind_IDENT);
+  return sv_eq_s(tok->lexeme, "int");
+}
+
 // todo: temp
 // decl ::= "{" stmt* "}"
 static Node *fun_decl() {
@@ -115,24 +123,36 @@ static Node *fun_decl() {
 //        | "if" "(" expr ")" stmt ("else" stmt)?
 //        | "for" "(" expr? ";" expr? ";" expr? ")" stmt
 //        | "while" "(" expr ")" stmt
+//        | declspec (declaration? ("," declaration)*)? ";"
 //        | expr? ";"
 static Node *stmt() {
   if (debug_parse) debug("%{@cur_tok} parsing stmt");
   src_push();
-  Node *node = NULL;
 
+  // ";"
   if (consume(TokenKind_SEMICOLON))
   {
     // cool trick from chibicc
     return pop_lexeme(new_list_node(NodeKind_BLOCK, NULL));
   }
 
+  // "{" stmt* "}"
+  else if (consume(TokenKind_LBRACE)) {
+    Node head = {};
+    Node *cur = &head;
+    while (!consume(TokenKind_RBRACE))
+      cur = (cur->next = stmt());
+    return pop_lexeme(new_list_node(NodeKind_BLOCK, head.next));
+  }
+
+  // "return" expr ";"
   else if (consume(TokenKind_RETURN)) {
-    node = new_unop_node(NodeKind_RETURN, expr());
+    Node *node = new_unop_node(NodeKind_RETURN, expr());
     expect(TokenKind_SEMICOLON);
     return pop_lexeme(node);
   }
 
+  // "if" "(" expr ")" stmt ("else" stmt)?
   else if (consume(TokenKind_IF)) {
     Node *node = new_node(NodeKind_IF);
     expect(TokenKind_LPAREN);
@@ -144,6 +164,7 @@ static Node *stmt() {
     return pop_lexeme(node);
   }
 
+  // "for" "(" expr? ";" expr? ";" expr? ")" stmt
   else if (consume(TokenKind_FOR)) {
     // wow for loops have horrible syntax...
     Node *node = new_node(NodeKind_FOR);
@@ -164,6 +185,7 @@ static Node *stmt() {
     return pop_lexeme(node);
   }
 
+  // "while" "(" expr ")" stmt
   else if (consume(TokenKind_WHILE)) {
     Node *node = new_node(NodeKind_FOR);
     expect(TokenKind_LPAREN);
@@ -173,21 +195,69 @@ static Node *stmt() {
     return pop_lexeme(node);
   }
 
-  else if (consume(TokenKind_LBRACE)) {
-    Node head = {};
+  // var_declspec (var_decl ("," var_decl)*)? ";"
+  else if (match(TokenKind_IDENT) && is_type(ctx.parser.tok)) {
+    Type *base_type = var_declspec();
+
+    Node head;
     Node *cur = &head;
-    while (!consume(TokenKind_RBRACE)) {
-      cur = (cur->next = stmt());
+    while (true) {
+      cur = (cur->next = var_decl(base_type));
+      if (consume(TokenKind_SEMICOLON)) break;
+      expect(TokenKind_COMMA);
     }
-    return pop_lexeme(new_list_node(NodeKind_BLOCK, head.next));
+
+    Node *node = new_node(NodeKind_DECL_STMT);
+    node->head = head.next;
+    return pop_lexeme(node);
   }
 
+  // expr? ";"
   else {
-    node = new_node(NodeKind_EXPR_STMT);
+    Node *node = new_node(NodeKind_EXPR_STMT);
     node->expr = expr();
     expect(TokenKind_SEMICOLON);
     return pop_lexeme(node);
   }
+}
+
+// var_declspec ::= "int"
+static Type *var_declspec() {
+  const Token *tok = expect(TokenKind_IDENT);
+  if (strncmp(tok->lexeme.loc, "int", tok->lexeme.len))
+    error("%{@tok} not a type", tok);
+  return &t.int_;
+}
+
+// var_decl ::= var_declr ("=" expr)?
+static Node *var_decl(Type *base_type) {
+  src_push();
+  Node *node = new_node(NodeKind_VAR_DECL);
+
+  node->var_declr = var_declr(base_type);
+
+  if (consume(TokenKind_EQ)) {
+    Node *var_ref = new_var_node(node->var_declr->name);
+    var_ref->lexeme = node->var_declr->lexeme;
+    node->var_init = add_lexeme(new_binop_node(NodeKind_ASSIGN, var_ref, expr()));
+  }
+
+  return pop_lexeme(node);
+}
+
+// var_declr ::= "*"* ident
+static Node *var_declr(Type *base_type) {
+  src_push();
+  Node *node = new_node(NodeKind_VAR);
+  node->is_decl = true;
+
+  node->type = base_type;
+  while (consume(TokenKind_STAR))
+    node->type = new_pointer_type(node->type);
+
+  node->name = expect(TokenKind_IDENT)->lexeme;
+
+  return pop_lexeme(node);
 }
 
 // expr ::= assign

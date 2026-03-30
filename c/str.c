@@ -8,8 +8,13 @@ StringView sv_create(const char *loc, const int len) {
   return (StringView) { .loc = loc, .len = len };
 }
 
-int sv_eq(const StringView s, const StringView t) {
+bool sv_eq(const StringView s, const StringView t) {
   return (s.len == t.len) && !strncmp(s.loc, t.loc, s.len);
+}
+
+bool sv_eq_s(const StringView s, const char *t) {
+  const int len = strlen(t);
+  return (s.len == len) && !strncmp(s.loc, t, len);
 }
 
 static void fmt_sv(const StrConsumer c, va_list ap) {
@@ -95,6 +100,8 @@ StrFormatter FORMATTERS[] = {
   (StrFormatter) { .spec = "ast",          .fmt = fmt_ast },
   (StrFormatter) { .spec = "type_kind",    .fmt = fmt_type_kind },
   (StrFormatter) { .spec = "type",         .fmt = fmt_type },
+  (StrFormatter) { .spec = "var",          .fmt = fmt_var },
+  (StrFormatter) { .spec = "vars",         .fmt = fmt_vars },
   (StrFormatter) { .spec = NULL,           .fmt = NULL },
 };
 

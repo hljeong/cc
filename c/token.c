@@ -20,6 +20,7 @@ static void consume_token_kind(const StrConsumer c, const TokenKind kind) {
   else if (kind == TokenKind_LT)        consume_f(c, "<");
   else if (kind == TokenKind_GT)        consume_f(c, ">");
   else if (kind == TokenKind_SEMICOLON) consume_f(c, ";");
+  else if (kind == TokenKind_COMMA)     consume_f(c, ",");
   else if (kind == TokenKind_RETURN)    consume_f(c, "return");
   else if (kind == TokenKind_LBRACE)    consume_f(c, "{");
   else if (kind == TokenKind_RBRACE)    consume_f(c, "}");

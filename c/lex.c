@@ -122,6 +122,7 @@ void lex() {
     else if ((len = consume_ch('('))) cur = link(cur, new_token(TokenKind_LPAREN,    len));
     else if ((len = consume_ch(')'))) cur = link(cur, new_token(TokenKind_RPAREN,    len));
     else if ((len = consume_ch(';'))) cur = link(cur, new_token(TokenKind_SEMICOLON, len));
+    else if ((len = consume_ch(','))) cur = link(cur, new_token(TokenKind_COMMA,     len));
     else if ((len = consume_ch('='))) cur = link(cur, new_token(TokenKind_EQ,        len));
     else if ((len = consume_ch('{'))) cur = link(cur, new_token(TokenKind_LBRACE,    len));
     else if ((len = consume_ch('}'))) cur = link(cur, new_token(TokenKind_RBRACE,    len));

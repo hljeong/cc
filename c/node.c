@@ -18,6 +18,8 @@ static void consume_node_kind(const StrConsumer c, const NodeKind kind) {
   else if (kind == NodeKind_LEQ)       consume_f(c, "<=");
   else if (kind == NodeKind_ASSIGN)    consume_f(c, "assign");
   else if (kind == NodeKind_EXPR_STMT) consume_f(c, "expr-stmt");
+  else if (kind == NodeKind_DECL_STMT) consume_f(c, "decl-stmt");
+  else if (kind == NodeKind_VAR_DECL)  consume_f(c, "var-decl");
   else if (kind == NodeKind_RETURN)    consume_f(c, "return");
   else if (kind == NodeKind_BLOCK)     consume_f(c, "block");
   else if (kind == NodeKind_IF)        consume_f(c, "if");
@@ -34,7 +36,7 @@ void fmt_node_kind(const StrConsumer c, va_list ap) {
 static void consume_node(const StrConsumer c, const Node *node) {
   consume_f(c, "%{node_kind}", node->kind);
 
-  if      (node->kind == NodeKind_NUM) consume_f(c, "(%d)", node->num);
+  if      (node->kind == NodeKind_NUM) consume_f(c, "(%d)",    node->num);
   else if (node->kind == NodeKind_VAR) consume_f(c, "(%{sv})", node->name);
 
   // show type if applicable
@@ -54,11 +56,16 @@ void _consume_ast(const StrConsumer c, const Node *node, StringBuilder *sb, cons
   const int truncate_to = sb->size;
   sb_append(sb, last ? "  " : "│ ");
 
-  if      (node->kind == NodeKind_NUM) {}
-  else if (node->kind == NodeKind_VAR) {}
+  if      (node->kind == NodeKind_NUM)       {}
+  else if (node->kind == NodeKind_VAR)       {}
 
   else if (node->kind == NodeKind_FUN_DECL) {
     _consume_ast(c, node->body, sb, true);
+  }
+
+  else if (node->kind == NodeKind_VAR_DECL) {
+    _consume_ast(c, node->var_declr, sb, !node->var_init);
+    _consume_ast(c, node->var_init, sb, true);
   }
 
   else if (node->kind == NodeKind_EXPR_STMT) {
@@ -130,7 +137,8 @@ bool node_kind_is_binop(const NodeKind kind) {
 }
 
 bool node_kind_is_list(const NodeKind kind) {
-  return (kind == NodeKind_BLOCK);
+  return (kind == NodeKind_BLOCK) ||
+         (kind == NodeKind_DECL_STMT);
 }
 
 Node *new_node(const NodeKind kind) {
@@ -148,6 +156,7 @@ Node *new_num_node(const int num) {
 Node *new_var_node(const StringView name) {
   Node *node = new_node(NodeKind_VAR);
   node->name = name;
+  node->is_decl = false;
   return node;
 }
 

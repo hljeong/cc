@@ -26,7 +26,8 @@ struct StringView {
 };
 
 StringView sv_create(const char *loc, const int len);
-int        sv_eq    (const StringView s, const StringView t);
+bool       sv_eq    (const StringView s, const StringView t);
+bool       sv_eq_s  (const StringView s, const char *t);
 
 
 // string builder
@@ -76,6 +77,8 @@ void fmt_node        (const StrConsumer c, va_list ap);
 void fmt_ast         (const StrConsumer c, va_list ap);
 void fmt_type_kind   (const StrConsumer c, va_list ap);
 void fmt_type        (const StrConsumer c, va_list ap);
+void fmt_var         (const StrConsumer c, va_list ap);
+void fmt_vars        (const StrConsumer c, va_list ap);
 
 
 // debug
@@ -123,6 +126,7 @@ enum TokenKind {
   TokenKind_LT,
   TokenKind_GT,
   TokenKind_SEMICOLON,
+  TokenKind_COMMA,
   TokenKind_RETURN,
   TokenKind_LBRACE,
   TokenKind_RBRACE,
@@ -169,6 +173,8 @@ enum NodeKind {
   NodeKind_LEQ,
   NodeKind_ASSIGN,
   NodeKind_EXPR_STMT,
+  NodeKind_DECL_STMT,
+  NodeKind_VAR_DECL,
   NodeKind_RETURN,
   NodeKind_BLOCK,
   NodeKind_IF,
@@ -185,6 +191,7 @@ struct Node {
     struct {
       StringView name;           // NodeKind_VAR
       Var *var;
+      bool is_decl;
     };
     Node *operand;               // node_kind_id_unop()
     struct { Node *lhs, *rhs; }; // node_kind_is_binop()
@@ -201,9 +208,13 @@ struct Node {
     };
     struct {                     // NodeKind_FOR
       Node *init;
-      Node *loop_cond;           // tragic
+      Node *loop_cond;
       Node *inc;
-      Node *loop_body;           // tragic
+      Node *loop_body;
+    };
+    struct {                     // NodeKind_VAR_DECL
+      Node *var_declr;
+      Node *var_init;
     };
   };
   Type *type;
@@ -233,9 +244,8 @@ struct Var {
   Var *next;
 };
 
-Var *new_var(Node *decl);
-
-Var *lookup_or_new_var(Var *locals, Node *node);
+Var *new_var   (Var *locals, Node *declr);
+Var *lookup_var(Var *locals, Node *node);
 
 
 // type
@@ -261,7 +271,7 @@ extern Types t;
 bool type_eq(const Type *t, const Type *u);
 
 Type *new_type        (const TypeKind kind);
-Type *new_pointer_type(Type *referenced);
+Type *new_pointer_type(Type *referenced);  // todo: reusability
 
 
 // action

@@ -41,17 +41,6 @@ static void visit(Node **node_ptr) {
 
   else if (node->kind == NodeKind_ASSIGN) {
     visit(&node->rhs);
-
-    // todo: temp
-    if (node->lhs->kind == NodeKind_VAR) {
-      Var *var = lookup_or_new_var(&ctx.analyzer.locals, node->lhs);
-      if (!var->type) {
-        var->type = node->rhs->type;
-        debug("%{@node} declaring %{sv}: %{type}",
-              node, var->name, var->type);
-      }
-    }
-
     visit(&node->lhs);
 
     // todo: how to check if lhs is an lvalue?
@@ -169,20 +158,34 @@ static void visit(Node **node_ptr) {
     }
   }
 
+  else if (node->kind == NodeKind_VAR_DECL) {
+    // visit init value before declaring var
+    if (node->var_init)
+      visit(&node->var_init->rhs);
+
+    // declare var
+    node->var_declr->var = new_var(&ctx.analyzer.locals, node->var_declr);
+
+    // type check
+    if (node->var_init)
+      visit(&node->var_init);
+  }
+
   else if (node->kind == NodeKind_VAR) {
-    node->var = lookup_or_new_var(&ctx.analyzer.locals, node);
-    if (!node->var->type) {
-      node->type = &t.int_;
-      debug("%{@node} undeclared variable", node);
+    if (node->is_decl)
+      node->var = new_var(&ctx.analyzer.locals, node);
+
+    else {
+      node->var = lookup_var(&ctx.analyzer.locals, node);
+      node->type = node->var->type;
     }
-    node->type = node->var->type;
   }
 
   else if (node->kind == NodeKind_NUM) {
     node->type = &t.int_;
   }
 
-  else fail("unexpected node kind: %{kind}", node->kind);
+  else fail("unexpected node kind: %{node_kind}", node->kind);
 }
 
 void analyze() {
