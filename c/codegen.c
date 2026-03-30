@@ -2,6 +2,8 @@
 
 // todo: comment
 
+static const char *arg_reg[] = { "%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9" };
+
 static void visit(Node *node);
 
 static void addr(const Node *node) {
@@ -30,20 +32,25 @@ static void pop(const char *arg) {
 static void visit(Node *node) {
   if (!node) return;
 
-  if (node->kind == NodeKind_FUN_DECL) {
-    print("  .globl main");
-    print("main:");
+  if (node->kind == NodeKind_PROG) {
+    ctx.codegen.prog = node->prog.prog;
+    Node *cur = node->list.head;
+    while (cur) {
+      visit(cur);
+      cur = cur->next;
+    }
+  }
+
+  else if (node->kind == NodeKind_FUN_DECL) {
+    ctx.codegen.fun = node->fun_decl.fun;
+    const StringView fun_name = ctx.codegen.fun->name;
+
+    print("  .globl %{sv}", fun_name);
+    print("%{sv}:", fun_name);
 
     print("  push  %%rbp");
     print("  mov   %%rsp, %%rbp");
-
-    int offset = 0;
-    for (Var *local = ctx.analyzer.locals.next; local; local = local->next) {
-      offset += 8;
-      // todo: why is this negative?
-      local->offset = -offset;
-    }
-    print("  sub   $%d,  %%rsp", (offset + 15) / 16 * 16);
+    print("  sub   $%d,  %%rsp", ctx.codegen.fun->stack_size);
 
     Node *cur = node->fun_decl.body->list.head;
     while (cur) {
@@ -51,7 +58,7 @@ static void visit(Node *node) {
       cur = cur->next;
     }
 
-    print(".L.return:");
+    print(".L.%{sv}.return:", ctx.codegen.fun->name);
     print("  mov   %%rbp, %%rsp");
     print("  pop   %%rbp");
     print("  ret");
@@ -78,35 +85,37 @@ static void visit(Node *node) {
   }
 
   else if (node->kind == NodeKind_IF) {
-      const int label = ctx.codegen.label++;
-      visit(node->if_.cond);
-      print("  cmp   $0, %%rax");
-      print("  je    .L.%d.else", label);
-      visit(node->if_.then);
-      print("  je    .L.%d.end", label);
-      print(".L.%d.else:", label);
-      visit(node->if_.else_);
-      print(".L.%d.end:", label);
+    const StringView fun_name = ctx.codegen.fun->name;
+    const int label = ctx.codegen.fun->label++;
+    visit(node->if_.cond);
+    print("  cmp   $0, %%rax");
+    print("  je    .L.%{sv}.%d.else", fun_name, label);
+    visit(node->if_.then);
+    print("  je    .L.%{sv}.%d.end", fun_name, label);
+    print(".L.%{sv}.%d.else:", fun_name,label);
+    visit(node->if_.else_);
+    print(".L.%{sv}.%d.end:", fun_name, label);
   }
 
   else if (node->kind == NodeKind_FOR) {
-      const int label = ctx.codegen.label++;
-      visit(node->for_.init);
-      print(".L.%d.cond:", label);
-      if (node->for_.cond) {
-        visit(node->for_.cond);
-        print("  cmp   $0, %%rax");
-        print("  je    .L.%d.end", label);
-      }
-      visit(node->for_.body);
-      visit(node->for_.inc);
-      print("  jmp   .L.%d.cond", label);
-      print(".L.%d.end:", label);
+    const StringView fun_name = ctx.codegen.fun->name;
+    const int label = ctx.codegen.fun->label++;
+    visit(node->for_.init);
+    print(".L.%{sv}.%d.cond:", fun_name, label);
+    if (node->for_.cond) {
+      visit(node->for_.cond);
+      print("  cmp   $0, %%rax");
+      print("  je    .L.%{sv}.%d.end", fun_name, label);
+    }
+    visit(node->for_.body);
+    visit(node->for_.inc);
+    print("  jmp   .L.%{sv}.%d.cond", fun_name, label);
+    print(".L.%{sv}.%d.end:", fun_name, label);
   }
 
   else if (node->kind == NodeKind_RETURN) {
-      visit(node->unop.opr);
-      print("  jmp .L.return");
+    visit(node->unop.opr);
+    print("  jmp .L.%{sv}.return", ctx.codegen.fun->name);
   }
 
   else if (node->kind == NodeKind_EXPR_STMT) {
@@ -129,6 +138,23 @@ static void visit(Node *node) {
     visit(node->binop.rhs);
     pop("%rdi");
     print("  mov   %%rax, (%%rdi)");
+  }
+
+  else if (node->kind == NodeKind_CALL) {
+    int n_args = 0;
+    for (Node *arg = node->call.args; arg; arg = arg->next) {
+      visit(arg);
+      push();
+      n_args++;
+    }
+
+    assert(n_args <= 6);
+
+    for (int i = n_args - 1; i >= 0; i--)
+      pop(arg_reg[i]);
+
+    print("  mov   $0, %%rax");
+    print("  call  %{sv}", node->unop.opr->var.name);
   }
 
   else if (node->kind == NodeKind_NEG) {

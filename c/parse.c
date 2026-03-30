@@ -87,24 +87,35 @@ static Node *add_lexeme(Node *node) {
   return node;
 }
 
-// todo: temp
-// prog ::= fun_decl
-static Node *prog() {
-  if (debug_parse) debug("%{@cur_tok} parsing prog");
-  return fun_decl();
-}
-
 static bool is_type(const Token *tok) {
   assert(tok->kind == TokenKind_IDENT);
   return sv_eq_s(tok->lexeme, "int");
 }
 
-// todo: temp
-// decl ::= "{" stmt* "}"
+// prog ::= fun_decl*
+static Node *prog() {
+  if (debug_parse) debug("%{@cur_tok} parsing prog");
+  src_push();
+  Node *node = new_node(NodeKind_PROG);
+  Node head = {};
+  Node *cur = &head;
+  while (!match(TokenKind_EOF)) {
+    cur = (cur->next = fun_decl());
+  }
+  node->list.head = head.next;
+  return pop_lexeme(node);
+}
+
+// todo: delete var_
+// fun_decl ::= var_declspec var_declr "(" ")" "{" stmt* "}"
 static Node *fun_decl() {
   if (debug_parse) debug("%{@cur_tok} parsing fun_decl");
   src_push();
   Node *node = new_node(NodeKind_FUN_DECL);
+  {
+    Type *type = var_declspec();
+    node->fun_decl.var = var_declr(type);
+  }
   {
     src_push();
     Node head = {};
@@ -199,7 +210,7 @@ static Node *stmt() {
   else if (match(TokenKind_IDENT) && is_type(ctx.parser.tok)) {
     Type *base_type = var_declspec();
 
-    Node head;
+    Node head = {};
     Node *cur = &head;
     while (true) {
       cur = (cur->next = var_decl(base_type));
@@ -245,7 +256,7 @@ static Node *var_decl(Type *base_type) {
   return pop_lexeme(node);
 }
 
-// var_declr ::= "*"* ident
+// var_declr ::= "*"* ident ("(" ")")?
 static Node *var_declr(Type *base_type) {
   src_push();
   Node *node = new_node(NodeKind_VAR);
@@ -256,6 +267,11 @@ static Node *var_declr(Type *base_type) {
     node->type = new_pointer_type(node->type);
 
   node->var.name = expect(TokenKind_IDENT)->lexeme;
+
+  if (consume(TokenKind_LPAREN)) {
+    expect(TokenKind_RPAREN);
+    node->type = new_fun_type(node->type);
+  }
 
   return pop_lexeme(node);
 }
@@ -349,19 +365,45 @@ static Node *unary() {
   else                                       return src_pop(), primary();
 }
 
-// primary ::= "(" expr ")" | ident | num
+// primary ::= "(" expr ")" | ident args? | num
+// args ::= "(" (expr ("," expr)*)? ")"
 static Node *primary() {
   if (debug_parse) debug("%{@cur_tok} parsing primary");
   src_push();
   const Token *tok = NULL;
+
   if (consume(TokenKind_LPAREN)) {
     Node *node = expr();
     expect(TokenKind_RPAREN);
     return src_pop(), node;
   }
-  else if ((tok = consume(TokenKind_IDENT))) return pop_lexeme(new_var_node(tok->ident.name));
-  else if ((tok = consume(TokenKind_NUM)))   return pop_lexeme(new_num_node(tok->num.value));
-  else                                       error("%{@cur_tok} expected expression");
+
+  else if ((tok = consume(TokenKind_NUM))) {
+    return pop_lexeme(new_num_node(tok->num.value));
+  }
+
+  else if ((tok = consume(TokenKind_IDENT))) {
+    Node *node = add_lexeme(new_var_node(tok->ident.name));
+    if (consume(TokenKind_LPAREN)) {
+      Node *call = new_node(NodeKind_CALL);
+      call->call.fun = node;
+      node = call;
+      Node head = {};
+      Node *cur = &head;
+      if (!consume(TokenKind_RPAREN)) {
+        cur = (cur->next = expr());
+        while (!consume(TokenKind_RPAREN)) {
+          expect(TokenKind_COMMA);
+          cur = (cur->next = expr());
+        }
+      }
+      node->call.args = head.next;
+      add_lexeme(node);
+    }
+    return src_pop(), node;
+  }
+
+  else error("%{@cur_tok} expected expression");
 }
 
 void parse() {
@@ -376,7 +418,5 @@ void parse() {
     }
     fail("non-empty src stack: %d", size);
   }
-  if (!match(TokenKind_EOF))
-    error("%{@cur_tok} extra token");
   ctx.ast = node;
 }

@@ -17,6 +17,7 @@ static void consume_node_kind(const StrConsumer c, const NodeKind kind) {
   else if (kind == NodeKind_LT)        consume_f(c, "<");
   else if (kind == NodeKind_LEQ)       consume_f(c, "<=");
   else if (kind == NodeKind_ASSIGN)    consume_f(c, "assign");
+  else if (kind == NodeKind_CALL)      consume_f(c, "call");
   else if (kind == NodeKind_EXPR_STMT) consume_f(c, "expr-stmt");
   else if (kind == NodeKind_DECL_STMT) consume_f(c, "decl-stmt");
   else if (kind == NodeKind_VAR_DECL)  consume_f(c, "var-decl");
@@ -59,7 +60,16 @@ void _consume_ast(const StrConsumer c, const Node *node, StringBuilder *sb, cons
   if      (node->kind == NodeKind_NUM)       {}
   else if (node->kind == NodeKind_VAR)       {}
 
+  else if (node->kind == NodeKind_PROG) {
+    Node *child = node->prog.head;
+    while (child) {
+      _consume_ast(c, child, sb, !(child->next));
+      child = child->next;
+    }
+  }
+
   else if (node->kind == NodeKind_FUN_DECL) {
+    _consume_ast(c, node->fun_decl.var, sb, false);
     _consume_ast(c, node->fun_decl.body, sb, true);
   }
 
@@ -83,6 +93,15 @@ void _consume_ast(const StrConsumer c, const Node *node, StringBuilder *sb, cons
     _consume_ast(c, node->for_.cond, sb, false);
     _consume_ast(c, node->for_.inc,  sb, false);
     _consume_ast(c, node->for_.body, sb, true);
+  }
+
+  else if (node->kind == NodeKind_CALL) {
+    _consume_ast(c, node->call.fun, sb, !node->call.args);
+    Node *arg = node->call.args;
+    while (arg) {
+      _consume_ast(c, arg, sb, !arg->next);
+      arg = arg->next;
+    }
   }
 
   else if (node_kind_is_unop(node->kind)) {

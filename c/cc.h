@@ -11,6 +11,8 @@ typedef struct Token Token;
 typedef enum NodeKind NodeKind;
 typedef struct Node Node;
 typedef struct Var Var;
+typedef struct Fun Fun;
+typedef struct Prog Prog;
 typedef enum TypeKind TypeKind;
 typedef struct Type Type;
 
@@ -179,6 +181,7 @@ enum NodeKind {
   NodeKind_LT,
   NodeKind_LEQ,
   NodeKind_ASSIGN,
+  NodeKind_CALL,
   NodeKind_EXPR_STMT,
   NodeKind_DECL_STMT,
   NodeKind_VAR_DECL,
@@ -186,7 +189,7 @@ enum NodeKind {
   NodeKind_BLOCK,
   NodeKind_IF,
   NodeKind_FOR,
-  NodeKind_FUN_DECL,  // todo
+  NodeKind_FUN_DECL,
   NodeKind_PROG,
 };
 
@@ -222,10 +225,17 @@ struct Node {
       Node *head;
     } list;
 
+    // NodeKind_PROG
+    struct {
+      Node *head;
+      Prog *prog;
+    } prog;
+
     // NodeKind_FUN_DECL
     struct {
+      Node *var;  // todo: def some bad abstraction here
       Node *body;
-      Var *locals;
+      Fun *fun;
     } fun_decl;
 
     // NodeKind_EXPR_STMT
@@ -253,6 +263,12 @@ struct Node {
       Node *var;
       Node *init;
     } var_decl;
+
+    // NodeKind_CALL
+    struct {
+      Node *fun;
+      Node *args;
+    } call;
   };
   Type *type;
   Node *next;
@@ -281,8 +297,32 @@ struct Var {
   Var *next;
 };
 
-Var *new_var   (Var *locals, Node *declr);
-Var *lookup_var(Var *locals, Node *node);
+Var *new_var   (Node *declr);
+Var *lookup_var(Node *node);
+
+
+// fun
+
+struct Fun {
+  StringView name;
+  Type *type;
+  Node *decl;
+  Var *locals;
+  int stack_size;
+  int label;
+  Fun *next;
+};
+
+Fun *new_fun(Node *decl);
+
+
+// prog
+
+struct Prog {
+  Fun *funs;
+};
+
+Prog *new_prog(Node *decl);
 
 
 // type
@@ -290,12 +330,17 @@ Var *lookup_var(Var *locals, Node *node);
 enum TypeKind {
   TypeKind_INT,
   TypeKind_PTR,
+  TypeKind_FUN,
 };
 
 struct Type {
   TypeKind kind;
   union {
-    Type *referenced;  // TypeKind_PTR
+    // TypeKind_PTR
+    Type *referenced;
+
+    // TypeKind_FUN
+    Type *returns;
   };
 };
 
@@ -309,6 +354,7 @@ bool type_eq(const Type *t, const Type *u);
 
 Type *new_type        (const TypeKind kind);
 Type *new_pointer_type(Type *referenced);  // todo: reusability
+Type *new_fun_type(Type *returns);
 
 
 // action
@@ -335,12 +381,14 @@ typedef struct {
   } parser;
 
   struct {
-    Var locals;
+    Prog *prog;
+    Fun *fun;
   } analyzer;
 
   struct {
     int depth;
-    int label;
+    Prog *prog;
+    Fun *fun;
   } codegen;
 } Context;
 

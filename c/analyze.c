@@ -3,10 +3,30 @@
 static void visit(Node **node_ptr);
 static void visit(Node **node_ptr) {
   Node *node = *node_ptr;
+
   if (!node) {}
 
+  else if (node->kind == NodeKind_PROG) {
+    ctx.analyzer.prog = (node->prog.prog = new_prog(node));
+    for (Node *cur = node->prog.head; cur; cur = cur->next) {
+      visit(&cur);
+    }
+  }
+
   else if (node->kind == NodeKind_FUN_DECL) {
+    ctx.analyzer.fun = (node->fun_decl.fun = new_fun(node));
     visit(&node->fun_decl.body);
+
+    // allocate local vars
+    int offset = 0;
+    for (Var *var = ctx.analyzer.fun->locals; var; var = var->next) {
+      offset += 8;
+      // todo: why is this negative?
+      var->offset = -offset;
+    }
+    // align to 16-byte boundary
+    // todo: why?
+    ctx.analyzer.fun->stack_size = (offset + 15) / 16 * 16;
   }
 
   else if (node->kind == NodeKind_EXPR_STMT) {
@@ -37,6 +57,10 @@ static void visit(Node **node_ptr) {
               node, node->unop.opr->type);
       node->type = node->unop.opr->type->referenced;
     }
+  }
+
+  else if (node->kind == NodeKind_CALL) {
+    // todo
   }
 
   else if (node->kind == NodeKind_ASSIGN) {
@@ -164,7 +188,7 @@ static void visit(Node **node_ptr) {
       visit(&node->var_decl.init->binop.rhs);
 
     // declare var
-    node->var_decl.var->var.var = new_var(&ctx.analyzer.locals, node->var_decl.var);
+    node->var_decl.var->var.var = new_var(node->var_decl.var);
 
     // type check
     if (node->var_decl.init)
@@ -173,10 +197,10 @@ static void visit(Node **node_ptr) {
 
   else if (node->kind == NodeKind_VAR) {
     if (node->var.is_decl)
-      node->var.var = new_var(&ctx.analyzer.locals, node);
+      node->var.var = new_var(node);
 
     else {
-      node->var.var = lookup_var(&ctx.analyzer.locals, node);
+      node->var.var = lookup_var(node);
       node->type = node->var.var->type;
     }
   }

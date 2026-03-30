@@ -2,16 +2,13 @@
 
 #include <stdlib.h>
 
-Var *new_var(Var *locals, Node *declr) {
+Var *new_var(Node *declr) {
   assert(declr->kind == NodeKind_VAR,
          "%{node_kind}", declr->kind);
   assert(declr->var.is_decl);
 
-  if (sv_eq(locals->name, declr->var.name))
-    error("%{@node} already declared", declr);
-  while (locals->next) {
-    locals = locals->next;
-    if (sv_eq(locals->name, declr->var.name))
+  for (Var *local = ctx.analyzer.fun->locals; local; local = local->next) {
+    if (sv_eq(declr->var.name, local->name))
       error("%{@node} already declared", declr);
   }
 
@@ -19,17 +16,16 @@ Var *new_var(Var *locals, Node *declr) {
   var->name = declr->var.name;
   var->type = declr->type;
   var->decl = declr;
-  return (locals->next = var);
+  var->next = ctx.analyzer.fun->locals;
+  return (ctx.analyzer.fun->locals = var);
 }
 
-Var *lookup_var(Var *locals, Node *node) {
-  Var *var = locals;
-  while (!sv_eq(var->name, node->var.name)) {
-    var = var->next;
-    if (!var)
-      error("%{@node} undeclared variable", node);
+Var *lookup_var(Node *node) {
+  for (Var *local = ctx.analyzer.fun->locals; local; local = local->next) {
+    if (sv_eq(local->name, node->var.name))
+      return local;
   }
-  return var;
+  error("%{@node} undeclared variable", node);
 }
 
 static void consume_var(const StrConsumer c, const Var *var) {

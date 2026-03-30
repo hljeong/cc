@@ -1,7 +1,7 @@
 CC = gcc
 CFLAGS = -Wno-attributes -std=gnu11 -g
 BIN = cc
-SRCS = analyze.c codegen.c io.c lex.c parse.c main.c node.c token.c str.c type.c var.c
+SRCS = analyze.c codegen.c fun.c io.c lex.c main.c node.c parse.c prog.c str.c token.c type.c var.c
 OBJS = $(SRCS:.c=.o)
 
 .PHONY: all clean
