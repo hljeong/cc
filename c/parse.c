@@ -113,7 +113,7 @@ static Node *fun_decl() {
     while (!consume(TokenKind_RBRACE)) {
       cur = (cur->next = stmt());
     }
-    node->body = pop_lexeme(new_list_node(NodeKind_BLOCK, head.next));
+    node->fun_decl.body = pop_lexeme(new_list_node(NodeKind_BLOCK, head.next));
   }
   return pop_lexeme(node);
 }
@@ -156,11 +156,11 @@ static Node *stmt() {
   else if (consume(TokenKind_IF)) {
     Node *node = new_node(NodeKind_IF);
     expect(TokenKind_LPAREN);
-    node->cond = expr();
+    node->if_.cond = expr();
     expect(TokenKind_RPAREN);
-    node->then = stmt();
+    node->if_.then = stmt();
     if (consume(TokenKind_ELSE))
-      node->else_ = stmt();
+      node->if_.else_ = stmt();
     return pop_lexeme(node);
   }
 
@@ -170,18 +170,18 @@ static Node *stmt() {
     Node *node = new_node(NodeKind_FOR);
     expect(TokenKind_LPAREN);
     if (!consume(TokenKind_SEMICOLON)) {
-      node->init = expr();
+      node->for_.init = expr();
       expect(TokenKind_SEMICOLON);
     }
     if (!consume(TokenKind_SEMICOLON)) {
-      node->loop_cond = expr();
+      node->for_.cond = expr();
       expect(TokenKind_SEMICOLON);
     }
     if (!consume(TokenKind_RPAREN)) {
-      node->inc = expr();
+      node->for_.inc = expr();
       expect(TokenKind_RPAREN);
     }
-    node->loop_body = stmt();
+    node->for_.body = stmt();
     return pop_lexeme(node);
   }
 
@@ -189,9 +189,9 @@ static Node *stmt() {
   else if (consume(TokenKind_WHILE)) {
     Node *node = new_node(NodeKind_FOR);
     expect(TokenKind_LPAREN);
-    node->loop_cond = expr();
+    node->for_.cond = expr();
     expect(TokenKind_RPAREN);
-    node->loop_body = stmt();
+    node->for_.body = stmt();
     return pop_lexeme(node);
   }
 
@@ -208,14 +208,14 @@ static Node *stmt() {
     }
 
     Node *node = new_node(NodeKind_DECL_STMT);
-    node->head = head.next;
+    node->list.head = head.next;
     return pop_lexeme(node);
   }
 
   // expr? ";"
   else {
     Node *node = new_node(NodeKind_EXPR_STMT);
-    node->expr = expr();
+    node->expr_stmt.expr = expr();
     expect(TokenKind_SEMICOLON);
     return pop_lexeme(node);
   }
@@ -234,12 +234,12 @@ static Node *var_decl(Type *base_type) {
   src_push();
   Node *node = new_node(NodeKind_VAR_DECL);
 
-  node->var_declr = var_declr(base_type);
+  node->var_decl.var = var_declr(base_type);
 
   if (consume(TokenKind_EQ)) {
-    Node *var_ref = new_var_node(node->var_declr->name);
-    var_ref->lexeme = node->var_declr->lexeme;
-    node->var_init = add_lexeme(new_binop_node(NodeKind_ASSIGN, var_ref, expr()));
+    Node *var_ref = new_var_node(node->var_decl.var->var.name);
+    var_ref->lexeme = node->var_decl.var->lexeme;
+    node->var_decl.init = add_lexeme(new_binop_node(NodeKind_ASSIGN, var_ref, expr()));
   }
 
   return pop_lexeme(node);
@@ -249,13 +249,13 @@ static Node *var_decl(Type *base_type) {
 static Node *var_declr(Type *base_type) {
   src_push();
   Node *node = new_node(NodeKind_VAR);
-  node->is_decl = true;
+  node->var.is_decl = true;
 
   node->type = base_type;
   while (consume(TokenKind_STAR))
     node->type = new_pointer_type(node->type);
 
-  node->name = expect(TokenKind_IDENT)->lexeme;
+  node->var.name = expect(TokenKind_IDENT)->lexeme;
 
   return pop_lexeme(node);
 }
@@ -359,8 +359,8 @@ static Node *primary() {
     expect(TokenKind_RPAREN);
     return src_pop(), node;
   }
-  else if ((tok = consume(TokenKind_IDENT))) return pop_lexeme(new_var_node(tok->ident));
-  else if ((tok = consume(TokenKind_NUM)))   return pop_lexeme(new_num_node(tok->num));
+  else if ((tok = consume(TokenKind_IDENT))) return pop_lexeme(new_var_node(tok->ident.name));
+  else if ((tok = consume(TokenKind_NUM)))   return pop_lexeme(new_num_node(tok->num.value));
   else                                       error("%{@cur_tok} expected expression");
 }
 

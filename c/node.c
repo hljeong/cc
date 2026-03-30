@@ -36,8 +36,8 @@ void fmt_node_kind(const StrConsumer c, va_list ap) {
 static void consume_node(const StrConsumer c, const Node *node) {
   consume_f(c, "%{node_kind}", node->kind);
 
-  if      (node->kind == NodeKind_NUM) consume_f(c, "(%d)",    node->num);
-  else if (node->kind == NodeKind_VAR) consume_f(c, "(%{sv})", node->name);
+  if      (node->kind == NodeKind_NUM) consume_f(c, "(%d)",    node->num.value);
+  else if (node->kind == NodeKind_VAR) consume_f(c, "(%{sv})", node->var.name);
 
   // show type if applicable
   if      (node->type)                 consume_f(c, ": %{type}", node->type);
@@ -60,41 +60,42 @@ void _consume_ast(const StrConsumer c, const Node *node, StringBuilder *sb, cons
   else if (node->kind == NodeKind_VAR)       {}
 
   else if (node->kind == NodeKind_FUN_DECL) {
-    _consume_ast(c, node->body, sb, true);
+    _consume_ast(c, node->fun_decl.body, sb, true);
   }
 
   else if (node->kind == NodeKind_VAR_DECL) {
-    _consume_ast(c, node->var_declr, sb, !node->var_init);
-    _consume_ast(c, node->var_init, sb, true);
+    _consume_ast(c, node->var_decl.var,  sb, !node->var_decl.init);
+    _consume_ast(c, node->var_decl.init, sb, true);
   }
 
   else if (node->kind == NodeKind_EXPR_STMT) {
-    _consume_ast(c, node->expr, sb, true);
+    _consume_ast(c, node->expr_stmt.expr, sb, true);
   }
 
   else if (node->kind == NodeKind_IF) {
-    _consume_ast(c, node->cond, sb, false);
-    _consume_ast(c, node->body, sb, true);
+    _consume_ast(c, node->if_.cond,  sb, false);
+    _consume_ast(c, node->if_.then,  sb, !node->if_.else_);
+    _consume_ast(c, node->if_.else_, sb, true);
   }
 
   else if (node->kind == NodeKind_FOR) {
-    _consume_ast(c, node->init,      sb, false);
-    _consume_ast(c, node->loop_cond, sb, false);
-    _consume_ast(c, node->inc,       sb, false);
-    _consume_ast(c, node->loop_body, sb, true);
+    _consume_ast(c, node->for_.init, sb, false);
+    _consume_ast(c, node->for_.cond, sb, false);
+    _consume_ast(c, node->for_.inc,  sb, false);
+    _consume_ast(c, node->for_.body, sb, true);
   }
 
   else if (node_kind_is_unop(node->kind)) {
-    _consume_ast(c, node->operand, sb, true);
+    _consume_ast(c, node->unop.opr, sb, true);
   }
 
   else if (node_kind_is_binop(node->kind)) {
-    _consume_ast(c, node->lhs, sb, false);
-    _consume_ast(c, node->rhs, sb, true);
+    _consume_ast(c, node->binop.lhs, sb, false);
+    _consume_ast(c, node->binop.rhs, sb, true);
   }
 
   else if (node_kind_is_list(node->kind)) {
-    Node *child = node->head;
+    Node *child = node->list.head;
     while (child) {
       _consume_ast(c, child, sb, !(child->next));
       child = child->next;
@@ -147,37 +148,37 @@ Node *new_node(const NodeKind kind) {
   return node;
 }
 
-Node *new_num_node(const int num) {
+Node *new_num_node(const int value) {
   Node *node = new_node(NodeKind_NUM);
-  node->num = num;
+  node->num.value = value;
   return node;
 }
 
 Node *new_var_node(const StringView name) {
   Node *node = new_node(NodeKind_VAR);
-  node->name = name;
-  node->is_decl = false;
+  node->var.name = name;
+  node->var.is_decl = false;
   return node;
 }
 
-Node *new_unop_node(const NodeKind kind, Node *operand) {
+Node *new_unop_node(const NodeKind kind, Node *opr) {
   assert(node_kind_is_unop(kind), "not an unop: %{node_kind}", kind);
   Node *node = new_node(kind);
-  node->operand = operand;
+  node->unop.opr = opr;
   return node;
 }
 
 Node *new_binop_node(const NodeKind kind, Node *lhs, Node *rhs) {
   assert(node_kind_is_binop(kind), "not a binop: %{node_kind}", kind);
   Node *node = new_node(kind);
-  node->lhs = lhs;
-  node->rhs = rhs;
+  node->binop.lhs = lhs;
+  node->binop.rhs = rhs;
   return node;
 }
 
 Node *new_list_node(const NodeKind kind, Node *head) {
   assert(node_kind_is_list(kind), "not a list: %{node_kind}", kind);
   Node *node = new_node(kind);
-  node->head = head;
+  node->list.head = head;
   return node;
 }

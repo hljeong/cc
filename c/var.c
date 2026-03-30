@@ -5,18 +5,18 @@
 Var *new_var(Var *locals, Node *declr) {
   assert(declr->kind == NodeKind_VAR,
          "%{node_kind}", declr->kind);
-  assert(declr->is_decl);
+  assert(declr->var.is_decl);
 
-  if (sv_eq(locals->name, declr->name))
+  if (sv_eq(locals->name, declr->var.name))
     error("%{@node} already declared", declr);
   while (locals->next) {
     locals = locals->next;
-    if (sv_eq(locals->name, declr->name))
+    if (sv_eq(locals->name, declr->var.name))
       error("%{@node} already declared", declr);
   }
 
   Var *var = calloc(1, sizeof(Var));
-  var->name = declr->name;
+  var->name = declr->var.name;
   var->type = declr->type;
   var->decl = declr;
   return (locals->next = var);
@@ -24,7 +24,7 @@ Var *new_var(Var *locals, Node *declr) {
 
 Var *lookup_var(Var *locals, Node *node) {
   Var *var = locals;
-  while (!sv_eq(var->name, node->name)) {
+  while (!sv_eq(var->name, node->var.name)) {
     var = var->next;
     if (!var)
       error("%{@node} undeclared variable", node);

@@ -6,11 +6,11 @@ static void visit(Node *node);
 
 static void addr(const Node *node) {
   if (node->kind == NodeKind_VAR) {
-    print("  lea   %d(%%rbp), %%rax", node->var->offset);
+    print("  lea   %d(%%rbp), %%rax", node->var.var->offset);
   }
 
   else if (node->kind == NodeKind_DEREF) {
-    visit(node->operand);
+    visit(node->unop.opr);
   }
 
   else error("%{@node} not an lvalue: %{node_kind}",
@@ -45,7 +45,7 @@ static void visit(Node *node) {
     }
     print("  sub   $%d,  %%rsp", (offset + 15) / 16 * 16);
 
-    Node *cur = node->body->head;
+    Node *cur = node->fun_decl.body->list.head;
     while (cur) {
       visit(cur);
       cur = cur->next;
@@ -58,7 +58,7 @@ static void visit(Node *node) {
   }
 
   else if (node->kind == NodeKind_BLOCK) {
-    Node *cur = node->head;
+    Node *cur = node->list.head;
     while (cur) {
       visit(cur);
       cur = cur->next;
@@ -66,7 +66,7 @@ static void visit(Node *node) {
   }
 
   else if (node->kind == NodeKind_DECL_STMT) {
-    Node *cur = node->head;
+    Node *cur = node->list.head;
     while (cur) {
       visit(cur);
       cur = cur->next;
@@ -74,48 +74,48 @@ static void visit(Node *node) {
   }
 
   else if (node->kind ==NodeKind_VAR_DECL) {
-    visit(node->var_init);
+    visit(node->var_decl.init);
   }
 
   else if (node->kind == NodeKind_IF) {
       const int label = ctx.codegen.label++;
-      visit(node->cond);
+      visit(node->if_.cond);
       print("  cmp   $0, %%rax");
       print("  je    .L.%d.else", label);
-      visit(node->then);
+      visit(node->if_.then);
       print("  je    .L.%d.end", label);
       print(".L.%d.else:", label);
-      visit(node->else_);
+      visit(node->if_.else_);
       print(".L.%d.end:", label);
   }
 
   else if (node->kind == NodeKind_FOR) {
       const int label = ctx.codegen.label++;
-      visit(node->init);
+      visit(node->for_.init);
       print(".L.%d.cond:", label);
-      if (node->loop_cond) {
-        visit(node->loop_cond);
+      if (node->for_.cond) {
+        visit(node->for_.cond);
         print("  cmp   $0, %%rax");
         print("  je    .L.%d.end", label);
       }
-      visit(node->loop_body);
-      visit(node->inc);
+      visit(node->for_.body);
+      visit(node->for_.inc);
       print("  jmp   .L.%d.cond", label);
       print(".L.%d.end:", label);
   }
 
   else if (node->kind == NodeKind_RETURN) {
-      visit(node->operand);
+      visit(node->unop.opr);
       print("  jmp .L.return");
   }
 
   else if (node->kind == NodeKind_EXPR_STMT) {
-    visit(node->expr);
+    visit(node->expr_stmt.expr);
     assert(ctx.codegen.depth == 0);
   }
 
   else if (node->kind == NodeKind_NUM) {
-    print("  mov   $%d, %%rax", node->num);
+    print("  mov   $%d, %%rax", node->num.value);
   }
 
   else if (node->kind == NodeKind_VAR) {
@@ -124,31 +124,31 @@ static void visit(Node *node) {
   }
 
   else if (node->kind == NodeKind_ASSIGN) {
-    addr(node->lhs);
+    addr(node->binop.lhs);
     push();
-    visit(node->rhs);
+    visit(node->binop.rhs);
     pop("%rdi");
     print("  mov   %%rax, (%%rdi)");
   }
 
   else if (node->kind == NodeKind_NEG) {
-    visit(node->operand);
+    visit(node->unop.opr);
     print("  neg   %%rax");
   }
 
   else if (node->kind == NodeKind_ADDR) {
-    addr(node->operand);
+    addr(node->unop.opr);
   }
 
   else if (node->kind == NodeKind_DEREF) {
-    visit(node->operand);
+    visit(node->unop.opr);
     print("  mov   (%%rax), %%rax");
   }
 
   else if (node_kind_is_binop(node->kind)) {
-    visit(node->rhs);
+    visit(node->binop.rhs);
     push();
-    visit(node->lhs);
+    visit(node->binop.lhs);
     pop("%rdi");
 
     switch (node->kind) {

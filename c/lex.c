@@ -97,15 +97,15 @@ void lex() {
     else if (isdigit(ch)) {
       const char *start = ctx.lexer.loc;
       char *end = NULL;
-      const int num = strtoul(ctx.lexer.loc, &end, 10);
+      const int value = strtoul(ctx.lexer.loc, &end, 10);
       ctx.lexer.loc = end;
       cur = link(cur, new_token(TokenKind_NUM, ctx.lexer.loc - start));
-      cur->num = num;
+      cur->num.value = value;
     }
 
     else if ((len = consume_ident())) {
       cur = link(cur, new_token(TokenKind_IDENT, len));
-      cur->ident = cur->lexeme;
+      cur->ident.name = cur->lexeme;
     }
 
     else if ((len = consume("==")))   cur = link(cur, new_token(TokenKind_DEQ,       len));

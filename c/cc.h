@@ -145,10 +145,14 @@ struct Token {
   StringView lexeme;
   union {
     // TokenKind_NUM
-    int num;
+    struct {
+      int value;
+    } num;
 
     // TokenKind_IDENT
-    StringView ident;
+    struct {
+      StringView name;
+    } ident;
   };
   Token *prev, *next;
 };
@@ -190,35 +194,65 @@ struct Node {
   NodeKind kind;
   StringView lexeme;
   union {
-    int num;                     // NodeKind_NUM
+    // NodeKind_NUM
     struct {
-      StringView name;           // NodeKind_VAR
+      int value;
+    } num;
+
+    // NodeKind_VAR
+    struct {
+      StringView name;
       Var *var;
       bool is_decl;
-    };
-    Node *operand;               // node_kind_id_unop()
-    struct { Node *lhs, *rhs; }; // node_kind_is_binop()
-    Node *head;                  // node_kind_is_list()
-    struct {                     // NodeKind_FUN_DECL
+    } var;
+
+    // node_kind_id_unop()
+    struct {
+      Node *opr;
+    } unop;
+
+    // node_kind_is_binop()
+    struct {
+      Node *lhs;
+      Node *rhs;
+    } binop;
+
+    // node_kind_is_list()
+    struct {
+      Node *head;
+    } list;
+
+    // NodeKind_FUN_DECL
+    struct {
       Node *body;
       Var *locals;
-    };
-    Node *expr;                  // NodeKind_EXPR_STMT
-    struct {                     // NodeKind_IF
+    } fun_decl;
+
+    // NodeKind_EXPR_STMT
+    struct {
+      Node *expr;
+    } expr_stmt;
+
+    // NodeKind_IF
+    struct {
       Node *cond;
       Node *then;
       Node *else_;
-    };
-    struct {                     // NodeKind_FOR
+    } if_;
+
+    // NodeKind_FOR
+    struct {
       Node *init;
-      Node *loop_cond;
+      Node *cond;
       Node *inc;
-      Node *loop_body;
-    };
-    struct {                     // NodeKind_VAR_DECL
-      Node *var_declr;
-      Node *var_init;
-    };
+      Node *body;
+    } for_;
+
+    // NodeKind_VAR_DECL
+    struct {
+      Node *var;
+      Node *init;
+    } var_decl;
   };
   Type *type;
   Node *next;
@@ -230,7 +264,7 @@ bool node_kind_is_binop  (const NodeKind kind);
 bool node_kind_is_list   (const NodeKind kind);
 
 Node *new_node      (const NodeKind kind);
-Node *new_num_node  (const int num);
+Node *new_num_node  (const int value);
 Node *new_var_node  (const StringView name);
 Node *new_unop_node (const NodeKind kind, Node *operand);
 Node *new_binop_node(const NodeKind kind, Node *lhs, Node *rhs);
