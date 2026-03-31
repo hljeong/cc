@@ -118,7 +118,6 @@ StrFormatter FORMATTERS[] = {
   (StrFormatter) { .spec = "ast",          .fmt_arg = fmt_arg_ast,          .fmt_ptr = NULL },
   (StrFormatter) { .spec = "type_kind",    .fmt_arg = fmt_arg_type_kind,    .fmt_ptr = NULL },
   (StrFormatter) { .spec = "type",         .fmt_arg = fmt_arg_type,         .fmt_ptr = fmt_ptr_type },
-  (StrFormatter) { .spec = "var",          .fmt_arg = fmt_arg_var,          .fmt_ptr = NULL },
   (StrFormatter) { .spec = "symbol_kind",  .fmt_arg = fmt_arg_symbol_kind,  .fmt_ptr = NULL },
   (StrFormatter) { .spec = "symbol",       .fmt_arg = fmt_arg_symbol,       .fmt_ptr = fmt_ptr_symbol },
   (StrFormatter) { .spec = NULL,           .fmt_arg = NULL,                 .fmt_ptr = NULL },

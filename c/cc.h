@@ -10,7 +10,6 @@ typedef enum TokenKind TokenKind;
 typedef struct Token Token;
 typedef enum NodeKind NodeKind;
 typedef struct Node Node;
-typedef struct Var Var;
 typedef struct Fun Fun;
 typedef struct Prog Prog;
 typedef enum SymbolKind SymbolKind;
@@ -82,7 +81,6 @@ void fmt_arg_node        (const StrConsumer c, va_list ap);
 void fmt_arg_ast         (const StrConsumer c, va_list ap);
 void fmt_arg_type_kind   (const StrConsumer c, va_list ap);
 void fmt_arg_type        (const StrConsumer c, va_list ap);
-void fmt_arg_var         (const StrConsumer c, va_list ap);
 void fmt_arg_symbol_kind (const StrConsumer c, va_list ap);
 void fmt_arg_symbol      (const StrConsumer c, va_list ap);
 
@@ -214,7 +212,6 @@ struct Node {
     // NodeKind_VAR
     struct {
       StringView name;
-      Var *var;
       Symbol *var2;
       Node *params;
       bool is_decl;
@@ -299,28 +296,12 @@ Node *new_binop_node(const NodeKind kind, Node *lhs, Node *rhs);
 Node *new_list_node (const NodeKind kind, Node *head);
 
 
-// var
-
-struct Var {
-  StringView name;
-  Type *type;
-  Node *decl;
-  int offset;
-  Var *next;
-};
-
-Var *new_var   (Node *declr);
-Var *lookup_var(Node *node);
-
-
 // fun
 
 struct Fun {
   StringView name;
   Type *type;
   Node *decl;
-  Var *params;
-  Var *locals;
   int stack_size;
   int label;
   Fun *next;
