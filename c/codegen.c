@@ -8,7 +8,7 @@ static void visit(Node *node);
 
 static void addr(const Node *node) {
   if (node->kind == NodeKind_REF) {
-    print("  lea   %d(%%rbp), %%rax", node->var.symbol->var.offset);
+    print("  lea   %d(%%rbp), %%rax", node->ref.symbol->var.offset);
   }
 
   else if (node->kind == NodeKind_DEREF) {
@@ -160,7 +160,7 @@ static void visit(Node *node) {
       pop(arg_reg[i]);
 
     print("  mov   $0, %%rax");
-    print("  call  %{sv}", node->unop.opr->var.name);
+    print("  call  %{sv}", node->unop.opr->ref.name);
   }
 
   else if (node->kind == NodeKind_NEG) {

@@ -44,15 +44,15 @@ static void consume_node(const StrConsumer c, const Node *node) {
     // references are not annotated with type at parse time
     if (node->type)
       consume_f(c, "(%{sv}: %{type})",
-                node->var.name, node->type);
+                node->ref.name, node->type);
     else
-      consume_f(c, "(%{sv})", node->var.name);
+      consume_f(c, "(%{sv})", node->ref.name);
   }
 
   else if (node->kind == NodeKind_DECL) {
     // declarations always have a type
     consume_f(c, "(%{sv}: %{type})",
-              node->var.name, node->type);
+              node->ref.name, node->type);
   }
 
   // show type if applicable
@@ -201,9 +201,9 @@ Node *new_num_node(const int value) {
   return node;
 }
 
-Node *new_var_node(const StringView name) {
+Node *new_ref_node(const StringView name) {
   Node *node = new_node(NodeKind_REF);
-  node->var.name = name;
+  node->ref.name = name;
   return node;
 }
 

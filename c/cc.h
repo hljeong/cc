@@ -214,7 +214,7 @@ struct Node {
     struct {
       StringView name;
       Symbol *symbol;     // populated at analysis time
-    } var;
+    } ref;
 
     // NodeKind_DECL
     struct {
@@ -295,7 +295,7 @@ bool node_kind_is_list   (const NodeKind kind);
 
 Node *new_node      (const NodeKind kind);
 Node *new_num_node  (const int value);
-Node *new_var_node  (const StringView name);
+Node *new_ref_node  (const StringView name);
 Node *new_unop_node (const NodeKind kind, Node *operand);
 Node *new_binop_node(const NodeKind kind, Node *lhs, Node *rhs);
 Node *new_list_node (const NodeKind kind, Node *head);

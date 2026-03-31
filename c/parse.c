@@ -249,7 +249,7 @@ static Node *var_decl(Type *base_type) {
   node->var_decl.decl = declarator(base_type);
 
   if (consume(TokenKind_EQ)) {
-    Node *var_ref = new_var_node(node->var_decl.decl->decl.name);
+    Node *var_ref = new_ref_node(node->var_decl.decl->decl.name);
     var_ref->lexeme = node->var_decl.decl->lexeme;
     node->var_decl.init = add_lexeme(new_binop_node(NodeKind_ASSIGN, var_ref, expr()));
   }
@@ -398,7 +398,7 @@ static Node *primary() {
   }
 
   else if ((tok = consume(TokenKind_IDENT))) {
-    Node *node = add_lexeme(new_var_node(tok->ident.name));
+    Node *node = add_lexeme(new_ref_node(tok->ident.name));
     if (consume(TokenKind_LPAREN)) {
       Node *call = new_node(NodeKind_CALL);
       call->call.fun = node;

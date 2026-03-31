@@ -101,6 +101,7 @@ check 'function call' '1' 'int f() { return 1; } int main() { return f(); }'
 check 'function call with 1 arg' '3' 'int f(int x) { return x; } int main() { return f(3); }'
 check 'function call with args' '1' 'int f(int x, int y, int z) { return x; } int main() { int x = 1, y = 2, z = 3; return f(x, y, z); }'
 check 'function call with diverse args' '2' 'int f(int x, int y, int *z) { if (*z == x) return x; else return y; } int main() { int x = 1, y = 2, *z = &y; return f(x, y, z); }'
+check 'factorial' '120' 'int fact(int n) { if (n == 0) return 1; else return n * fact(n - 1); } int main() { return fact(5); }'
 
 echo ""
 echo "=== results: $passed passed, $failed failed ==="

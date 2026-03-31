@@ -7,12 +7,12 @@ static void visit(Node **node_ptr) {
   if (!node) {}
 
   else if (node->kind == NodeKind_PROG) {
-    for (Node *cur = node->prog.head; cur; cur = cur->next) {
+    for (Node *cur = node->prog.head; cur; cur = cur->next)
       visit(&cur);
-    }
   }
 
   else if (node->kind == NodeKind_FUN_DECL) {
+    // declare function first before visiting body, to allow recursion
     ctx.analyzer.fun = (node->fun_decl.fun = new_fun(node->fun_decl.decl));
 
     {
@@ -71,12 +71,12 @@ static void visit(Node **node_ptr) {
   else if (node_kind_is_unop(node->kind)) {
     visit(&node->unop.opr);
 
-    if      (node->kind == NodeKind_NEG)   node->type = node->unop.opr->type;
-    else if (node->kind == NodeKind_ADDR)  node->type = new_ptr_type(node->unop.opr->type);
+    if      (node->kind == NodeKind_NEG)  node->type = node->unop.opr->type;
+    else if (node->kind == NodeKind_ADDR) node->type = new_ptr_type(node->unop.opr->type);
 
     else if (node->kind == NodeKind_DEREF) {
       if (node->unop.opr->type->kind != TypeKind_PTR)
-        error("%{@node} not an lvalue: %{type}",
+        error("%{@node} not an pointer: %{type}",
               node, node->unop.opr->type);
       node->type = node->unop.opr->type->ptr.referenced;
     }
@@ -93,8 +93,9 @@ static void visit(Node **node_ptr) {
   }
 
   else if (node->kind == NodeKind_CALL) {
-    Symbol *fun = lookup_fun(node->call.fun);
-    Symbol *param = fun->fun.params;
+    node->ref.symbol = lookup_fun(node->call.fun);
+    node->type = node->ref.symbol->type;
+    Symbol *param = node->ref.symbol->fun.params;
     Node *arg = node->call.args;
     for (; arg && param; (arg = arg->next), (param = param->next)) {
       visit(&arg);
@@ -112,7 +113,7 @@ static void visit(Node **node_ptr) {
             node->lexeme.loc + node->lexeme.len - 1,
             param->name, param->type);
 
-    node->type = fun->type->fun.returns;
+    node->type = node->ref.symbol->type->fun.returns;
   }
 
   else if (node->kind == NodeKind_ASSIGN) {
@@ -248,8 +249,8 @@ static void visit(Node **node_ptr) {
   }
 
   else if (node->kind == NodeKind_REF) {
-    node->var.symbol = lookup_var(node);
-    node->type = node->var.symbol->type;
+    node->ref.symbol = lookup_var(node);
+    node->type = node->ref.symbol->type;
   }
 
   else if (node->kind == NodeKind_NUM) {
