@@ -7,7 +7,6 @@ static void visit(Node **node_ptr) {
   if (!node) {}
 
   else if (node->kind == NodeKind_PROG) {
-    ctx.analyzer.prog = (node->prog.prog = new_prog(node));
     for (Node *cur = node->prog.head; cur; cur = cur->next) {
       visit(&cur);
     }

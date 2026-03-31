@@ -10,7 +10,6 @@ typedef enum TokenKind TokenKind;
 typedef struct Token Token;
 typedef enum NodeKind NodeKind;
 typedef struct Node Node;
-typedef struct Prog Prog;
 typedef enum SymbolKind SymbolKind;
 typedef struct Symbol Symbol;
 typedef enum TypeKind TypeKind;
@@ -235,7 +234,6 @@ struct Node {
     // NodeKind_PROG
     struct {
       Node *head;
-      Prog *prog;
     } prog;
 
     // NodeKind_FUN_DECL
@@ -292,13 +290,6 @@ Node *new_var_node  (const StringView name);
 Node *new_unop_node (const NodeKind kind, Node *operand);
 Node *new_binop_node(const NodeKind kind, Node *lhs, Node *rhs);
 Node *new_list_node (const NodeKind kind, Node *head);
-
-
-// prog
-
-struct Prog {};
-
-Prog *new_prog(Node *decl);
 
 
 // symbol
@@ -403,13 +394,11 @@ typedef struct {
   } parser;
 
   struct {
-    Prog *prog;
     Symbol *fun2;
   } analyzer;
 
   struct {
     int depth;
-    Prog *prog;
     Symbol *fun2;
   } codegen;
 } Context;

@@ -33,7 +33,6 @@ static void visit(Node *node) {
   if (!node) return;
 
   if (node->kind == NodeKind_PROG) {
-    ctx.codegen.prog = node->prog.prog;
     Node *cur = node->list.head;
     while (cur) {
       visit(cur);
