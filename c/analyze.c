@@ -13,34 +13,34 @@ static void visit(Node **node_ptr) {
   }
 
   else if (node->kind == NodeKind_FUN_DECL) {
-    ctx.analyzer.fun2 = (node->fun_decl.fun2 = new_fun2(node->fun_decl.var));
+    ctx.analyzer.fun = (node->fun_decl.fun = new_fun(node->fun_decl.var));
 
     {
       Node *param = node->fun_decl.var->var.params;
       while (param) {
-        new_var2(param);
+        new_var(param);
         param = param->next;
       }
 
       // right now params are in reverse order. reverse the linked list
-      if (ctx.analyzer.fun2->fun.locals) {
+      if (ctx.analyzer.fun->fun.locals) {
         Symbol *prev = NULL;
-        while (ctx.analyzer.fun2->fun.locals) {
-          Symbol *next = ctx.analyzer.fun2->fun.locals->next;
-          ctx.analyzer.fun2->fun.locals->next = prev;
-          prev = ctx.analyzer.fun2->fun.locals;
-          ctx.analyzer.fun2->fun.locals = next;
+        while (ctx.analyzer.fun->fun.locals) {
+          Symbol *next = ctx.analyzer.fun->fun.locals->next;
+          ctx.analyzer.fun->fun.locals->next = prev;
+          prev = ctx.analyzer.fun->fun.locals;
+          ctx.analyzer.fun->fun.locals = next;
         }
-        ctx.analyzer.fun2->fun.locals = prev;
+        ctx.analyzer.fun->fun.locals = prev;
       }
-      ctx.analyzer.fun2->fun.params = ctx.analyzer.fun2->fun.locals;
+      ctx.analyzer.fun->fun.params = ctx.analyzer.fun->fun.locals;
     }
 
     visit(&node->fun_decl.body);
 
     // allocate local vars
     int offset = 0;
-    for (Symbol *var = ctx.analyzer.fun2->fun.locals; var; var = var->next) {
+    for (Symbol *var = ctx.analyzer.fun->fun.locals; var; var = var->next) {
       assert(var->kind == SymbolKind_VAR);
       offset += 8;
       // todo: why is this negative?
@@ -48,7 +48,7 @@ static void visit(Node **node_ptr) {
     }
     // align to 16-byte boundary
     // todo: why?
-    ctx.analyzer.fun2->fun.stack_size = (offset + 15) / 16 * 16;
+    ctx.analyzer.fun->fun.stack_size = (offset + 15) / 16 * 16;
   }
 
   else if (node->kind == NodeKind_EXPR_STMT) {
@@ -82,10 +82,10 @@ static void visit(Node **node_ptr) {
     }
 
     else if (node->kind == NodeKind_RETURN) {
-      if (!type_eq(ctx.analyzer.fun2->type->fun.returns, node->unop.opr->type))
+      if (!type_eq(ctx.analyzer.fun->type->fun.returns, node->unop.opr->type))
         error("%{@node} expected to return %{type}, got: %{type}",
               node->unop.opr,
-              ctx.analyzer.fun2->type->fun.returns,
+              ctx.analyzer.fun->type->fun.returns,
               node->unop.opr->type);
     }
 
@@ -240,7 +240,7 @@ static void visit(Node **node_ptr) {
       visit(&node->var_decl.init->binop.rhs);
 
     // declare var
-    node->var_decl.var->var.var2 = new_var2(node->var_decl.var);
+    node->var_decl.var->var.var = new_var(node->var_decl.var);
 
     // type check
     if (node->var_decl.init)
@@ -250,8 +250,8 @@ static void visit(Node **node_ptr) {
   else if (node->kind == NodeKind_VAR) {
     // var declarations are handled in visit(NodeKind_VAR_DECL)
     assert(!node->var.is_decl);
-    node->var.var2 = lookup_var2(node);
-    node->type = node->var.var2->type;
+    node->var.var = lookup_var(node);
+    node->type = node->var.var->type;
   }
 
   else if (node->kind == NodeKind_NUM) {

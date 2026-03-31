@@ -210,7 +210,7 @@ struct Node {
     // NodeKind_VAR
     struct {
       StringView name;
-      Symbol *var2;
+      Symbol *var;
       Node *params;
       bool is_decl;
     } var;
@@ -240,7 +240,7 @@ struct Node {
     struct {
       Node *var;  // todo: def some bad abstraction here
       Node *body;
-      Symbol *fun2;
+      Symbol *fun;
     } fun_decl;
 
     // NodeKind_EXPR_STMT
@@ -323,11 +323,11 @@ struct Symbol {
   Symbol *next;
 };
 
-Symbol *new_var2   (Node *decl);
-Symbol *new_fun2   (Node *decl);
+Symbol *new_var   (Node *decl);
+Symbol *new_fun   (Node *decl);
 
-Symbol *lookup_var2(Node *var);
-Symbol *lookup_fun (Node *fun);
+Symbol *lookup_var(Node *var);
+Symbol *lookup_fun(Node *fun);
 
 
 // type
@@ -394,12 +394,12 @@ typedef struct {
   } parser;
 
   struct {
-    Symbol *fun2;
+    Symbol *fun;
   } analyzer;
 
   struct {
     int depth;
-    Symbol *fun2;
+    Symbol *fun;
   } codegen;
 } Context;
 

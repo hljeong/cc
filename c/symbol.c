@@ -26,12 +26,12 @@ void fmt_arg_symbol(const StrConsumer c, va_list ap) {
   consume_symbol(c, va_arg(ap, const Symbol *));
 }
 
-Symbol *new_var2(Node *decl) {
+Symbol *new_var(Node *decl) {
   assert(decl->kind == NodeKind_VAR,
          "%{node_kind}", decl->kind);
   assert(decl->var.is_decl);
 
-  for (Symbol *local = ctx.analyzer.fun2->fun.locals; local; local = local->next) {
+  for (Symbol *local = ctx.analyzer.fun->fun.locals; local; local = local->next) {
     assert(local->kind == SymbolKind_VAR);
     if (sv_eq(decl->var.name, local->name))
       error("%{@node} already declared", decl);
@@ -42,12 +42,12 @@ Symbol *new_var2(Node *decl) {
   var->name = decl->var.name;
   var->type = decl->type;
   var->decl = decl;
-  var->next = ctx.analyzer.fun2->fun.locals;
-  return (ctx.analyzer.fun2->fun.locals = var);
+  var->next = ctx.analyzer.fun->fun.locals;
+  return (ctx.analyzer.fun->fun.locals = var);
 }
 
 // todo: awfully similar to new_var2()!!!!! i smell refactor :d
-Symbol *new_fun2(Node *decl) {
+Symbol *new_fun(Node *decl) {
   assert(decl->kind == NodeKind_VAR,
          "%{node_kind}", decl->kind);
   assert(decl->var.is_decl);
@@ -67,8 +67,8 @@ Symbol *new_fun2(Node *decl) {
   return (ctx.globals = fun);
 }
 
-Symbol *lookup_var2(Node *var) {
-  for (Symbol *local = ctx.analyzer.fun2->fun.locals; local; local = local->next) {
+Symbol *lookup_var(Node *var) {
+  for (Symbol *local = ctx.analyzer.fun->fun.locals; local; local = local->next) {
     if (sv_eq(local->name, var->var.name))
       return local;
   }
