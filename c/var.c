@@ -32,13 +32,12 @@ static void consume_var(const StrConsumer c, const Var *var) {
   consume_f(c, "%{sv}: %{type}", var->name, var->type);
 }
 
-void fmt_var(const StrConsumer c, va_list ap) {
+void fmt_arg_var(const StrConsumer c, va_list ap) {
   consume_var(c, va_arg(ap, const Var *));
 }
 
-void fmt_vars(const StrConsumer c, va_list ap) {
+void fmt_arg_vars(const StrConsumer c, va_list ap) {
   const Var *vars = va_arg(ap, const Var *);
-  vars = vars->next;
 
   if (!vars) consume_f(c, "{}");
   else {

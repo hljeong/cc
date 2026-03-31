@@ -49,11 +49,11 @@ static void consume_at_loc(const StrConsumer c, const char *loc) {
   consume_f(c, "%*s^", col, "");
 }
 
-void fmt_at_loc(const StrConsumer c, va_list ap) {
+void fmt_arg_at_loc(const StrConsumer c, va_list ap) {
   consume_at_loc(c, va_arg(ap, const char *));
 }
 
-void fmt_at_cur_loc(const StrConsumer c, va_list ap) {
+void fmt_arg_at_cur_loc(const StrConsumer c, va_list ap) {
   consume_at_loc(c, ctx.lexer.loc);
 }
 
@@ -69,16 +69,16 @@ static void consume_at_span(const StrConsumer c, const StringView span) {
     consume_f(c, "%c", '~');
 }
 
-void fmt_at_tok(const StrConsumer c, va_list ap) {
+void fmt_arg_at_tok(const StrConsumer c, va_list ap) {
   const Token *tok = va_arg(ap, const Token *);
   consume_at_span(c, tok->lexeme);
 }
 
-void fmt_at_cur_tok(const StrConsumer c, va_list ap) {
+void fmt_arg_cur_tok(const StrConsumer c, va_list ap) {
   consume_at_span(c, ctx.parser.tok->lexeme);
 }
 
-void fmt_at_node(const StrConsumer c, va_list ap) {
+void fmt_arg_at_node(const StrConsumer c, va_list ap) {
   const Node *node = va_arg(ap, const Node *);
   consume_at_span(c, node->lexeme);
 }

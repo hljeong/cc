@@ -17,7 +17,7 @@ bool sv_eq_s(const StringView s, const char *t) {
   return (s.len == len) && !strncmp(s.loc, t, len);
 }
 
-static void fmt_sv(const StrConsumer c, va_list ap) {
+static void fmt_arg_sv(const StrConsumer c, va_list ap) {
   const StringView sv = va_arg(ap, StringView);
   consume_f(c, "%.*s", sv.len, sv.loc);
 }
@@ -85,24 +85,43 @@ static void consume_s(const StrConsumer c, const char *s) {
   c.consume(s, c.ctx);
 }
 
+static void fmt_arg_list(const StrConsumer c, va_list ap) {
+  const char *spec = va_arg(ap, const char *);
+  StrFormatter *formatter = &FORMATTERS[0];
+  while (formatter->spec) {
+    if (!strcmp(spec, formatter->spec)) break;
+    formatter++;
+  }
+  assert(formatter->spec, "unknown spec: %s", spec);
+
+  void *ptr = va_arg(ap, void *);
+  consume_s(c, "[");
+  while (ptr) {
+    ptr = formatter->fmt_ptr(c, ptr);
+    if (ptr) consume_s(c, ", ");
+  }
+  consume_s(c, "]");
+}
+
 StrFormatter FORMATTERS[] = {
-  (StrFormatter) { .spec = "@loc",         .fmt = fmt_at_loc },
-  (StrFormatter) { .spec = "@cur_loc",     .fmt = fmt_at_cur_loc },
-  (StrFormatter) { .spec = "@tok",         .fmt = fmt_at_tok },
-  (StrFormatter) { .spec = "@cur_tok",     .fmt = fmt_at_cur_tok },
-  (StrFormatter) { .spec = "@node",        .fmt = fmt_at_node },
-  (StrFormatter) { .spec = "sv",           .fmt = fmt_sv },
-  (StrFormatter) { .spec = "token_kind",   .fmt = fmt_token_kind },
-  (StrFormatter) { .spec = "token",        .fmt = fmt_token },
-  (StrFormatter) { .spec = "token_stream", .fmt = fmt_token_stream },
-  (StrFormatter) { .spec = "node_kind",    .fmt = fmt_node_kind },
-  (StrFormatter) { .spec = "node",         .fmt = fmt_node },
-  (StrFormatter) { .spec = "ast",          .fmt = fmt_ast },
-  (StrFormatter) { .spec = "type_kind",    .fmt = fmt_type_kind },
-  (StrFormatter) { .spec = "type",         .fmt = fmt_type },
-  (StrFormatter) { .spec = "var",          .fmt = fmt_var },
-  (StrFormatter) { .spec = "vars",         .fmt = fmt_vars },
-  (StrFormatter) { .spec = NULL,           .fmt = NULL },
+  (StrFormatter) { .spec = "list",         .fmt_arg = fmt_arg_list,         .fmt_ptr = NULL },
+  (StrFormatter) { .spec = "@loc",         .fmt_arg = fmt_arg_at_loc,       .fmt_ptr = NULL },
+  (StrFormatter) { .spec = "@cur_loc",     .fmt_arg = fmt_arg_at_cur_loc,   .fmt_ptr = NULL },
+  (StrFormatter) { .spec = "@tok",         .fmt_arg = fmt_arg_at_tok,       .fmt_ptr = NULL },
+  (StrFormatter) { .spec = "@cur_tok",     .fmt_arg = fmt_arg_cur_tok,      .fmt_ptr = NULL },
+  (StrFormatter) { .spec = "@node",        .fmt_arg = fmt_arg_at_node,      .fmt_ptr = NULL },
+  (StrFormatter) { .spec = "sv",           .fmt_arg = fmt_arg_sv,           .fmt_ptr = NULL },
+  (StrFormatter) { .spec = "token_kind",   .fmt_arg = fmt_arg_token_kind,   .fmt_ptr = NULL },
+  (StrFormatter) { .spec = "token",        .fmt_arg = fmt_arg_token,        .fmt_ptr = fmt_ptr_token, },
+  (StrFormatter) { .spec = "node_kind",    .fmt_arg = fmt_arg_node_kind,    .fmt_ptr = NULL },
+  (StrFormatter) { .spec = "node",         .fmt_arg = fmt_arg_node,         .fmt_ptr = fmt_ptr_node },
+  (StrFormatter) { .spec = "ast",          .fmt_arg = fmt_arg_ast,          .fmt_ptr = NULL },
+  (StrFormatter) { .spec = "type_kind",    .fmt_arg = fmt_arg_type_kind,    .fmt_ptr = NULL },
+  (StrFormatter) { .spec = "type",         .fmt_arg = fmt_arg_type,         .fmt_ptr = fmt_ptr_type },
+  (StrFormatter) { .spec = "var",          .fmt_arg = fmt_arg_var,          .fmt_ptr = NULL },
+  (StrFormatter) { .spec = "symbol_kind",  .fmt_arg = fmt_arg_symbol_kind,  .fmt_ptr = NULL },
+  (StrFormatter) { .spec = "symbol",       .fmt_arg = fmt_arg_symbol,       .fmt_ptr = fmt_ptr_symbol },
+  (StrFormatter) { .spec = NULL,           .fmt_arg = NULL,                 .fmt_ptr = NULL },
 };
 
 void consume_v(const StrConsumer c, const char *fmt, va_list ap) {
@@ -148,7 +167,7 @@ void consume_v(const StrConsumer c, const char *fmt, va_list ap) {
       StrFormatter *formatter = &FORMATTERS[0];
       while (formatter->spec) {
         if (!strcmp(spec, formatter->spec)) {
-          formatter->fmt(c, ap);
+          formatter->fmt_arg(c, ap);
           break;
         }
         formatter++;

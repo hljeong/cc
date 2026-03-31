@@ -98,6 +98,9 @@ check 'pointer arithmetic' '6' 'int main() { int y = 5; int x = 3; *(&y - 20 + 3
 check 'multiple declarations' '14' 'int main() { int x = 3, y = 5; return x * y - 1; }'
 check 'refer to declared vars in same stmt' '3' 'int main() { int x = 3, *y = &x, z = *y; z; }'
 check 'function call' '1' 'int f() { return 1; } int main() { return f(); }'
+check 'function call with 1 arg' '3' 'int f(int x) { return x; } int main() { return f(3); }'
+check 'function call with args' '1' 'int f(int x, int y, int z) { return x; } int main() { int x = 1, y = 2, z = 3; return f(x, y, z); }'
+check 'function call with diverse args' '2' 'int f(int x, int y, int *z) { if (*z == x) return x; else return y; } int main() { int x = 1, y = 2, *z = &y; return f(x, y, z); }'
 
 echo ""
 echo "=== results: $passed passed, $failed failed ==="

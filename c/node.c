@@ -30,7 +30,7 @@ static void consume_node_kind(const StrConsumer c, const NodeKind kind) {
   else                                 fail("unexpected node kind: %d", kind);
 }
 
-void fmt_node_kind(const StrConsumer c, va_list ap) {
+void fmt_arg_node_kind(const StrConsumer c, va_list ap) {
   consume_node_kind(c, va_arg(ap, const NodeKind));
 }
 
@@ -44,7 +44,12 @@ static void consume_node(const StrConsumer c, const Node *node) {
   if      (node->type)                 consume_f(c, ": %{type}", node->type);
 }
 
-void fmt_node(const StrConsumer c, va_list ap) {
+void *fmt_ptr_node(const StrConsumer c, void *ptr) {
+  consume_node(c, ptr);
+  return ((const Node *) ptr)->next;
+}
+
+void fmt_arg_node(const StrConsumer c, va_list ap) {
   consume_node(c, va_arg(ap, const Node *));
 }
 
@@ -133,7 +138,7 @@ static void consume_ast(const StrConsumer c, const Node *node) {
   sb_free(&sb);
 }
 
-void fmt_ast(const StrConsumer c, va_list ap) {
+void fmt_arg_ast(const StrConsumer c, va_list ap) {
   consume_ast(c, va_arg(ap, const Node *));
 }
 

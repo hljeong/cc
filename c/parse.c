@@ -256,7 +256,9 @@ static Node *var_decl(Type *base_type) {
   return pop_lexeme(node);
 }
 
-// var_declr ::= "*"* ident ("(" ")")?
+// var_declr ::= "*"* ident ("(" params? ")")?
+// params ::= param ("," param)*
+// param ::= var_declspec var_declr
 static Node *var_declr(Type *base_type) {
   src_push();
   Node *node = new_node(NodeKind_VAR);
@@ -269,8 +271,21 @@ static Node *var_declr(Type *base_type) {
   node->var.name = expect(TokenKind_IDENT)->lexeme;
 
   if (consume(TokenKind_LPAREN)) {
-    expect(TokenKind_RPAREN);
-    node->type = new_fun_type(node->type);
+    if (!consume(TokenKind_RPAREN)){
+      Node head = {};
+      Node *cur = &head;
+      {
+        Type *type = var_declspec();
+        cur = (cur->next = var_declr(type));
+      }
+      while (!consume(TokenKind_RPAREN)) {
+        expect(TokenKind_COMMA);
+        Type *type = var_declspec();
+        cur = (cur->next = var_declr(type));
+      }
+      node->var.params = head.next;
+    }
+    node->type = new_fun_type(node->type, node->var.params);
   }
 
   return pop_lexeme(node);

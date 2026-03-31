@@ -32,7 +32,7 @@ static void consume_token_kind(const StrConsumer c, const TokenKind kind) {
   else                                  fail("unexpected token kind: %d", kind);
 }
 
-void fmt_token_kind(const StrConsumer c, va_list ap) {
+void fmt_arg_token_kind(const StrConsumer c, va_list ap) {
   consume_token_kind(c, va_arg(ap, const TokenKind));
 }
 
@@ -42,20 +42,13 @@ static void consume_token(const StrConsumer c, const Token *tok) {
   else if (tok->kind == TokenKind_IDENT) consume_f(c, "(%{sv})", tok->ident);
 }
 
-void fmt_token(const StrConsumer c, va_list ap) {
+void *fmt_ptr_token(const StrConsumer c, void *ptr) {
+  consume_token(c, ptr);
+  return ((const Token *) ptr)->next;
+}
+
+void fmt_arg_token(const StrConsumer c, va_list ap) {
   consume_token(c, va_arg(ap, const Token *));
-}
-
-static void consume_token_stream(const StrConsumer c, const Token *tok) {
-  consume_f(c, "[[");
-  do {
-    consume_f(c, " %{token}", tok);
-  } while ((tok = tok->next));
-  consume_f(c, " ]]");
-}
-
-void fmt_token_stream(const StrConsumer c, va_list ap) {
-  consume_token_stream(c, va_arg(ap, const Token *));
 }
 
 Token *new_token(const TokenKind kind, const int len) {

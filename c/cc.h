@@ -13,6 +13,8 @@ typedef struct Node Node;
 typedef struct Var Var;
 typedef struct Fun Fun;
 typedef struct Prog Prog;
+typedef enum SymbolKind SymbolKind;
+typedef struct Symbol Symbol;
 typedef enum TypeKind TypeKind;
 typedef struct Type Type;
 
@@ -55,10 +57,12 @@ struct StrConsumer {
   void *ctx;
 };
 
-typedef void (*FormatStr)(const StrConsumer, va_list);
+typedef void (*FormatArg)(const StrConsumer, va_list);
+typedef void *(*FormatPtr)(const StrConsumer, void *);
 struct StrFormatter {
   const char *spec;
-  FormatStr fmt;
+  FormatArg fmt_arg;
+  FormatPtr fmt_ptr;
 };
 
 extern StrFormatter FORMATTERS[];
@@ -66,21 +70,26 @@ extern StrFormatter FORMATTERS[];
 void consume_v(const StrConsumer c, const char *fmt, va_list ap);
 void consume_f(const StrConsumer c, const char *fmt, ...);
 
-void fmt_at_loc      (const StrConsumer c, va_list ap);
-void fmt_at_cur_loc  (const StrConsumer c, va_list ap);
-void fmt_at_tok      (const StrConsumer c, va_list ap);
-void fmt_at_cur_tok  (const StrConsumer c, va_list ap);
-void fmt_at_node     (const StrConsumer c, va_list ap);
-void fmt_token_kind  (const StrConsumer c, va_list ap);
-void fmt_token       (const StrConsumer c, va_list ap);
-void fmt_token_stream(const StrConsumer c, va_list ap);
-void fmt_node_kind   (const StrConsumer c, va_list ap);
-void fmt_node        (const StrConsumer c, va_list ap);
-void fmt_ast         (const StrConsumer c, va_list ap);
-void fmt_type_kind   (const StrConsumer c, va_list ap);
-void fmt_type        (const StrConsumer c, va_list ap);
-void fmt_var         (const StrConsumer c, va_list ap);
-void fmt_vars        (const StrConsumer c, va_list ap);
+void fmt_arg_at_loc      (const StrConsumer c, va_list ap);
+void fmt_arg_at_cur_loc  (const StrConsumer c, va_list ap);
+void fmt_arg_at_tok      (const StrConsumer c, va_list ap);
+void fmt_arg_cur_tok     (const StrConsumer c, va_list ap);
+void fmt_arg_at_node     (const StrConsumer c, va_list ap);
+void fmt_arg_token_kind  (const StrConsumer c, va_list ap);
+void fmt_arg_token       (const StrConsumer c, va_list ap);
+void fmt_arg_node_kind   (const StrConsumer c, va_list ap);
+void fmt_arg_node        (const StrConsumer c, va_list ap);
+void fmt_arg_ast         (const StrConsumer c, va_list ap);
+void fmt_arg_type_kind   (const StrConsumer c, va_list ap);
+void fmt_arg_type        (const StrConsumer c, va_list ap);
+void fmt_arg_var         (const StrConsumer c, va_list ap);
+void fmt_arg_symbol_kind (const StrConsumer c, va_list ap);
+void fmt_arg_symbol      (const StrConsumer c, va_list ap);
+
+void *fmt_ptr_token (const StrConsumer c, void *ptr);
+void *fmt_ptr_node  (const StrConsumer c, void *ptr);
+void *fmt_ptr_type  (const StrConsumer c, void *ptr);
+void *fmt_ptr_symbol(const StrConsumer c, void *ptr);
 
 
 // io
@@ -206,6 +215,8 @@ struct Node {
     struct {
       StringView name;
       Var *var;
+      Symbol *var2;
+      Node *params;
       bool is_decl;
     } var;
 
@@ -236,6 +247,7 @@ struct Node {
       Node *var;  // todo: def some bad abstraction here
       Node *body;
       Fun *fun;
+      Symbol *fun2;
     } fun_decl;
 
     // NodeKind_EXPR_STMT
@@ -266,7 +278,7 @@ struct Node {
 
     // NodeKind_CALL
     struct {
-      Node *fun;
+      Node *fun;  // NodeKind_VAR
       Node *args;
     } call;
   };
@@ -307,6 +319,7 @@ struct Fun {
   StringView name;
   Type *type;
   Node *decl;
+  Var *params;
   Var *locals;
   int stack_size;
   int label;
@@ -325,6 +338,44 @@ struct Prog {
 Prog *new_prog(Node *decl);
 
 
+// symbol
+
+enum SymbolKind {
+  SymbolKind_VAR,
+  SymbolKind_FUN,
+};
+
+struct Symbol {
+  SymbolKind kind;  // todo: maybe this is not needed? derive from type_is_fun(type)?
+                    //       on second thought vars could be functions? or function pointers
+                    //       only... idk
+  StringView name;
+  Type *type;
+  Node *decl;
+  union {
+    // SymbolKind_VAR
+    struct {
+      int offset;
+    } var;
+
+    // SymbolKind_FUN
+    struct {
+      Symbol *locals;
+      Symbol *params;
+      int stack_size;
+      int label;
+    } fun;
+  };
+  Symbol *next;
+};
+
+Symbol *new_var2   (Node *decl);
+Symbol *new_fun2   (Node *decl);
+
+Symbol *lookup_var2(Node *var);
+Symbol *lookup_fun (Node *fun);
+
+
 // type
 
 enum TypeKind {
@@ -336,12 +387,17 @@ enum TypeKind {
 struct Type {
   TypeKind kind;
   union {
+    // todo: wrap
     // TypeKind_PTR
     Type *referenced;
 
     // TypeKind_FUN
-    Type *returns;
+    struct {
+      Type *params;
+      Type *returns;
+    } fun;
   };
+  Type *next;
 };
 
 typedef struct {
@@ -352,9 +408,11 @@ extern Types t;
 
 bool type_eq(const Type *t, const Type *u);
 
+Type *type_copy(const Type *type);
+
 Type *new_type        (const TypeKind kind);
 Type *new_pointer_type(Type *referenced);  // todo: reusability
-Type *new_fun_type(Type *returns);
+Type *new_fun_type(Type *returns, Node *params);  // todo: horrible api
 
 
 // action
@@ -371,6 +429,7 @@ typedef struct {
   StringView src;
   const Token *toks;
   Node *ast;
+  Symbol *globals;
 
   struct {
     const char *loc;
@@ -383,12 +442,14 @@ typedef struct {
   struct {
     Prog *prog;
     Fun *fun;
+    Symbol *fun2;
   } analyzer;
 
   struct {
     int depth;
     Prog *prog;
     Fun *fun;
+    Symbol *fun2;
   } codegen;
 } Context;
 

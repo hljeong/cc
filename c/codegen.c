@@ -8,7 +8,7 @@ static void visit(Node *node);
 
 static void addr(const Node *node) {
   if (node->kind == NodeKind_VAR) {
-    print("  lea   %d(%%rbp), %%rax", node->var.var->offset);
+    print("  lea   %d(%%rbp), %%rax", node->var.var2->var.offset);
   }
 
   else if (node->kind == NodeKind_DEREF) {
@@ -42,15 +42,22 @@ static void visit(Node *node) {
   }
 
   else if (node->kind == NodeKind_FUN_DECL) {
-    ctx.codegen.fun = node->fun_decl.fun;
-    const StringView fun_name = ctx.codegen.fun->name;
+    ctx.codegen.fun2 = node->fun_decl.fun2;
+    const StringView fun_name = ctx.codegen.fun2->name;
 
     print("  .globl %{sv}", fun_name);
     print("%{sv}:", fun_name);
 
     print("  push  %%rbp");
     print("  mov   %%rsp, %%rbp");
-    print("  sub   $%d,  %%rsp", ctx.codegen.fun->stack_size);
+    print("  sub   $%d,  %%rsp", ctx.codegen.fun2->fun.stack_size);
+
+    // push pass-by-register arguments to stack
+    {
+      int i = 0;
+      for (Symbol *param = ctx.codegen.fun2->fun.params; param; param = param->next)
+        print("  mov   %s, %d(%%rbp)", arg_reg[i++], param->var.offset);
+    }
 
     Node *cur = node->fun_decl.body->list.head;
     while (cur) {
@@ -58,7 +65,7 @@ static void visit(Node *node) {
       cur = cur->next;
     }
 
-    print(".L.%{sv}.return:", ctx.codegen.fun->name);
+    print(".L.%{sv}.return:", ctx.codegen.fun2->name);
     print("  mov   %%rbp, %%rsp");
     print("  pop   %%rbp");
     print("  ret");
@@ -85,8 +92,8 @@ static void visit(Node *node) {
   }
 
   else if (node->kind == NodeKind_IF) {
-    const StringView fun_name = ctx.codegen.fun->name;
-    const int label = ctx.codegen.fun->label++;
+    const StringView fun_name = ctx.codegen.fun2->name;
+    const int label = ctx.codegen.fun2->fun.label++;
     visit(node->if_.cond);
     print("  cmp   $0, %%rax");
     print("  je    .L.%{sv}.%d.else", fun_name, label);
@@ -98,8 +105,8 @@ static void visit(Node *node) {
   }
 
   else if (node->kind == NodeKind_FOR) {
-    const StringView fun_name = ctx.codegen.fun->name;
-    const int label = ctx.codegen.fun->label++;
+    const StringView fun_name = ctx.codegen.fun2->name;
+    const int label = ctx.codegen.fun2->fun.label++;
     visit(node->for_.init);
     print(".L.%{sv}.%d.cond:", fun_name, label);
     if (node->for_.cond) {
@@ -115,7 +122,7 @@ static void visit(Node *node) {
 
   else if (node->kind == NodeKind_RETURN) {
     visit(node->unop.opr);
-    print("  jmp .L.%{sv}.return", ctx.codegen.fun->name);
+    print("  jmp .L.%{sv}.return", ctx.codegen.fun2->name);
   }
 
   else if (node->kind == NodeKind_EXPR_STMT) {

@@ -14,19 +14,42 @@ static void visit(Node **node_ptr) {
   }
 
   else if (node->kind == NodeKind_FUN_DECL) {
-    ctx.analyzer.fun = (node->fun_decl.fun = new_fun(node));
+    ctx.analyzer.fun2 = (node->fun_decl.fun2 = new_fun2(node->fun_decl.var));
+
+    {
+      Node *param = node->fun_decl.var->var.params;
+      while (param) {
+        new_var2(param);
+        param = param->next;
+      }
+
+      // right now params are in reverse order. reverse the linked list
+      if (ctx.analyzer.fun2->fun.locals) {
+        Symbol *prev = NULL;
+        while (ctx.analyzer.fun2->fun.locals) {
+          Symbol *next = ctx.analyzer.fun2->fun.locals->next;
+          ctx.analyzer.fun2->fun.locals->next = prev;
+          prev = ctx.analyzer.fun2->fun.locals;
+          ctx.analyzer.fun2->fun.locals = next;
+        }
+        ctx.analyzer.fun2->fun.locals = prev;
+      }
+      ctx.analyzer.fun2->fun.params = ctx.analyzer.fun2->fun.locals;
+    }
+
     visit(&node->fun_decl.body);
 
     // allocate local vars
     int offset = 0;
-    for (Var *var = ctx.analyzer.fun->locals; var; var = var->next) {
+    for (Symbol *var = ctx.analyzer.fun2->fun.locals; var; var = var->next) {
+      assert(var->kind == SymbolKind_VAR);
       offset += 8;
       // todo: why is this negative?
-      var->offset = -offset;
+      var->var.offset = -offset;
     }
     // align to 16-byte boundary
     // todo: why?
-    ctx.analyzer.fun->stack_size = (offset + 15) / 16 * 16;
+    ctx.analyzer.fun2->fun.stack_size = (offset + 15) / 16 * 16;
   }
 
   else if (node->kind == NodeKind_EXPR_STMT) {
@@ -51,16 +74,46 @@ static void visit(Node **node_ptr) {
 
     if      (node->kind == NodeKind_NEG)   node->type = node->unop.opr->type;
     else if (node->kind == NodeKind_ADDR)  node->type = new_pointer_type(node->unop.opr->type);
+
     else if (node->kind == NodeKind_DEREF) {
       if (node->unop.opr->type->kind != TypeKind_PTR)
         error("%{@node} not an lvalue: %{type}",
               node, node->unop.opr->type);
       node->type = node->unop.opr->type->referenced;
     }
+
+    else if (node->kind == NodeKind_RETURN) {
+      if (!type_eq(ctx.analyzer.fun2->type->fun.returns, node->unop.opr->type))
+        error("%{@node} expected to return %{type}, got: %{type}",
+              node->unop.opr,
+              ctx.analyzer.fun2->type->fun.returns,
+              node->unop.opr->type);
+    }
+
+    else fail("unexpected unop: %{node_kind}", node->kind);
   }
 
   else if (node->kind == NodeKind_CALL) {
-    // todo
+    Symbol *fun = lookup_fun(node->call.fun);
+    Symbol *param = fun->fun.params;
+    Node *arg = node->call.args;
+    for (; arg && param; (arg = arg->next), (param = param->next)) {
+      visit(&arg);
+
+      if (!type_eq(arg->type, param->type))
+        error("%{@node} expected %{type}, got (%{sv}: %{type})",
+              arg, param->type, arg->lexeme, arg->type);
+    }
+
+    if (arg)
+      error("%{@node} extra argument", arg);
+
+    if (param)
+      error("%{@loc} expected argument (%{sv}: %{type})",
+            node->lexeme.loc + node->lexeme.len - 1,
+            param->name, param->type);
+
+    node->type = fun->type->fun.returns;
   }
 
   else if (node->kind == NodeKind_ASSIGN) {
@@ -188,7 +241,7 @@ static void visit(Node **node_ptr) {
       visit(&node->var_decl.init->binop.rhs);
 
     // declare var
-    node->var_decl.var->var.var = new_var(node->var_decl.var);
+    node->var_decl.var->var.var2 = new_var2(node->var_decl.var);
 
     // type check
     if (node->var_decl.init)
@@ -196,13 +249,10 @@ static void visit(Node **node_ptr) {
   }
 
   else if (node->kind == NodeKind_VAR) {
-    if (node->var.is_decl)
-      node->var.var = new_var(node);
-
-    else {
-      node->var.var = lookup_var(node);
-      node->type = node->var.var->type;
-    }
+    // var declarations are handled in visit(NodeKind_VAR_DECL)
+    assert(!node->var.is_decl);
+    node->var.var2 = lookup_var2(node);
+    node->type = node->var.var2->type;
   }
 
   else if (node->kind == NodeKind_NUM) {

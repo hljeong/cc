@@ -13,7 +13,7 @@ int main(int argc, char **argv) {
   if (enable_debug) debug("src: %s", ctx.src);
 
   lex();
-  if (enable_debug) debug("%{token_stream}", ctx.toks);
+  if (enable_debug) debug("%{list}", "token", ctx.toks);
 
   parse();
   if (enable_debug) debug("%{ast}", ctx.ast);

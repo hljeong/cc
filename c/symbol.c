@@ -1,0 +1,84 @@
+#include "cc.h"
+
+#include <stdlib.h>
+
+static void consume_symbol_kind(const StrConsumer c, const SymbolKind kind) {
+  if      (kind == SymbolKind_VAR) consume_f(c, "var");
+  else if (kind == SymbolKind_FUN) consume_f(c, "fun");
+  else                             fail("unexpected symbol kind: %d", kind);
+}
+
+void fmt_arg_symbol_kind(const StrConsumer c, va_list ap) {
+  consume_symbol_kind(c, va_arg(ap, const SymbolKind));
+}
+
+static void consume_symbol(const StrConsumer c, const Symbol *symbol) {
+  consume_f(c, "%{node_kind}(%{sv}: %{type})",
+            symbol->kind, symbol->name, symbol->type);
+}
+
+void *fmt_ptr_symbol(const StrConsumer c, void *ptr) {
+  consume_symbol(c, ptr);
+  return ((const Symbol *) ptr)->next;
+}
+
+void fmt_arg_symbol(const StrConsumer c, va_list ap) {
+  consume_symbol(c, va_arg(ap, const Symbol *));
+}
+
+Symbol *new_var2(Node *decl) {
+  assert(decl->kind == NodeKind_VAR,
+         "%{node_kind}", decl->kind);
+  assert(decl->var.is_decl);
+
+  for (Symbol *local = ctx.analyzer.fun2->fun.locals; local; local = local->next) {
+    assert(local->kind == SymbolKind_VAR);
+    if (sv_eq(decl->var.name, local->name))
+      error("%{@node} already declared", decl);
+  }
+
+  Symbol *var = calloc(1, sizeof(Symbol));
+  var->kind = SymbolKind_VAR;
+  var->name = decl->var.name;
+  var->type = decl->type;
+  var->decl = decl;
+  var->next = ctx.analyzer.fun2->fun.locals;
+  return (ctx.analyzer.fun2->fun.locals = var);
+}
+
+// todo: awfully similar to new_var2()!!!!! i smell refactor :d
+Symbol *new_fun2(Node *decl) {
+  assert(decl->kind == NodeKind_VAR,
+         "%{node_kind}", decl->kind);
+  assert(decl->var.is_decl);
+
+  for (Symbol *fun = ctx.globals; fun; fun = fun->next) {
+    assert(fun->kind == SymbolKind_FUN);
+    if (sv_eq(fun->name, decl->fun_decl.var->var.name))
+      error("%{@node} already declared", decl);
+  }
+
+  Symbol *fun = calloc(1, sizeof(Fun));
+  fun->kind = SymbolKind_FUN;
+  fun->name = decl->var.name;
+  fun->type = decl->type;
+  fun->decl = decl;
+  fun->next = ctx.globals;
+  return (ctx.globals = fun);
+}
+
+Symbol *lookup_var2(Node *var) {
+  for (Symbol *local = ctx.analyzer.fun2->fun.locals; local; local = local->next) {
+    if (sv_eq(local->name, var->var.name))
+      return local;
+  }
+  error("%{@node} undeclared variable", var);
+}
+
+Symbol *lookup_fun(Node *fun) {
+  for (Symbol *fun_ = ctx.globals; fun_; fun_ = fun_->next) {
+    if (sv_eq(fun_->name, fun->var.name))
+      return fun_;
+  }
+  error("%{@node} undeclared function", fun);
+}
