@@ -10,7 +10,6 @@ typedef enum TokenKind TokenKind;
 typedef struct Token Token;
 typedef enum NodeKind NodeKind;
 typedef struct Node Node;
-typedef struct Fun Fun;
 typedef struct Prog Prog;
 typedef enum SymbolKind SymbolKind;
 typedef struct Symbol Symbol;
@@ -243,7 +242,6 @@ struct Node {
     struct {
       Node *var;  // todo: def some bad abstraction here
       Node *body;
-      Fun *fun;
       Symbol *fun2;
     } fun_decl;
 
@@ -296,25 +294,9 @@ Node *new_binop_node(const NodeKind kind, Node *lhs, Node *rhs);
 Node *new_list_node (const NodeKind kind, Node *head);
 
 
-// fun
-
-struct Fun {
-  StringView name;
-  Type *type;
-  Node *decl;
-  int stack_size;
-  int label;
-  Fun *next;
-};
-
-Fun *new_fun(Node *decl);
-
-
 // prog
 
-struct Prog {
-  Fun *funs;
-};
+struct Prog {};
 
 Prog *new_prog(Node *decl);
 
@@ -422,14 +404,12 @@ typedef struct {
 
   struct {
     Prog *prog;
-    Fun *fun;
     Symbol *fun2;
   } analyzer;
 
   struct {
     int depth;
     Prog *prog;
-    Fun *fun;
     Symbol *fun2;
   } codegen;
 } Context;

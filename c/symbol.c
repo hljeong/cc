@@ -58,7 +58,7 @@ Symbol *new_fun2(Node *decl) {
       error("%{@node} already declared", decl);
   }
 
-  Symbol *fun = calloc(1, sizeof(Fun));
+  Symbol *fun = calloc(1, sizeof(Symbol));
   fun->kind = SymbolKind_FUN;
   fun->name = decl->var.name;
   fun->type = decl->type;
