@@ -4,7 +4,8 @@
 
 static void consume_node_kind(const StrConsumer c, const NodeKind kind) {
   if      (kind == NodeKind_NUM)       consume_f(c, "num");
-  else if (kind == NodeKind_VAR)       consume_f(c, "var");
+  else if (kind == NodeKind_REF)       consume_f(c, "ref");
+  else if (kind == NodeKind_DECL)      consume_f(c, "decl");
   else if (kind == NodeKind_ADD)       consume_f(c, "+");
   else if (kind == NodeKind_SUB)       consume_f(c, "-");
   else if (kind == NodeKind_MUL)       consume_f(c, "*");
@@ -37,11 +38,25 @@ void fmt_arg_node_kind(const StrConsumer c, va_list ap) {
 static void consume_node(const StrConsumer c, const Node *node) {
   consume_f(c, "%{node_kind}", node->kind);
 
-  if      (node->kind == NodeKind_NUM) consume_f(c, "(%d)",    node->num.value);
-  else if (node->kind == NodeKind_VAR) consume_f(c, "(%{sv})", node->var.name);
+  if (node->kind == NodeKind_NUM)  consume_f(c, "(%d)",    node->num.value);
+
+  else if (node->kind == NodeKind_REF) {
+    // references are not annotated with type at parse time
+    if (node->type)
+      consume_f(c, "(%{sv}: %{type})",
+                node->var.name, node->type);
+    else
+      consume_f(c, "(%{sv})", node->var.name);
+  }
+
+  else if (node->kind == NodeKind_DECL) {
+    // declarations always have a type
+    consume_f(c, "(%{sv}: %{type})",
+              node->var.name, node->type);
+  }
 
   // show type if applicable
-  if      (node->type)                 consume_f(c, ": %{type}", node->type);
+  else if (node->type) consume_f(c, ": %{type}", node->type);
 }
 
 void *fmt_ptr_node(const StrConsumer c, void *ptr) {
@@ -63,7 +78,7 @@ void _consume_ast(const StrConsumer c, const Node *node, StringBuilder *sb, cons
   sb_append(sb, last ? "  " : "│ ");
 
   if      (node->kind == NodeKind_NUM)       {}
-  else if (node->kind == NodeKind_VAR)       {}
+  else if (node->kind == NodeKind_REF)       {}
 
   else if (node->kind == NodeKind_PROG) {
     Node *child = node->prog.head;
@@ -73,13 +88,21 @@ void _consume_ast(const StrConsumer c, const Node *node, StringBuilder *sb, cons
     }
   }
 
+  else if (node->kind == NodeKind_DECL) {
+    Node *param = node->decl.params;
+    while (param) {
+      _consume_ast(c, param, sb, !(param->next));
+      param = param->next;
+    }
+  }
+
   else if (node->kind == NodeKind_FUN_DECL) {
-    _consume_ast(c, node->fun_decl.var, sb, false);
+    _consume_ast(c, node->fun_decl.decl, sb, false);
     _consume_ast(c, node->fun_decl.body, sb, true);
   }
 
   else if (node->kind == NodeKind_VAR_DECL) {
-    _consume_ast(c, node->var_decl.var,  sb, !node->var_decl.init);
+    _consume_ast(c, node->var_decl.decl,  sb, !node->var_decl.init);
     _consume_ast(c, node->var_decl.init, sb, true);
   }
 
@@ -179,9 +202,8 @@ Node *new_num_node(const int value) {
 }
 
 Node *new_var_node(const StringView name) {
-  Node *node = new_node(NodeKind_VAR);
+  Node *node = new_node(NodeKind_REF);
   node->var.name = name;
-  node->var.is_decl = false;
   return node;
 }
 

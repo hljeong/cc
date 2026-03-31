@@ -86,9 +86,8 @@ Type *new_fun_type(Type *returns, Node *params) {
   {
     Type head = {};
     Type *cur = &head;
-    for (Node *param = params; param; param = param->next) {
+    for (Node *param = params; param; param = param->next)
       cur = (cur->next = type_copy(param->type));
-    }
     type->fun.params = head.next;
   }
   type->fun.returns = returns;

@@ -7,7 +7,7 @@ static const char *arg_reg[] = { "%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9" };
 static void visit(Node *node);
 
 static void addr(const Node *node) {
-  if (node->kind == NodeKind_VAR) {
+  if (node->kind == NodeKind_REF) {
     print("  lea   %d(%%rbp), %%rax", node->var.symbol->var.offset);
   }
 
@@ -86,7 +86,7 @@ static void visit(Node *node) {
     }
   }
 
-  else if (node->kind ==NodeKind_VAR_DECL) {
+  else if (node->kind == NodeKind_VAR_DECL) {
     visit(node->var_decl.init);
   }
 
@@ -133,7 +133,7 @@ static void visit(Node *node) {
     print("  mov   $%d, %%rax", node->num.value);
   }
 
-  else if (node->kind == NodeKind_VAR) {
+  else if (node->kind == NodeKind_REF) {
     addr(node);
     print("  mov   (%%rax), %%rax");
   }

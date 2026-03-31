@@ -13,10 +13,10 @@ static void visit(Node **node_ptr) {
   }
 
   else if (node->kind == NodeKind_FUN_DECL) {
-    ctx.analyzer.fun = (node->fun_decl.fun = new_fun(node->fun_decl.var));
+    ctx.analyzer.fun = (node->fun_decl.fun = new_fun(node->fun_decl.decl));
 
     {
-      Node *param = node->fun_decl.var->var.params;
+      Node *param = node->fun_decl.decl->decl.params;
       while (param) {
         new_var(param);
         param = param->next;
@@ -240,16 +240,14 @@ static void visit(Node **node_ptr) {
       visit(&node->var_decl.init->binop.rhs);
 
     // declare var
-    node->var_decl.var->var.symbol = new_var(node->var_decl.var);
+    node->var_decl.decl->decl.symbol = new_var(node->var_decl.decl);
 
     // type check
     if (node->var_decl.init)
       visit(&node->var_decl.init);
   }
 
-  else if (node->kind == NodeKind_VAR) {
-    // var declarations are handled in visit(NodeKind_VAR_DECL)
-    assert(!node->var.is_decl);
+  else if (node->kind == NodeKind_REF) {
     node->var.symbol = lookup_var(node);
     node->type = node->var.symbol->type;
   }

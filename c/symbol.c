@@ -27,9 +27,8 @@ void fmt_arg_symbol(const StrConsumer c, va_list ap) {
 }
 
 Symbol *new_var(Node *decl) {
-  assert(decl->kind == NodeKind_VAR,
+  assert(decl->kind == NodeKind_DECL,
          "%{node_kind}", decl->kind);
-  assert(decl->var.is_decl);
 
   for (Symbol *local = ctx.analyzer.fun->fun.locals; local; local = local->next) {
     assert(local->kind == SymbolKind_VAR);
@@ -48,13 +47,12 @@ Symbol *new_var(Node *decl) {
 
 // todo: awfully similar to new_var2()!!!!! i smell refactor :d
 Symbol *new_fun(Node *decl) {
-  assert(decl->kind == NodeKind_VAR,
+  assert(decl->kind == NodeKind_DECL,
          "%{node_kind}", decl->kind);
-  assert(decl->var.is_decl);
 
   for (Symbol *fun = ctx.globals; fun; fun = fun->next) {
     assert(fun->kind == SymbolKind_FUN);
-    if (sv_eq(fun->name, decl->fun_decl.var->var.name))
+    if (sv_eq(fun->name, decl->fun_decl.decl->decl.name))
       error("%{@node} already declared", decl);
   }
 

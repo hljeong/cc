@@ -92,6 +92,8 @@ static bool is_type(const Token *tok) {
   return sv_eq_s(tok->lexeme, "int");
 }
 
+// todo: parser combinator
+
 // prog ::= fun_decl*
 static Node *prog() {
   if (debug_parse) debug("%{@cur_tok} parsing prog");
@@ -113,7 +115,7 @@ static Node *fun_decl() {
   Node *node = new_node(NodeKind_FUN_DECL);
   {
     Type *type = decl_spec();
-    node->fun_decl.var = declarator(type);
+    node->fun_decl.decl = declarator(type);
   }
   {
     src_push();
@@ -244,11 +246,11 @@ static Node *var_decl(Type *base_type) {
   src_push();
   Node *node = new_node(NodeKind_VAR_DECL);
 
-  node->var_decl.var = declarator(base_type);
+  node->var_decl.decl = declarator(base_type);
 
   if (consume(TokenKind_EQ)) {
-    Node *var_ref = new_var_node(node->var_decl.var->var.name);
-    var_ref->lexeme = node->var_decl.var->lexeme;
+    Node *var_ref = new_var_node(node->var_decl.decl->decl.name);
+    var_ref->lexeme = node->var_decl.decl->lexeme;
     node->var_decl.init = add_lexeme(new_binop_node(NodeKind_ASSIGN, var_ref, expr()));
   }
 
@@ -260,14 +262,13 @@ static Node *var_decl(Type *base_type) {
 // param ::= decl_spec declarator
 static Node *declarator(Type *base_type) {
   src_push();
-  Node *node = new_node(NodeKind_VAR);
-  node->var.is_decl = true;
+  Node *node = new_node(NodeKind_DECL);
 
   node->type = base_type;
   while (consume(TokenKind_STAR))
     node->type = new_ptr_type(node->type);
 
-  node->var.name = expect(TokenKind_IDENT)->lexeme;
+  node->decl.name = expect(TokenKind_IDENT)->lexeme;
 
   if (consume(TokenKind_LPAREN)) {
     if (!consume(TokenKind_RPAREN)){
@@ -282,9 +283,9 @@ static Node *declarator(Type *base_type) {
         Type *type = decl_spec();
         cur = (cur->next = declarator(type));
       }
-      node->var.params = head.next;
+      node->decl.params = head.next;
     }
-    node->type = new_fun_type(node->type, node->var.params);
+    node->type = new_fun_type(node->type, node->decl.params);
   }
 
   return pop_lexeme(node);

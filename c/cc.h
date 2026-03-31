@@ -2,6 +2,8 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+// todo: stack trace / event emitter
+
 typedef struct StrConsumer StrConsumer;
 typedef struct StrFormatter StrFormatter;
 typedef struct StringView StringView;
@@ -173,7 +175,8 @@ Token *link(Token *tok, Token *next);
 
 enum NodeKind {
   NodeKind_NUM,
-  NodeKind_VAR,
+  NodeKind_REF,
+  NodeKind_DECL,
   NodeKind_ADD,
   NodeKind_SUB,
   NodeKind_MUL,
@@ -207,23 +210,28 @@ struct Node {
       int value;
     } num;
 
-    // NodeKind_VAR
+    // NodeKind_REF
     struct {
       StringView name;
-      Symbol *symbol;
-      Node *params;
-      bool is_decl;
+      Symbol *symbol;     // populated at analysis time
     } var;
 
-    // node_kind_id_unop()
+    // NodeKind_DECL
     struct {
-      Node *opr;
+      StringView name;
+      Node      *params;  // list<NodeKind_DECL>
+      Symbol    *symbol;  // populated at analysis time
+    } decl;
+
+    // node_kind_is_unop()
+    struct {
+      Node *opr;          // expr
     } unop;
 
     // node_kind_is_binop()
     struct {
-      Node *lhs;
-      Node *rhs;
+      Node *lhs;          // expr
+      Node *rhs;          // expr
     } binop;
 
     // node_kind_is_list()
@@ -233,46 +241,47 @@ struct Node {
 
     // NodeKind_PROG
     struct {
-      Node *head;
+      Node *head;         // list<NodeKind_FUN_DECL>
     } prog;
 
     // NodeKind_FUN_DECL
     struct {
-      Node *var;  // todo: def some bad abstraction here
-      Node *body;
-      Symbol *fun;
+      Node   *decl;       // NodeKind_DECL
+      Node   *body;       // NodeKind_BLOCK
+      Symbol *fun;        // populated at analysis time
     } fun_decl;
 
     // NodeKind_EXPR_STMT
     struct {
-      Node *expr;
+      Node *expr;         // expr
     } expr_stmt;
 
     // NodeKind_IF
     struct {
-      Node *cond;
-      Node *then;
-      Node *else_;
+      Node *cond;         // expr
+      Node *then;         // stmt
+      Node *else_;        // stmt
     } if_;
 
     // NodeKind_FOR
     struct {
-      Node *init;
-      Node *cond;
-      Node *inc;
-      Node *body;
+      // todo: what about `for (int i = 0;;)`?
+      Node *init;         // NULL | expr
+      Node *cond;         // NULL | expr
+      Node *inc;          // NULL | expr
+      Node *body;         // stmt
     } for_;
 
     // NodeKind_VAR_DECL
     struct {
-      Node *var;
-      Node *init;
+      Node *decl;         // NodeKind_DECL
+      Node *init;         // NodeKind_ASSIGN
     } var_decl;
 
     // NodeKind_CALL
     struct {
-      Node *fun;  // NodeKind_VAR
-      Node *args;
+      Node *fun;          // NodeKind_REF
+      Node *args;         // list<expr>
     } call;
   };
   Type *type;
@@ -300,9 +309,7 @@ enum SymbolKind {
 };
 
 struct Symbol {
-  SymbolKind kind;  // todo: maybe this is not needed? derive from type_is_fun(type)?
-                    //       on second thought vars could be functions? or function pointers
-                    //       only... idk
+  SymbolKind kind;
   StringView name;
   Type *type;
   Node *decl;
@@ -367,7 +374,7 @@ Type *type_copy(const Type *type);
 
 Type *new_type    (const TypeKind kind);
 Type *new_ptr_type(Type *referenced);
-Type *new_fun_type(Type *returns, Node *params);  // todo: horrible api
+Type *new_fun_type(Type *returns, Node *params /* list<NodeKind_DECL> */);
 
 
 // action
