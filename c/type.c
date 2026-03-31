@@ -28,7 +28,7 @@ static void consume_type(const StrConsumer c, const Type *type) {
     consume_f(c, ") -> %{type}", type->fun.returns);
   }
 
-  else if (type->kind == TypeKind_PTR) consume_f(c, "%{type}*",      type->referenced);
+  else if (type->kind == TypeKind_PTR) consume_f(c, "%{type}*",      type->ptr.referenced);
   else                                 consume_f(c, "%{type_kind}",  type->kind);
 }
 
@@ -45,7 +45,7 @@ bool type_eq(const Type *t, const Type *u) {
   if (t->kind != u->kind) return false;
 
   else if (t->kind == TypeKind_PTR) {
-    return type_eq(t->referenced, u->referenced);
+    return type_eq(t->ptr.referenced, u->ptr.referenced);
   }
 
   return true;
@@ -64,7 +64,7 @@ Type *type_copy(const Type *type) {
     copy->fun.returns = type->fun.returns;
   }
 
-  else if (type->kind == TypeKind_PTR) copy->referenced = type->referenced;
+  else if (type->kind == TypeKind_PTR) copy->ptr.referenced = type->ptr.referenced;
 
   return copy;
 }
@@ -75,9 +75,9 @@ Type *new_type(const TypeKind kind) {
   return type;
 }
 
-Type *new_pointer_type(Type *referenced) {
+Type *new_ptr_type(Type *referenced) {
   Type *type = new_type(TypeKind_PTR);
-  type->referenced = referenced;
+  type->ptr.referenced = referenced;
   return type;
 }
 

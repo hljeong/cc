@@ -31,8 +31,8 @@ static const Token *expect(const TokenKind kind) {
 static Node *prog();
 static Node *fun_decl();
 static Node *stmt();
-static Type *var_declspec();
-static Node *var_declr(Type *base_type);
+static Type *decl_spec();
+static Node *declarator(Type *base_type);
 static Node *var_decl(Type *base_type);
 static Node *expr();
 static Node *assign();
@@ -106,15 +106,14 @@ static Node *prog() {
   return pop_lexeme(node);
 }
 
-// todo: delete var_
-// fun_decl ::= var_declspec var_declr "(" ")" "{" stmt* "}"
+// fun_decl ::= decl_spec declarator "(" ")" "{" stmt* "}"
 static Node *fun_decl() {
   if (debug_parse) debug("%{@cur_tok} parsing fun_decl");
   src_push();
   Node *node = new_node(NodeKind_FUN_DECL);
   {
-    Type *type = var_declspec();
-    node->fun_decl.var = var_declr(type);
+    Type *type = decl_spec();
+    node->fun_decl.var = declarator(type);
   }
   {
     src_push();
@@ -206,9 +205,9 @@ static Node *stmt() {
     return pop_lexeme(node);
   }
 
-  // var_declspec (var_decl ("," var_decl)*)? ";"
+  // decl_spec (var_decl ("," var_decl)*)? ";"
   else if (match(TokenKind_IDENT) && is_type(ctx.parser.tok)) {
-    Type *base_type = var_declspec();
+    Type *base_type = decl_spec();
 
     Node head = {};
     Node *cur = &head;
@@ -232,20 +231,20 @@ static Node *stmt() {
   }
 }
 
-// var_declspec ::= "int"
-static Type *var_declspec() {
+// decl_spec ::= "int"
+static Type *decl_spec() {
   const Token *tok = expect(TokenKind_IDENT);
   if (strncmp(tok->lexeme.loc, "int", tok->lexeme.len))
     error("%{@tok} not a type", tok);
   return &t.int_;
 }
 
-// var_decl ::= var_declr ("=" expr)?
+// var_decl ::= declarator ("=" expr)?
 static Node *var_decl(Type *base_type) {
   src_push();
   Node *node = new_node(NodeKind_VAR_DECL);
 
-  node->var_decl.var = var_declr(base_type);
+  node->var_decl.var = declarator(base_type);
 
   if (consume(TokenKind_EQ)) {
     Node *var_ref = new_var_node(node->var_decl.var->var.name);
@@ -256,17 +255,17 @@ static Node *var_decl(Type *base_type) {
   return pop_lexeme(node);
 }
 
-// var_declr ::= "*"* ident ("(" params? ")")?
+// declarator ::= "*"* ident ("(" params? ")")?
 // params ::= param ("," param)*
-// param ::= var_declspec var_declr
-static Node *var_declr(Type *base_type) {
+// param ::= decl_spec declarator
+static Node *declarator(Type *base_type) {
   src_push();
   Node *node = new_node(NodeKind_VAR);
   node->var.is_decl = true;
 
   node->type = base_type;
   while (consume(TokenKind_STAR))
-    node->type = new_pointer_type(node->type);
+    node->type = new_ptr_type(node->type);
 
   node->var.name = expect(TokenKind_IDENT)->lexeme;
 
@@ -275,13 +274,13 @@ static Node *var_declr(Type *base_type) {
       Node head = {};
       Node *cur = &head;
       {
-        Type *type = var_declspec();
-        cur = (cur->next = var_declr(type));
+        Type *type = decl_spec();
+        cur = (cur->next = declarator(type));
       }
       while (!consume(TokenKind_RPAREN)) {
         expect(TokenKind_COMMA);
-        Type *type = var_declspec();
-        cur = (cur->next = var_declr(type));
+        Type *type = decl_spec();
+        cur = (cur->next = declarator(type));
       }
       node->var.params = head.next;
     }

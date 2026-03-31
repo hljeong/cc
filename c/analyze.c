@@ -72,13 +72,13 @@ static void visit(Node **node_ptr) {
     visit(&node->unop.opr);
 
     if      (node->kind == NodeKind_NEG)   node->type = node->unop.opr->type;
-    else if (node->kind == NodeKind_ADDR)  node->type = new_pointer_type(node->unop.opr->type);
+    else if (node->kind == NodeKind_ADDR)  node->type = new_ptr_type(node->unop.opr->type);
 
     else if (node->kind == NodeKind_DEREF) {
       if (node->unop.opr->type->kind != TypeKind_PTR)
         error("%{@node} not an lvalue: %{type}",
               node, node->unop.opr->type);
-      node->type = node->unop.opr->type->referenced;
+      node->type = node->unop.opr->type->ptr.referenced;
     }
 
     else if (node->kind == NodeKind_RETURN) {
@@ -183,7 +183,7 @@ static void visit(Node **node_ptr) {
 
     // `ptr - ptr`
     else if (t_lhs->kind == TypeKind_PTR && t_rhs->kind == TypeKind_PTR) {
-      if (!type_eq(t_lhs->referenced, t_rhs->referenced)) {
+      if (!type_eq(t_lhs->ptr.referenced, t_rhs->ptr.referenced)) {
         error("%{@node} cannot subtract (%{sv}: %{type}) from (%{sv}: %{type})",
               node,
               node->binop.rhs->lexeme, node->binop.rhs->type,
@@ -240,7 +240,7 @@ static void visit(Node **node_ptr) {
       visit(&node->var_decl.init->binop.rhs);
 
     // declare var
-    node->var_decl.var->var.var = new_var(node->var_decl.var);
+    node->var_decl.var->var.symbol = new_var(node->var_decl.var);
 
     // type check
     if (node->var_decl.init)
@@ -250,8 +250,8 @@ static void visit(Node **node_ptr) {
   else if (node->kind == NodeKind_VAR) {
     // var declarations are handled in visit(NodeKind_VAR_DECL)
     assert(!node->var.is_decl);
-    node->var.var = lookup_var(node);
-    node->type = node->var.var->type;
+    node->var.symbol = lookup_var(node);
+    node->type = node->var.symbol->type;
   }
 
   else if (node->kind == NodeKind_NUM) {

@@ -210,7 +210,7 @@ struct Node {
     // NodeKind_VAR
     struct {
       StringView name;
-      Symbol *var;
+      Symbol *symbol;
       Node *params;
       bool is_decl;
     } var;
@@ -341,9 +341,10 @@ enum TypeKind {
 struct Type {
   TypeKind kind;
   union {
-    // todo: wrap
     // TypeKind_PTR
-    Type *referenced;
+    struct {
+      Type *referenced;
+    } ptr;
 
     // TypeKind_FUN
     struct {
@@ -364,8 +365,8 @@ bool type_eq(const Type *t, const Type *u);
 
 Type *type_copy(const Type *type);
 
-Type *new_type        (const TypeKind kind);
-Type *new_pointer_type(Type *referenced);  // todo: reusability
+Type *new_type    (const TypeKind kind);
+Type *new_ptr_type(Type *referenced);
 Type *new_fun_type(Type *returns, Node *params);  // todo: horrible api
 
 

@@ -8,7 +8,7 @@ static void visit(Node *node);
 
 static void addr(const Node *node) {
   if (node->kind == NodeKind_VAR) {
-    print("  lea   %d(%%rbp), %%rax", node->var.var->var.offset);
+    print("  lea   %d(%%rbp), %%rax", node->var.symbol->var.offset);
   }
 
   else if (node->kind == NodeKind_DEREF) {
