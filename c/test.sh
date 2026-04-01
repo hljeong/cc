@@ -111,6 +111,15 @@ check 'multi-dim array 2' '3' 'int main() { int arr[2][3], *flat = arr; arr[0][2
 check 'multi-dim array 3' '4' 'int main() { int arr[2][3], *flat = arr; arr[1][0] = 4; return *(*(arr + 1) + 0); }'
 check 'multi-dim array 4' '5' 'int main() { int arr[2][3], *flat = arr; *(flat + 4) = 5; return arr[1][1]; }'
 check 'multi-dim array 5' '6' 'int main() { int arr[2][3], *flat = arr; *(flat + 5) = 6; return *(*(arr + 1) + 2); }'
+check 'sizeof 0' '16' 'int main() { int x; return sizeof(x) + sizeof x; }'  # death penalty
+check 'sizeof 1' '8' 'int main() { int *x; return sizeof(x); }'
+check 'sizeof 2' '32' 'int main() { int x[4]; return sizeof(x); }'
+check 'sizeof 3' '96' 'int main() { int x[3][4]; return sizeof(x); }'
+check 'sizeof 4' '32' 'int main() { int x[3][4]; return sizeof(*x); }'
+check 'sizeof 5' '8' 'int main() { int x[3][4]; return sizeof(**x); }'
+check 'sizeof 6' '33' 'int main() { int x[3][4]; return sizeof *x + 1; }'
+check 'sizeof 7' '8' 'int main() { int x = 1; return sizeof(x = 2); }'
+check 'sizeof 8' '1' 'int main() { int x = 1; sizeof(x = 2); return x; }'
 
 echo ""
 echo "=== results: $passed passed, $failed failed ==="

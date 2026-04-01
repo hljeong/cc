@@ -93,6 +93,7 @@ void lex() {
     else if ((len = consume_kw("else")))   cur = link(cur, new_token(TokenKind_ELSE,   len));
     else if ((len = consume_kw("for")))    cur = link(cur, new_token(TokenKind_FOR,    len));
     else if ((len = consume_kw("while")))  cur = link(cur, new_token(TokenKind_WHILE,  len));
+    else if ((len = consume_kw("sizeof"))) cur = link(cur, new_token(TokenKind_SIZEOF, len));
 
     else if (isdigit(ch)) {
       const char *start = ctx.lexer.loc;

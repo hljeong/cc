@@ -13,6 +13,7 @@ static void consume_node_kind(const StrConsumer c, const NodeKind kind) {
   else if (kind == NodeKind_NEG)       consume_f(c, "-");
   else if (kind == NodeKind_ADDR)      consume_f(c, "addr");
   else if (kind == NodeKind_DEREF)     consume_f(c, "deref");
+  else if (kind == NodeKind_SIZEOF)    consume_f(c, "sizeof");
   else if (kind == NodeKind_EQ)        consume_f(c, "==");
   else if (kind == NodeKind_NEQ)       consume_f(c, "!=");
   else if (kind == NodeKind_LT)        consume_f(c, "<");
@@ -166,9 +167,10 @@ void fmt_arg_ast(const StrConsumer c, va_list ap) {
 }
 
 bool node_kind_is_unop(const NodeKind kind) {
-  return (kind == NodeKind_NEG)       ||
-         (kind == NodeKind_ADDR)      ||
-         (kind == NodeKind_DEREF)     ||
+  return (kind == NodeKind_NEG)    ||
+         (kind == NodeKind_ADDR)   ||
+         (kind == NodeKind_DEREF)  ||
+         (kind == NodeKind_SIZEOF) ||
          (kind == NodeKind_RETURN);
 }
 

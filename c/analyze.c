@@ -1,8 +1,14 @@
 #include "cc.h"
 
+const bool debug_analyze = false;
+
 static void visit(Node **node_ptr);
 static void visit(Node **node_ptr) {
   Node *node = *node_ptr;
+
+  if (debug_analyze && node)
+    debug("%{@node} %{node_kind}",
+          node, node->kind);
 
   if (!node) {}
 
@@ -92,6 +98,12 @@ static void visit(Node **node_ptr) {
               node, node->unop.opr->type);
       // this is the same as arr.base :)
       node->type = node->unop.opr->type->ptr.referenced;
+    }
+
+    else if (node->kind == NodeKind_SIZEOF) {
+      // memory leak here since the original subtree is discarded
+      *node_ptr = new_num_node(node->unop.opr->type->size);
+      (*node_ptr)->type = &t.int_;
     }
 
     else if (node->kind == NodeKind_RETURN) {

@@ -386,16 +386,24 @@ static Node *mul() {
   return src_pop(), node;
 }
 
-// unary ::= ("+" | "-" | "&" | "*") unary
+// `sizeof` being a unary operator is ridiculous
+//
+// per linus: here's an example of a really bad use of "sizeof" that doesn't have
+// the parenthesis around the argument: sizeof(*p)->member. quite
+// frankly, if you do this, you should be shot
+// see: https://lkml.org/lkml/2012/7/11/103
+//
+// unary ::= ("+" | "-" | "&" | "*" | "sizeof") unary
 //         | postfix
 static Node *unary() {
   if (debug_parse) debug("%{@cur_tok} parsing unary");
   src_push();
-  if      (consume(TokenKind_PLUS))  return src_pop(), unary();
-  else if (consume(TokenKind_MINUS)) return pop_lexeme(new_unop_node(NodeKind_NEG, unary()));
-  else if (consume(TokenKind_AND))   return pop_lexeme(new_unop_node(NodeKind_ADDR, unary()));
-  else if (consume(TokenKind_STAR))  return pop_lexeme(new_unop_node(NodeKind_DEREF, unary()));
-  else                               return src_pop(), postfix();
+  if      (consume(TokenKind_PLUS))   return src_pop(), unary();
+  else if (consume(TokenKind_MINUS))  return pop_lexeme(new_unop_node(NodeKind_NEG, unary()));
+  else if (consume(TokenKind_AND))    return pop_lexeme(new_unop_node(NodeKind_ADDR, unary()));
+  else if (consume(TokenKind_STAR))   return pop_lexeme(new_unop_node(NodeKind_DEREF, unary()));
+  else if (consume(TokenKind_SIZEOF)) return pop_lexeme(new_unop_node(NodeKind_SIZEOF, unary()));
+  else                                return src_pop(), postfix();
 }
 
 // postfix ::= primary ("[" expr "]")*
