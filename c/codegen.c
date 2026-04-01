@@ -41,20 +41,21 @@ static void visit(Node *node) {
   }
 
   else if (node->kind == NodeKind_FUN_DECL) {
-    ctx.codegen.fun = node->fun_decl.fun;
-    const StringView fun_name = ctx.codegen.fun->name;
+    Symbol *fun = (ctx.codegen.fun = node->fun_decl.fun);
+    ctx.codegen.scope = &fun->fun.scope;
+    const StringView fun_name = fun->name;
 
     print("  .globl %{sv}", fun_name);
     print("%{sv}:", fun_name);
 
     print("  push  %%rbp");
     print("  mov   %%rsp, %%rbp");
-    print("  sub   $%d,  %%rsp", ctx.codegen.fun->fun.stack_size);
+    print("  sub   $%d,  %%rsp", fun->fun.stack_size);
 
     // push pass-by-register arguments to stack
     {
       int i = 0;
-      for (Symbol *param = ctx.codegen.fun->fun.params; param; param = param->next)
+      for (Symbol *param = fun->fun.params; param; param = param->next)
         print("  mov   %s, %d(%%rbp)", arg_reg[i++], param->var.offset);
     }
 
@@ -64,10 +65,13 @@ static void visit(Node *node) {
       cur = cur->next;
     }
 
-    print(".L.%{sv}.return:", ctx.codegen.fun->name);
+    print(".L.%{sv}.return:", fun->name);
     print("  mov   %%rbp, %%rsp");
     print("  pop   %%rbp");
     print("  ret");
+
+    ctx.codegen.scope = ctx.codegen.scope->par;
+    ctx.codegen.fun = NULL;
   }
 
   else if (node->kind == NodeKind_BLOCK) {
@@ -220,5 +224,6 @@ static void visit(Node *node) {
 }
 
 void codegen() {
+  ctx.codegen.scope = &ctx.globals;
   visit(ctx.ast);
 }

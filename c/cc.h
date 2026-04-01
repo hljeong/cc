@@ -14,6 +14,7 @@ typedef enum NodeKind NodeKind;
 typedef struct Node Node;
 typedef enum SymbolKind SymbolKind;
 typedef struct Symbol Symbol;
+typedef struct Scope Scope;
 typedef enum TypeKind TypeKind;
 typedef struct Type Type;
 
@@ -303,6 +304,11 @@ Node *new_list_node (const NodeKind kind, Node *head);
 
 // symbol
 
+struct Scope {
+  Symbol *symbols;
+  Scope *par;
+};
+
 enum SymbolKind {
   SymbolKind_VAR,
   SymbolKind_FUN,
@@ -321,7 +327,7 @@ struct Symbol {
 
     // SymbolKind_FUN
     struct {
-      Symbol *locals;
+      Scope scope;
       Symbol *params;
       int stack_size;
       int label;
@@ -330,11 +336,8 @@ struct Symbol {
   Symbol *next;
 };
 
-Symbol *new_var   (Node *decl);
-Symbol *new_fun   (Node *decl);
-
-Symbol *lookup_var(Node *var);
-Symbol *lookup_fun(Node *fun);
+Symbol *new_symbol(Node *decl, const SymbolKind kind);
+Symbol *lookup_symbol(Node *ref);
 
 
 // type
@@ -391,7 +394,7 @@ typedef struct {
   StringView src;
   const Token *toks;
   Node *ast;
-  Symbol *globals;
+  Scope globals;
 
   struct {
     const char *loc;
@@ -402,11 +405,13 @@ typedef struct {
   } parser;
 
   struct {
+    Scope *scope;
     Symbol *fun;
   } analyzer;
 
   struct {
     int depth;
+    Scope *scope;
     Symbol *fun;
   } codegen;
 } Context;

@@ -13,42 +13,48 @@ static void visit(Node **node_ptr) {
 
   else if (node->kind == NodeKind_FUN_DECL) {
     // declare function first before visiting body, to allow recursion
-    ctx.analyzer.fun = (node->fun_decl.fun = new_fun(node->fun_decl.decl));
+    Symbol *fun = ctx.analyzer.fun
+                = node->fun_decl.fun
+                = new_symbol(node->fun_decl.decl, SymbolKind_FUN);
+    Scope *scope = (ctx.analyzer.scope = &node->fun_decl.fun->fun.scope);
 
     {
       Node *param = node->fun_decl.decl->decl.params;
       while (param) {
-        new_var(param);
+        new_symbol(param, SymbolKind_VAR);
         param = param->next;
       }
 
       // right now params are in reverse order. reverse the linked list
-      if (ctx.analyzer.fun->fun.locals) {
+      if (scope->symbols) {
         Symbol *prev = NULL;
-        while (ctx.analyzer.fun->fun.locals) {
-          Symbol *next = ctx.analyzer.fun->fun.locals->next;
-          ctx.analyzer.fun->fun.locals->next = prev;
-          prev = ctx.analyzer.fun->fun.locals;
-          ctx.analyzer.fun->fun.locals = next;
+        while (scope->symbols) {
+          Symbol *next = scope->symbols->next;
+          scope->symbols->next = prev;
+          prev = scope->symbols;
+          scope->symbols = next;
         }
-        ctx.analyzer.fun->fun.locals = prev;
+        scope->symbols = prev;
       }
-      ctx.analyzer.fun->fun.params = ctx.analyzer.fun->fun.locals;
+      fun->fun.params = scope->symbols;
     }
 
     visit(&node->fun_decl.body);
 
     // allocate local vars
     int offset = 0;
-    for (Symbol *var = ctx.analyzer.fun->fun.locals; var; var = var->next) {
-      assert(var->kind == SymbolKind_VAR);
+    for (Symbol *local = scope->symbols; local; local = local->next) {
+      assert(local->kind == SymbolKind_VAR);
       offset += 8;
       // todo: why is this negative?
-      var->var.offset = -offset;
+      local->var.offset = -offset;
     }
     // align to 16-byte boundary
     // todo: why?
-    ctx.analyzer.fun->fun.stack_size = (offset + 15) / 16 * 16;
+    fun->fun.stack_size = (offset + 15) / 16 * 16;
+
+    ctx.analyzer.scope = ctx.analyzer.scope->par;
+    ctx.analyzer.fun = NULL;
   }
 
   else if (node->kind == NodeKind_EXPR_STMT) {
@@ -93,7 +99,7 @@ static void visit(Node **node_ptr) {
   }
 
   else if (node->kind == NodeKind_CALL) {
-    node->ref.symbol = lookup_fun(node->call.fun);
+    node->ref.symbol = lookup_symbol(node->call.fun);
     node->type = node->ref.symbol->type;
     Symbol *param = node->ref.symbol->fun.params;
     Node *arg = node->call.args;
@@ -241,7 +247,8 @@ static void visit(Node **node_ptr) {
       visit(&node->var_decl.init->binop.rhs);
 
     // declare var
-    node->var_decl.decl->decl.symbol = new_var(node->var_decl.decl);
+    node->var_decl.decl->decl.symbol =
+      new_symbol(node->var_decl.decl, SymbolKind_VAR);
 
     // type check
     if (node->var_decl.init)
@@ -249,7 +256,7 @@ static void visit(Node **node_ptr) {
   }
 
   else if (node->kind == NodeKind_REF) {
-    node->ref.symbol = lookup_var(node);
+    node->ref.symbol = lookup_symbol(node);
     node->type = node->ref.symbol->type;
   }
 
@@ -261,5 +268,6 @@ static void visit(Node **node_ptr) {
 }
 
 void analyze() {
+  ctx.analyzer.scope = &ctx.globals;
   visit(&ctx.ast);
 }

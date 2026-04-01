@@ -26,57 +26,48 @@ void fmt_arg_symbol(const StrConsumer c, va_list ap) {
   consume_symbol(c, va_arg(ap, const Symbol *));
 }
 
-Symbol *new_var(Node *decl) {
+Symbol *new_symbol(Node *decl, const SymbolKind kind) {
   assert(decl->kind == NodeKind_DECL,
          "%{node_kind}", decl->kind);
 
-  for (Symbol *local = ctx.analyzer.fun->fun.locals; local; local = local->next) {
-    assert(local->kind == SymbolKind_VAR);
-    if (sv_eq(decl->ref.name, local->name))
+  Scope *scope = ctx.analyzer.scope;
+  for (Symbol *symbol = scope->symbols; symbol; symbol = symbol->next) {
+    if (sv_eq(decl->ref.name, symbol->name))
       error("%{@node} already declared", decl);
   }
 
-  Symbol *var = calloc(1, sizeof(Symbol));
-  var->kind = SymbolKind_VAR;
-  var->name = decl->ref.name;
-  var->type = decl->type;
-  var->decl = decl;
-  var->next = ctx.analyzer.fun->fun.locals;
-  return (ctx.analyzer.fun->fun.locals = var);
-}
-
-// todo: awfully similar to new_var2()!!!!! i smell refactor :d
-Symbol *new_fun(Node *decl) {
-  assert(decl->kind == NodeKind_DECL,
-         "%{node_kind}", decl->kind);
-
-  for (Symbol *fun = ctx.globals; fun; fun = fun->next) {
-    assert(fun->kind == SymbolKind_FUN);
-    if (sv_eq(fun->name, decl->fun_decl.decl->decl.name))
-      error("%{@node} already declared", decl);
+  while ((scope = scope->par)) {
+    for (Symbol *symbol = scope->symbols; symbol; symbol = symbol->next) {
+      if (sv_eq(decl->ref.name, symbol->name)) {
+        debug("%{@node} declares previous declaration\n\n%{@node}",
+              decl, symbol->decl);
+      }
+    }
   }
 
-  Symbol *fun = calloc(1, sizeof(Symbol));
-  fun->kind = SymbolKind_FUN;
-  fun->name = decl->ref.name;
-  fun->type = decl->type;
-  fun->decl = decl;
-  fun->next = ctx.globals;
-  return (ctx.globals = fun);
+  Symbol *symbol = calloc(1, sizeof(Symbol));
+  symbol->kind = kind;
+  symbol->name = decl->ref.name;
+  symbol->type = decl->type;
+  symbol->decl = decl;
+  symbol->next = ctx.analyzer.scope->symbols;
+  if (kind == SymbolKind_FUN) {
+    symbol->fun.scope.par = ctx.analyzer.scope;
+  }
+  return (ctx.analyzer.scope->symbols = symbol);
 }
 
-Symbol *lookup_var(Node *var) {
-  for (Symbol *local = ctx.analyzer.fun->fun.locals; local; local = local->next) {
-    if (sv_eq(local->name, var->ref.name))
-      return local;
-  }
-  error("%{@node} undeclared variable", var);
-}
+Symbol *lookup_symbol(Node *ref) {
+  assert(ref->kind == NodeKind_REF,
+         "%{node_kind}", ref->kind);
 
-Symbol *lookup_fun(Node *fun) {
-  for (Symbol *fun_ = ctx.globals; fun_; fun_ = fun_->next) {
-    if (sv_eq(fun_->name, fun->ref.name))
-      return fun_;
+  Scope *scope = ctx.analyzer.scope;
+  while (scope) {
+    for (Symbol *symbol = scope->symbols; symbol; symbol = symbol->next) {
+      if (sv_eq(ref->ref.name, symbol->name))
+        return symbol;
+    }
+    scope = scope->par;
   }
-  error("%{@node} undeclared function", fun);
+  error("%{@node} undeclared symbol", ref);
 }
