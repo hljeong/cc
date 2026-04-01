@@ -131,6 +131,8 @@ enum TokenKind {
   TokenKind_AND,
   TokenKind_LPAREN,
   TokenKind_RPAREN,
+  TokenKind_LBRACKET,
+  TokenKind_RBRACKET,
   TokenKind_EQ,
   TokenKind_DEQ,
   TokenKind_NEQ,
@@ -220,7 +222,8 @@ struct Node {
     // NodeKind_DECL
     struct {
       StringView name;
-      Node      *params;  // list<NodeKind_DECL>
+      Node      *dims;    // list<NodeKind_NUM>, for arrays
+      Node      *params;  // list<NodeKind_DECL>, for functions
       Symbol    *symbol;  // populated at analysis time
     } decl;
 
@@ -345,21 +348,29 @@ Symbol *lookup_symbol(Node *ref);
 enum TypeKind {
   TypeKind_INT,
   TypeKind_PTR,
+  TypeKind_ARR,
   TypeKind_FUN,
 };
 
 struct Type {
   TypeKind kind;
+  int size;
   union {
     // TypeKind_PTR
     struct {
       Type *referenced;
     } ptr;
 
+    // TypeKind_PTR
+    struct {
+      Type *base;
+      int len;
+    } arr;
+
     // TypeKind_FUN
     struct {
-      Type *params;
       Type *returns;
+      Type *params;
     } fun;
   };
   Type *next;
@@ -372,12 +383,13 @@ typedef struct {
 extern Types t;
 
 bool type_eq(const Type *t, const Type *u);
-
 Type *type_copy(const Type *type);
+bool type_is_ptr(const Type *type);
 
 Type *new_type    (const TypeKind kind);
 Type *new_ptr_type(Type *referenced);
 Type *new_fun_type(Type *returns, Node *params /* list<NodeKind_DECL> */);
+Type *new_arr_type(Type *base, const int len);
 
 
 // action

@@ -102,6 +102,15 @@ check 'function call with 1 arg' '3' 'int f(int x) { return x; } int main() { re
 check 'function call with args' '1' 'int f(int x, int y, int z) { return x; } int main() { int x = 1, y = 2, z = 3; return f(x, y, z); }'
 check 'function call with diverse args' '2' 'int f(int x, int y, int *z) { if (*z == x) return x; else return y; } int main() { int x = 1, y = 2, *z = &y; return f(x, y, z); }'
 check 'factorial' '120' 'int fact(int n) { if (n == 0) return 1; else return n * fact(n - 1); } int main() { return fact(5); }'
+check 'array 0' '1' 'int main() { int arr[3]; *arr = 1; return *arr; }'
+check 'array 1' '2' 'int main() { int arr[3]; *(arr + 1) = 2; return *(arr + 1); }'
+check 'array 2' '3' 'int main() { int arr[3]; *(arr + 2) = 3; return *(arr + 2); }'
+check 'multi-dim array 0' '1' 'int main() { int arr[2][3], *flat = arr; *(flat + 0) = 1; return *(*(arr + 0) + 0); }'
+check 'multi-dim array 1' '2' 'int main() { int arr[2][3], *flat = arr; *(flat + 1) = 2; return *(*(arr + 0) + 1); }'
+check 'multi-dim array 2' '3' 'int main() { int arr[2][3], *flat = arr; *(flat + 2) = 3; return *(*(arr + 0) + 2); }'
+check 'multi-dim array 3' '4' 'int main() { int arr[2][3], *flat = arr; *(flat + 3) = 4; return *(*(arr + 1) + 0); }'
+check 'multi-dim array 4' '5' 'int main() { int arr[2][3], *flat = arr; *(flat + 4) = 5; return *(*(arr + 1) + 1); }'
+check 'multi-dim array 5' '6' 'int main() { int arr[2][3], *flat = arr; *(flat + 5) = 6; return *(*(arr + 1) + 2); }'
 
 echo ""
 echo "=== results: $passed passed, $failed failed ==="

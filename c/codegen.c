@@ -29,6 +29,20 @@ static void pop(const char *arg) {
   ctx.codegen.depth--;
 }
 
+// load value from [%rax]
+static void load(const Type *type) {
+  // loading the value of an array loads its pointer value
+  if (type->kind == TypeKind_ARR) return;
+
+  print("  mov   (%%rax), %%rax");
+}
+
+// store %rax to [top of stack]
+static void store() {
+  pop("%rdi");
+  print("  mov   %%rax, (%%rdi)");
+}
+
 static void visit(Node *node) {
   if (!node) return;
 
@@ -139,15 +153,14 @@ static void visit(Node *node) {
 
   else if (node->kind == NodeKind_REF) {
     addr(node);
-    print("  mov   (%%rax), %%rax");
+    load(node->type);
   }
 
   else if (node->kind == NodeKind_ASSIGN) {
     addr(node->binop.lhs);
     push();
     visit(node->binop.rhs);
-    pop("%rdi");
-    print("  mov   %%rax, (%%rdi)");
+    store();
   }
 
   else if (node->kind == NodeKind_CALL) {
@@ -178,7 +191,7 @@ static void visit(Node *node) {
 
   else if (node->kind == NodeKind_DEREF) {
     visit(node->unop.opr);
-    print("  mov   (%%rax), %%rax");
+    load(node->type);
   }
 
   else if (node_kind_is_binop(node->kind)) {

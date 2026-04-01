@@ -257,7 +257,8 @@ static Node *var_decl(Type *base_type) {
   return pop_lexeme(node);
 }
 
-// declarator ::= "*"* ident ("(" params? ")")?
+// fucking insane syntax
+// declarator ::= "*"* ident ("[" num "]")* ("(" params? ")")?
 // params ::= param ("," param)*
 // param ::= decl_spec declarator
 static Node *declarator(Type *base_type) {
@@ -265,11 +266,28 @@ static Node *declarator(Type *base_type) {
   Node *node = new_node(NodeKind_DECL);
 
   node->type = base_type;
+
+  // "*"*
   while (consume(TokenKind_STAR))
     node->type = new_ptr_type(node->type);
 
+  // ident
   node->decl.name = expect(TokenKind_IDENT)->lexeme;
 
+  // ("[" num "]")*
+  while (consume(TokenKind_LBRACKET)) {
+    src_push();
+    Node *dim = pop_lexeme(new_num_node(expect(TokenKind_NUM)->num.value));
+    dim->next = node->decl.dims;
+    node->decl.dims = dim;
+    expect(TokenKind_RBRACKET);
+  }
+
+  // T[N][M][K] is actually ((T[K])[M])[N]
+  for (Node *dim = node->decl.dims; dim; dim = dim->next)
+    node->type = new_arr_type(node->type, dim->num.value);
+
+  // "(" params? ")"
   if (consume(TokenKind_LPAREN)) {
     if (!consume(TokenKind_RPAREN)){
       Node head = {};

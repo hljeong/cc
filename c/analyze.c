@@ -45,7 +45,7 @@ static void visit(Node **node_ptr) {
     int offset = 0;
     for (Symbol *local = scope->symbols; local; local = local->next) {
       assert(local->kind == SymbolKind_VAR);
-      offset += 8;
+      offset += local->type->size;
       // todo: why is this negative?
       local->var.offset = -offset;
     }
@@ -77,13 +77,20 @@ static void visit(Node **node_ptr) {
   else if (node_kind_is_unop(node->kind)) {
     visit(&node->unop.opr);
 
-    if      (node->kind == NodeKind_NEG)  node->type = node->unop.opr->type;
-    else if (node->kind == NodeKind_ADDR) node->type = new_ptr_type(node->unop.opr->type);
+    if (node->kind == NodeKind_ADDR) node->type = new_ptr_type(node->unop.opr->type);
+
+    else if (node->kind == NodeKind_NEG) {
+      if (node->unop.opr->type->kind != TypeKind_INT)
+        error("%{@node} cannot negate (%{sv}: %{type})",
+              node, node->lexeme, node->type);
+      node->type = node->unop.opr->type;
+    }
 
     else if (node->kind == NodeKind_DEREF) {
-      if (node->unop.opr->type->kind != TypeKind_PTR)
-        error("%{@node} not an pointer: %{type}",
+      if (!type_is_ptr(node->unop.opr->type))
+        error("%{@node} not a pointer or array: %{type}",
               node, node->unop.opr->type);
+      // this is the same as arr.base :)
       node->type = node->unop.opr->type->ptr.referenced;
     }
 
@@ -126,8 +133,29 @@ static void visit(Node **node_ptr) {
     visit(&node->binop.rhs);
     visit(&node->binop.lhs);
 
-    // todo: how to check if lhs is an lvalue?
-    if (!type_eq(node->binop.lhs->type, node->binop.rhs->type)) {
+    // todo: how to *actually* check if lhs is an lvalue?
+    if (node->binop.lhs->type->kind == TypeKind_ARR)
+      error("%{@node} not an lvalue: %{type}",
+            node->binop.lhs, node->binop.lhs->type);
+
+    // todo: edge cases galore...
+    if (node->binop.rhs->type->kind == TypeKind_ARR) {
+      if (node->binop.lhs->type->kind != TypeKind_PTR)
+        error("%{@node} cannot assign (%{sv}: %{type}) to (%{sv}: %{type})",
+              node,
+              node->binop.rhs->lexeme, node->binop.rhs->type,
+              node->binop.lhs->lexeme, node->binop.lhs->type);
+      Type *base_type = node->binop.rhs->type->arr.base;
+      while (base_type->kind == TypeKind_ARR)
+        base_type = base_type->arr.base;
+      if (!type_eq(node->binop.lhs->type->ptr.referenced, base_type))
+        error("%{@node} cannot assign (%{sv}: %{type}) to (%{sv}: %{type})",
+              node,
+              node->binop.rhs->lexeme, node->binop.rhs->type,
+              node->binop.lhs->lexeme, node->binop.lhs->type);
+    }
+
+    else if (!type_eq(node->binop.lhs->type, node->binop.rhs->type)) {
       error("%{@node} cannot assign (%{sv}: %{type}) to (%{sv}: %{type})",
             node,
             node->binop.rhs->lexeme, node->binop.rhs->type,
@@ -151,16 +179,16 @@ static void visit(Node **node_ptr) {
     }
 
     // `ptr + ptr`
-    else if (t_lhs->kind == TypeKind_PTR && t_rhs->kind == TypeKind_PTR) {
+    else if (type_is_ptr(t_lhs) && type_is_ptr(t_rhs)) {
       error("%{@node} cannot assign (%{sv}: %{type}) to (%{sv}: %{type})",
             node,
             node->binop.rhs->lexeme, node->binop.rhs->type,
             node->binop.lhs->lexeme, node->binop.lhs->type);
     }
 
-    // todo: dangerous catch-all
     // `int + ptr` or `ptr + int`
-    else {
+    else if ((t_lhs->kind == TypeKind_INT && type_is_ptr(t_rhs)) ||
+             (type_is_ptr(t_lhs) && t_rhs->kind == TypeKind_INT)) {
       // canonicalize 'int + ptr' to `ptr + int`
       if (t_lhs->kind == TypeKind_INT) {
         Node *tmp = node->binop.lhs;
@@ -168,12 +196,16 @@ static void visit(Node **node_ptr) {
         node->binop.rhs = node->binop.lhs;
       }
 
-      Node *stride = new_num_node(8);
+      Node *stride = new_num_node(node->binop.lhs->type->ptr.referenced->size);
       stride->lexeme = node->binop.rhs->lexeme;
       node->binop.rhs = new_binop_node(NodeKind_MUL, stride, node->binop.rhs);
 
       node->type = node->binop.lhs->type;
     }
+
+    else fail("unexpected type check: (%{sv}: %{type}) + (%{sv}: %{type})",
+              node->binop.lhs->lexeme, node->binop.lhs->type,
+              node->binop.rhs->lexeme, node->binop.rhs->type);
   }
 
   else if (node->kind == NodeKind_SUB) {
@@ -199,7 +231,7 @@ static void visit(Node **node_ptr) {
 
       node->type = &t.int_;
 
-      Node *stride = new_num_node(8);
+      Node *stride = new_num_node(node->type->size);
       stride->lexeme = node->lexeme;
       Node *new_node = new_binop_node(NodeKind_DIV, node, stride);
       new_node->type = &t.int_;
@@ -209,7 +241,7 @@ static void visit(Node **node_ptr) {
 
     // `ptr - num`
     else if (t_lhs->kind == TypeKind_PTR && t_rhs->kind == TypeKind_INT) {
-      Node *stride = new_num_node(8);
+      Node *stride = new_num_node(node->binop.rhs->type->size);
       stride->lexeme = node->binop.rhs->lexeme;
       node->binop.rhs = new_binop_node(NodeKind_MUL, stride, node->binop.rhs);
 

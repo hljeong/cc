@@ -12,6 +12,8 @@ static void consume_token_kind(const StrConsumer c, const TokenKind kind) {
   else if (kind == TokenKind_AND)       consume_f(c, "&");
   else if (kind == TokenKind_LPAREN)    consume_f(c, "(");
   else if (kind == TokenKind_RPAREN)    consume_f(c, ")");
+  else if (kind == TokenKind_LBRACKET)  consume_f(c, "[");
+  else if (kind == TokenKind_RBRACKET)  consume_f(c, "]");
   else if (kind == TokenKind_EQ)        consume_f(c, "=");
   else if (kind == TokenKind_DEQ)       consume_f(c, "==");
   else if (kind == TokenKind_NEQ)       consume_f(c, "!=");
