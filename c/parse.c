@@ -41,6 +41,7 @@ static Node *relational();
 static Node *add();
 static Node *mul();
 static Node *unary();
+static Node *postfix();
 static Node *primary();
 
 typedef struct SourceStack SourceStack;
@@ -386,16 +387,33 @@ static Node *mul() {
 }
 
 // unary ::= ("+" | "-" | "&" | "*") unary
-//         | primary
+//         | postfix
 static Node *unary() {
   if (debug_parse) debug("%{@cur_tok} parsing unary");
   src_push();
-  const Token *tok = NULL;
-  if      ((tok = consume(TokenKind_PLUS)))  return src_pop(), unary();
-  else if ((tok = consume(TokenKind_MINUS))) return pop_lexeme(new_unop_node(NodeKind_NEG, unary()));
-  else if ((tok = consume(TokenKind_AND)))   return pop_lexeme(new_unop_node(NodeKind_ADDR, unary()));
-  else if ((tok = consume(TokenKind_STAR)))  return pop_lexeme(new_unop_node(NodeKind_DEREF, unary()));
-  else                                       return src_pop(), primary();
+  if      (consume(TokenKind_PLUS))  return src_pop(), unary();
+  else if (consume(TokenKind_MINUS)) return pop_lexeme(new_unop_node(NodeKind_NEG, unary()));
+  else if (consume(TokenKind_AND))   return pop_lexeme(new_unop_node(NodeKind_ADDR, unary()));
+  else if (consume(TokenKind_STAR))  return pop_lexeme(new_unop_node(NodeKind_DEREF, unary()));
+  else                               return src_pop(), postfix();
+}
+
+// postfix ::= primary ("[" expr "]")*
+static Node *postfix() {
+  if (debug_parse) debug("%{@cur_tok} parsing postix");
+  src_push();
+  Node *node = primary();
+
+  // "[" expr "]"
+  while (consume(TokenKind_LBRACKET)) {
+    // arr[off] => *(arr + off)
+    node = add_lexeme(new_unop_node(NodeKind_DEREF,
+           add_lexeme(new_binop_node(NodeKind_ADD,
+                                     node, expr()))));
+    expect(TokenKind_RBRACKET);
+  }
+
+  return src_pop(), node;
 }
 
 // primary ::= "(" expr ")" | ident args? | num
