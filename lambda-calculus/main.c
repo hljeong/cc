@@ -24,7 +24,7 @@ Context ctx = {};
 //   $ lc '(\x.\y.x) a b' 2>/dev/null
 //   a                    // stdout (result)
 int main(int argc, char **argv) {
-  if (argc < 2) errorf("usage: %s <expr> [mode=whnf|nf|benf (default=nf)] [max-steps=10] [syntax=std|ext (default=std)]", argv[0]);
+  if (argc < 2) errorf("usage: %s <expr> [mode=whnf|nf|benf (default=nf)] [max-steps=100] [syntax=std|ext (default=std)]", argv[0]);
 
   ctx.src = argv[1];
   ctx.src_len = strlen(ctx.src);
@@ -32,7 +32,7 @@ int main(int argc, char **argv) {
                                     : !strcmp(argv[2], "benf") ? NormalForm_BETA_ETA
                                                                : NormalForm_BETA
                                     : NormalForm_BETA;
-  const int max_steps = (argc >= 4) ? atoi(argv[3]) : 10;
+  const int max_steps = (argc >= 4) ? atoi(argv[3]) : 100;
   const bool ext = (argc >= 5) ? !strcmp(argv[4], "ext") : false;
 
   debugf("src: %s\n", ctx.lexer.loc = ctx.src);
