@@ -43,6 +43,9 @@ check "max-steps: limits reductions"                '((\y.(\a.a)) (\b.b))'  '(\x
 check "shadow: inner binding hides outer"           'b'                     '(\x.\x.x) a b'
 check "shadow: prevents free var capture"           'y'                     '(\x.\y.x) y b'
 
+check "extended syntax 0"                           '(\x.(\y.x))'           '\x y.x'
+check "extended syntax 1"                           '(\x y.x)'              '\x y.x'                          nf    100 ext
+
 
 echo ""
 echo "=== results: $passed passed, $failed failed ==="

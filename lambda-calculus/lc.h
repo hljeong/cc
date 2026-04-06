@@ -188,10 +188,10 @@ Node *new_app(Node *fun, Node *arg);
 void debug_ast(const Node *node);
 
 // print unparsed ast to debug
-void debug_unparse(const Node *node);
+void debug_unparse(const Node *node, const bool ext);
 
 // print unparsed ast to stdout
-void print_unparse(const Node *node);
+void print_unparse(const Node *node, const bool ext);
 
 // parse the ast
 Node *parse();

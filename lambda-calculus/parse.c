@@ -60,61 +60,79 @@ void debug_fun_scope(const Node *node) {
   debugf("\n");
 }
 
-static void _debug_unparse(const Node *node) {
+static void _debug_unparse(const Node *node, const bool ext, const bool nested_fun) {
   if (node->kind == NodeKind_VAR) {
     debugf(sv_fmt, sv_arg(node->name));
   }
 
   else if (node->kind == NodeKind_FUN) {
-    debugf("(\\");
-    _debug_unparse(node->var);
-    debugf(".");
-    _debug_unparse(node->body);
-    debugf(")");
+    if (!nested_fun) debugf("(\\");
+    _debug_unparse(node->var, ext, false);
+
+    if (ext && node->body->kind == NodeKind_FUN) {
+      debugf(" ");
+      _debug_unparse(node->body, ext, true);
+    }
+
+    else {
+      debugf(".");
+      _debug_unparse(node->body, ext, false);
+    }
+
+    if (!nested_fun) debugf(")");
   }
 
   else if (node->kind == NodeKind_APP) {
     debugf("(");
-    _debug_unparse(node->fun);
+    _debug_unparse(node->fun, ext, false);
     debugf(" ");
-    _debug_unparse(node->arg);
+    _debug_unparse(node->arg, ext, false);
     debugf(")");
   }
 
   else failf("not implemented: %u", (uint32_t) node->kind);
 }
 
-void debug_unparse(const Node *node) {
-  _debug_unparse(node); debugf("\n");
+void debug_unparse(const Node *node, const bool ext) {
+  _debug_unparse(node, ext, false); debugf("\n");
 }
 
 // todo: unlucky code duplication due to bad structure
-static void _print_unparse(const Node *node) {
+static void _print_unparse(const Node *node, const bool ext, const bool nested_fun) {
   if (node->kind == NodeKind_VAR) {
     printf(sv_fmt, sv_arg(node->name));
   }
 
   else if (node->kind == NodeKind_FUN) {
-    printf("(\\");
-    _print_unparse(node->var);
-    printf(".");
-    _print_unparse(node->body);
-    printf(")");
+    if (!nested_fun) printf("(\\");
+    _print_unparse(node->var, ext, false);
+
+    if (ext && node->body->kind == NodeKind_FUN) {
+      printf(" ");
+      _print_unparse(node->body, ext, true);
+    }
+
+    else {
+      printf(".");
+      _print_unparse(node->body, ext, false);
+    }
+
+    if (!nested_fun) printf(")");
   }
 
   else if (node->kind == NodeKind_APP) {
     printf("(");
-    _print_unparse(node->fun);
+    _print_unparse(node->fun, ext, false);
     printf(" ");
-    _print_unparse(node->arg);
+    _print_unparse(node->arg, ext, false);
     printf(")");
   }
 
   else failf("%u", (uint32_t) node->kind);
 }
 
-void print_unparse(const Node *node) {
-  _print_unparse(node); printf("\n");
+void print_unparse(const Node *node, const bool ext) {
+  _print_unparse(node, ext, false); printf("\n");
 }
 
 static bool is_atom_first(const TokenKind kind) {
@@ -226,18 +244,16 @@ static Node *atom(void) {
     node->lexeme = sv(start, sv_end(expect(TokenKind_RPAREN)->lexeme) - start);
     return node;
   }
-  else if (match(TokenKind_BACKSLASH)) return fun();
-  else if (match(TokenKind_IDENT))     return var(/*binding=*/ false);
-  else                                 errorf_tok("expected expression, got %s",
-                                                  token_to_str(ctx.parser.tok));
+  else if (consume(TokenKind_BACKSLASH)) return fun();
+  else if (match(TokenKind_IDENT))       return var(/*binding=*/ false);
+  else                                   errorf_tok("expected expression, got %s",
+                                                    token_to_str(ctx.parser.tok));
 }
 
-// fun ::= "\" var "." expr
+// fun ::= ("\") var+ "." expr
 static Node *fun(void) {
   const char *start = ctx.parser.tok->lexeme.loc;
   Node *node = new_node(NodeKind_FUN);
-
-  expect(TokenKind_BACKSLASH);
 
   // set parent scope to current parser scope
   node->par = ctx.parser.scope;
@@ -246,11 +262,19 @@ static Node *fun(void) {
   // push current scope onto stack
   ctx.parser.scope = node;
 
-  expect(TokenKind_DOT);
-  node->body = expr();
+  if (consume(TokenKind_DOT)) {
+    node->body = expr();
 
-  // populate lexeme
-  node->lexeme = sv(start, sv_end(node->body->lexeme) - start);
+    // populate lexeme
+    node->lexeme = sv(start, sv_end(node->body->lexeme) - start);
+  }
+
+  else {
+    node->body = fun();
+
+    // populate lexeme
+    node->lexeme = sv(start, sv_end(node->body->lexeme) - start);
+  }
 
   // pop current scope off of stack
   // (back to parent scope)
