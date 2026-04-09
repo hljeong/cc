@@ -24,11 +24,11 @@ void error(const char *fmt, ...);
 void _assert(const char *file, const int line, const char *cond,
              const char *fmt, ...);
 
-#define assert(cond, ...)                   \
-  do {                                      \
-    if (!(cond))                            \
-      _assert(__FILE__, __LINE__, __func__, \
-              ##__VA_ARGS__, NULL);         \
+#define assert(cond, ...)                \
+  do {                                   \
+    if (!(cond))                         \
+      _assert(__FILE__, __LINE__, #cond, \
+              ##__VA_ARGS__, NULL);      \
   } while (0)
 
 [[noreturn]]
@@ -37,7 +37,8 @@ void _fail(const char *file, const int line,
 
 #define fail(...) _fail(__FILE__, __LINE__, ##__VA_ARGS__, NULL)
 
-// todo: fail immediately on emitf() returning <0
+int check(const int ret);
+
 
 // token
 

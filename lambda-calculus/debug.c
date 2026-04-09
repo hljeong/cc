@@ -18,17 +18,8 @@ static int emit_at_loc(const sink s, const char *loc) {
          "invalid loc: %d, src_len=%d",
          col, ctx.src_len);
 
-  int len = 0;
-  {
-    const int ret = emitf(s, "%s\n", ctx.src);
-    if (ret < 0) return ret;
-    len += ret;
-  }
-  {
-    const int ret = emitf(s, "%*s^", col, "");
-    if (ret < 0) return ret;
-    len += ret;
-  }
+  int len = check(emitf(s, "%s\n", ctx.src));
+  len += check(emitf(s, "%*s^", col, ""));
   return len;
 }
 
@@ -46,27 +37,12 @@ static int emit_at_span(const sink s, const str_view span) {
          "invalid loc: %d, src_len=%d",
          col, ctx.src_len);
 
-  int len = 0;
-  {
-    const int ret = emitf(s, "%s\n", ctx.src);
-    if (ret < 0) return ret;
-    len += ret;
-  }
-  {
-    const int ret = emitf(s, "%*s", col, "");
-    if (ret < 0) return ret;
-    len += ret;
-  }
+  int len = check(emitf(s, "%s\n", ctx.src));
+  len += check(emitf(s, "%*s", col, ""));
   for (int i = 0; i < span.len; i++) {
-    const int ret = emitf(s, "%c", '~');
-    if (ret < 0) return ret;
-    len += ret;
+    len += check(emitf(s, "%c", '~'));
   }
-  {
-    const int ret = emitf(s, " ");
-    if (ret < 0) return ret;
-    len += ret;
-  }
+  len += check(emitf(s, " "));
   return len;
 }
 
@@ -82,18 +58,27 @@ int fmt_at_node(const sink s, va_list ap) {
   return emit_at_span(s, va_arg(ap, Node *)->lexeme);
 }
 
-void _assert(const char *file, const int line, const char *func,
-             const char *fmt,...) {
-  va_list ap; va_start(ap, fmt);
+void error(const char *fmt, ...) {
+  va_list ap;
+  va_start(ap, fmt);
+  vdebug(fmt, ap);
+  debug("\n");
+  va_end(ap);
+  exit(1);
+}
 
-  debug("%s:%d: assert(%s) failed", file, line, func);
+void _assert(const char *file, const int line, const char *cond,
+             const char *fmt, ...) {
+  debug("%s:%d: assert(%s) failed", file, line, cond);
   if (fmt) {
+    va_list ap;
+    va_start(ap, fmt);
     debug(": ");
-    debug(fmt, ap);
+    vdebug(fmt, ap);
+    va_end(ap);
   }
   debug("\n");
 
-  va_end(ap);
   exit(1);
 }
 
@@ -112,13 +97,9 @@ void _fail(const char *file, const int line,
   exit(1);
 }
 
-void error(const char *fmt, ...) {
-  va_list ap;
-  va_start(ap, fmt);
-  vdebug(fmt, ap);
-  debug("\n");
-  va_end(ap);
-  exit(1);
+int check(const int ret) {
+  assert(ret >= 0, "ret=%d", ret);
+  return ret;
 }
 
 void register_formatters() {

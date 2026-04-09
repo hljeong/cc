@@ -14,51 +14,28 @@ int fmt_token_kind(const sink s, va_list ap) {
 int fmt_token(const sink s, va_list ap) {
   const Token *tok = va_arg(ap, const Token *);
   int len = 0;
-  {
-    const int ret = emitf(s, "{token_kind}", tok->kind);
-    if (ret < 0) return ret;
-    len += ret;
-  }
+  len += check(emitf(s, "{token_kind}", tok->kind));
 
   if (tok->kind == TokenKind_IDENT) {
-    const int ret = emitf(s, "({sv})", tok->lexeme);
-    if (ret < 0) return ret;
-    len += ret;
+    len += check(emitf(s, "({sv})", tok->lexeme));
   }
 
   return len;
 }
 
 int fmt_token_stream(const sink s, va_list ap) {
-  int len = 0;
-  {
-    const int ret = emitf(s, "[");
-    if (ret < 0) return ret;
-    len += ret;
-  }
+  int len = check(emitf(s, "["));
 
   const Token *tok = va_arg(ap, const Token *);
   while (tok) {
-    {
-      const int ret = emitf(s, "{token}", tok);
-      if (ret < 0) return ret;
-      len += ret;
-    }
+    len += check(emitf(s, "{token}", tok));
 
     if ((tok = tok->next)) {
-      const int ret = emitf(s, " ");
-      if (ret < 0) return ret;
-      len += ret;
+      len += check(emitf(s, " "));
     }
   }
 
-  {
-    const int ret = emitf(s, "]");
-    if (ret < 0) return ret;
-    len += ret;
-  }
-
-  return len;
+  return (len += check(emitf(s, "]")));
 }
 
 Token *new_token(const TokenKind kind, const int len) {

@@ -10,29 +10,17 @@ int fmt_node_kind(const sink s, va_list ap) {
 
 int fmt_node(const sink s, va_list ap) {
   const Node *node = va_arg(ap, Node *);
-  int len = 0;
-  {
-    const int ret = emitf(s, "{node_kind}", node->kind);
-    if (ret < 0) return ret;
-    len += ret;
-  }
+  int len = check(emitf(s, "{node_kind}", node->kind));
 
   if (node->kind == NodeKind_VAR) {
-    const int ret = emitf(s, "({sv})", node->name);
-    if (ret < 0) return ret;
-    len += ret;
+    len += check(emitf(s, "({sv})", node->name));
   }
 
   return len;
 }
 
 static int emit_ast(const sink s, const Node *node, str_builder *sb, const bool last) {
-  int len = 0;
-  {
-    const int ret = emitf(s, "%s%s{node}\n", sb->buf, last ? "└─" : "├─", node);
-    if (ret < 0) return ret;
-    len += ret;
-  }
+  int len = check(emitf(s, "%s%s{node}\n", sb->buf, last ? "└─" : "├─", node));
 
   const int truncate_to = sb->size;
   sb_append(sb, last ? "  " : "│ ");
@@ -41,23 +29,13 @@ static int emit_ast(const sink s, const Node *node, str_builder *sb, const bool 
 
   else if (node->kind == NodeKind_FUN) {
     int ret = -1;
-    if (node->body) ret = emit_ast(s, node->body, sb, true);
-    else ret = debug("%s  └─...\n", sb->buf);
-    if (ret < 0) return ret;
-    len += ret;
+    if (node->body) len += check(emit_ast(s, node->body, sb, true));
+    else len += check(emitf(s, "%s  └─...\n", sb->buf));
   }
 
   else if (node->kind == NodeKind_APP) {
-    {
-      const int ret = emit_ast(s, node->fun, sb, false);
-      if (ret < 0) return ret;
-      len += ret;
-    }
-    {
-      const int ret = len += emit_ast(s, node->arg, sb, true);
-      if (ret < 0) return ret;
-      len += ret;
-    }
+    len += check(emit_ast(s, node->fun, sb, false));
+    len += check(emit_ast(s, node->arg, sb, true));
   }
 
   else fail("{node_kind}", node->kind);
@@ -78,129 +56,56 @@ int fmt_scope(const sink s, va_list ap) {
   assert(node->kind == NodeKind_FUN,
          "bad invocation: fmt_scope({node})", node);
 
-  int len = 0;
-  {
-    const int ret = emitf(s, "{");
-    if (ret < 0) return ret;
-    len += ret;
-  }
-
+  int len = check(emitf(s, "{"));
 
   while (node) {
-    if (node->var->name.len) {
-      const int ret = emitf(s, "{sv}", node->var->name);
-      if (ret < 0) return ret;
-      len += ret;
-    }
-    else {
-      const int ret = emitf(s, "*");
-      if (ret < 0) return ret;
-      len += ret;
-    }
+    if (node->var->name.len)
+      len += check(emitf(s, "{sv}", node->var->name));
+    else
+      len += check(emitf(s, "*"));
 
-    if ((node = node->par)) {
-      const int ret = emitf(s, ", ");
-      if (ret < 0) return ret;
-      len += ret;
-    }
+    if ((node = node->par))
+      len += check(emitf(s, ", "));
   }
 
-  {
-    const int ret = emitf(s, "}");
-    if (ret < 0) return ret;
-    len += ret;
-  }
+  len += check(emitf(s, "}"));
 
   return len;
 }
 
-static int _fmt_lambda(const sink s, const Node *node, const bool ext, const bool nested_fun) {
+static int emit_lambda(const sink s, const Node *node, const bool ext, const bool nested_fun) {
   int len = 0;
 
   if (node->kind == NodeKind_VAR) {
-    const int ret = emitf(s, "{sv}", node->name);
-    if (ret < 0) return ret;
-    len += ret;
+    len += check(emitf(s, "{sv}", node->name));
   }
 
   else if (node->kind == NodeKind_FUN) {
-    if (!nested_fun) {
-      const int ret = emitf(s, "(\\");
-      if (ret < 0) return ret;
-      len += ret;
-    }
+    if (!nested_fun)
+      len += check(emitf(s, "(\\"));
 
-    {
-      const int ret = _fmt_lambda(s, node->var, ext, false);
-      if (ret < 0) return ret;
-      len += ret;
-    }
+    len += check(emit_lambda(s, node->var, ext, false));
 
     if (ext && node->body->kind == NodeKind_FUN) {
-      {
-        const int ret = emitf(s, " ");
-        if (ret < 0) return ret;
-        len += ret;
-      }
-
-      {
-        const int ret = _fmt_lambda(s, node->body, ext, true);
-        if (ret < 0) return ret;
-        len += ret;
-      }
+      len += check(emitf(s, " "));
+      len += check(emit_lambda(s, node->body, ext, true));
     }
 
     else {
-      {
-        const int ret = emitf(s, ".");
-        if (ret < 0) return ret;
-        len += ret;
-      }
-
-      {
-        const int ret = _fmt_lambda(s, node->body, ext, false);
-        if (ret < 0) return ret;
-        len += ret;
-      }
+      len += check(emitf(s, "."));
+      len += check(emit_lambda(s, node->body, ext, false));
     }
 
-    if (!nested_fun) {
-      const int ret = emitf(s, ")");
-      if (ret < 0) return ret;
-      len += ret;
-    }
+    if (!nested_fun)
+      len += check(emitf(s, ")"));
   }
 
   else if (node->kind == NodeKind_APP) {
-    {
-      const int ret = emitf(s, "(");
-      if (ret < 0) return ret;
-      len += ret;
-    }
-
-    {
-      const int ret = _fmt_lambda(s, node->fun, ext, false);
-      if (ret < 0) return ret;
-      len += ret;
-    }
-
-    {
-      const int ret = emitf(s, " ");
-      if (ret < 0) return ret;
-      len += ret;
-    }
-
-    {
-      const int ret = _fmt_lambda(s, node->arg, ext, false);
-      if (ret < 0) return ret;
-      len += ret;
-    }
-
-    {
-      const int ret = emitf(s, ")");
-      if (ret < 0) return ret;
-      len += ret;
-    }
+    len += check(emitf(s, "("));
+    len += check(emit_lambda(s, node->fun, ext, false));
+    len += check(emitf(s, " "));
+    len += check(emit_lambda(s, node->arg, ext, false));
+    len += check(emitf(s, ")"));
   }
 
   else fail("{node_kind}", node->kind);
@@ -211,7 +116,7 @@ static int _fmt_lambda(const sink s, const Node *node, const bool ext, const boo
 int fmt_lambda(const sink s, va_list ap) {
   const Node *node = va_arg(ap, Node *);
   const bool ext = va_arg(ap, int);
-  return _fmt_lambda(s, node, ext, false);
+  return emit_lambda(s, node, ext, false);
 }
 
 Node *new_node(const NodeKind kind) {
