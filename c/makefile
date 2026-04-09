@@ -15,7 +15,7 @@ $(BIN): $(OBJS)
 	@ $(CC) $(CFLAGS) -c -o $@ $<
 
 clean:
-	@ rm -f $(OBJS) a.S a.out cc test.err
+	@ rm -f *.o a.S a.out cc test.err
 
 test: $(BIN)
 	@ ./test.sh

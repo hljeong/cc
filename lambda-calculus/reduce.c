@@ -12,7 +12,7 @@
 // note that `node`, `var`, and `subval` must not overlap
 static Node *sub(Node *node, Node *var, Node *subval) {
   if (var->kind != NodeKind_VAR)
-    failf("bad invocation: sub(*, %s, *)", node_kind_to_str(var->kind));
+    fail("bad invocation: sub(*, {node_kind}, *)", var->kind);
 
   if (node->kind == NodeKind_VAR) {
     // `node->ref` points to the exact node that
@@ -41,16 +41,16 @@ static Node *sub(Node *node, Node *var, Node *subval) {
     return node;
   }
 
-  else failf("%s", node_kind_to_str(node->kind));
+  else fail("{node_kind}", node->kind);
 }
 
-// perform beta-reduction on the given application node
+//perform beta-reduction on the given application node
 // return `node` as is if there is nothing to be done
 static Node *beta(Node *node) {
   if (node->kind != NodeKind_APP)
-    failf("bad invocation: beta(%s)", node_kind_to_str(node->kind));
+    fail("bad invocation: beta({node_kind})", node->kind);
   if (node->fun->kind != NodeKind_FUN)
-    failf("bad invocation: beta(app(%s, *))", node_kind_to_str(node->fun->kind));
+    fail("bad invocation: beta(app({node_kind}, *))", node->fun->kind);
 
   return sub(node->fun->body, node->fun->var, node->arg);
 }
@@ -58,12 +58,12 @@ static Node *beta(Node *node) {
 // return `var` occurs free in `node`
 static bool is_free(Node *var, Node *node) {
   if (var->kind != NodeKind_VAR)
-    failf("bad invocation: is_free(%s, *)", node_kind_to_str(var->kind));
+    fail("bad invocation: is_free({node_kind}, *)", var->kind);
 
   if      (node->kind == NodeKind_VAR) return node->ref == var;
   else if (node->kind == NodeKind_FUN) return is_free(var, node->body);
   else if (node->kind == NodeKind_APP) return is_free(var, node->fun) || is_free(var, node->arg);
-  else                                 failf("%s", node_kind_to_str(node->kind));
+  else                                 fail("{node_kind}", node->kind);
 }
 
 // a lambda term is eta-reducible if it's in the form of
@@ -124,5 +124,5 @@ Node *step(Node *node, const NormalForm nf) {
     return node;
   }
 
-  else failf("%s", node_kind_to_str(node->kind));
+  else fail("{node_kind}", node->kind);
 }

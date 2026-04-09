@@ -38,7 +38,7 @@ void sb_clear(StringBuilder *sb) {
 static void sb_append_s(StringBuilder *sb, const char *s) {
   const int s_len = strlen(s);
   const int end_size = sb->size + s_len;
-  // make sure to leave sace for null terminator
+  // make sure to leave space for null terminator
   if (end_size + 1 > sb->capacity) {
     int new_capacity = sb->capacity;
     while (end_size + 1 > new_capacity)
@@ -46,7 +46,7 @@ static void sb_append_s(StringBuilder *sb, const char *s) {
     char *new_buf = realloc(sb->buf, new_capacity * sizeof(char));
     if (!new_buf) {
       free(sb->buf);
-      fail("failed to grow string buffer to %d bytes", sb->capacity);
+      fail("failed to grow string buffer to %d bytes", end_size + 1);
     }
     sb->buf = new_buf;
     sb->capacity = new_capacity;

@@ -1,93 +1,53 @@
 #include <stdbool.h>
 #include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
+#include "cfmt.h"
 
-typedef struct StringView StringView;
+
 typedef struct Token Token;
 typedef struct Node Node;
 
 
 // debug
 
+void register_formatters(void);
+
 // print debug message
-void debugf(const char *fmt, ...);
-
-// print debug message while underlining src over `span`
-void debugf_span(const StringView span, const char *fmt, ...);
-
-// print debug message with cursor pointing at given loc in src
-void debugf_at_loc(const char *loc, const char *fmt, ...);
-
-// print debug message with cursor pointing at current lexing loc
-void debugf_loc(const char *fmt, ...);
-
-// print debug message while underlining given tok in src
-void debugf_at_tok(const Token *tok, const char *fmt, ...);
-
-// print debug message while underlining current parsing tok
-void debugf_tok(const char *fmt, ...);
-
-// print debug message while underlining given node in src
-void debugf_at_node(const Node *node, const char*fmt, ...);
+int debug(const char *fmt, ...);
 
 [[noreturn]]
-void _failf(const char *file, const int line,
-            const char *fmt, ...);
+void _fail(const char *file, const int line,
+           const char *fmt, ...);
 
 // internal error
-#define failf(fmt, ...) _failf(__FILE__, __LINE__, fmt, __VA_ARGS__)
-#define fail(msg) _failf(__FILE__, __LINE__, msg)
+#define fail(...) _fail(__FILE__, __LINE__, ##__VA_ARGS__, NULL)
 
 // print compile error message
 [[noreturn]]
-void errorf(const char *fmt, ...);
+void error(const char *fmt, ...);
 
-// see debugf_... equivalent
-[[noreturn]]
-void errorf_at_loc(const char *loc, const char *fmt, ...);
+// todo: assert()
+// todo: fail immediately on emitf() returning <0
+// todo: token.c, node.c
 
-// see debugf_... equivalent
-[[noreturn]]
-void errorf_loc(const char *fmt, ...);
+// token
 
-// see debugf_... equivalent
-[[noreturn]]
-void errorf_at_tok(const Token *tok, const char *fmt, ...);
+int fmt_token_kind  (const sink s, va_list ap);
+int fmt_token       (const sink s, va_list ap);
+int fmt_token_stream(const sink s, va_list ap);
 
-// see debugf_... equivalent
-[[noreturn]]
-void errorf_tok(const char *fmt, ...);
 
-// see debugf_... equivalent
-[[noreturn]]
-void errorf_at_node(const Node *node, const char *fmt, ...);
+// node
+
+int fmt_node_kind(const sink s, va_list ap);
+int fmt_node     (const sink s, va_list ap);
+int fmt_ast      (const sink s, va_list ap);
+int fmt_scope    (const sink s, va_list ap);
+int fmt_lambda   (const sink s, va_list ap);
 
 
 // lexer
-
-typedef struct StringView StringView;
-struct StringView {
-  const char *loc;
-  int len;
-};
-
-static inline StringView sv(const char *loc, const int len) {
-  return (StringView) { .loc = loc, .len = len };
-}
-
-static inline int sv_eq(const StringView s, const StringView t) {
-  return (s.len == t.len) && !strncmp(s.loc, t.loc, s.len);
-}
-
-static inline const char *sv_end(const StringView s) {
-  return (s.loc + s.len);
-}
-
-#define sv_fmt "%.*s"
-#define sv_arg(sv) (sv).len, (sv).loc
 
 typedef enum {
   TokenKind_IDENT,
@@ -98,11 +58,10 @@ typedef enum {
   TokenKind_EOF,
 } TokenKind;
 
-typedef struct Token Token;
 struct Token {
   TokenKind kind;
   Token *next;
-  StringView lexeme;
+  str_view lexeme;
 };
 
 const char *token_kind_to_str(const TokenKind kind);
@@ -124,68 +83,76 @@ typedef enum {
   NodeKind_APP,
 } NodeKind;
 
-const char *node_kind_to_str(const NodeKind kind);
-
 typedef struct Node Node;
 struct Node {
   NodeKind kind;
   union {
-    struct { StringView name; Node *ref; };  // NodeKind_VAR
-                                             // `ref` stores the reference to the declaration
-                                             // var node for this node. the cases are:
-                                             // - for lambda binding sites, this is a self reference
-                                             // - for free variables, this points to the first occurence
-                                             // - for bound variables, this points to the binding site
-                                             //
-                                             // the first case will be referred to as a "binding var node",
-                                             // and the latter two will be referred to as "reference var nodes"
-                                             // or "references"
+    // NodeKind_VAR
+    // `ref` stores the reference to the declaration
+    // var node for this node. the cases are:
+    // - for lambda binding sites, this is a self reference
+    // - for free variables, this points to the first occurence
+    // - for bound variables, this points to the binding site
+    //
+    // the first case will be referred to as a "binding var node",
+    // and the latter two will be referred to as "reference var nodes"
+    // or "references"
+    struct {
+      str_view name;
+      Node *ref;
+    };
 
-    struct { Node *par, *var, *body; };      // NodeKind_FUN
-                                             // this node represents scope in addition to storing
-                                             // ast structure. `par` points to the semantic parent scope
-                                             // of the function this node represents. if this node
-                                             // represents a top-level function, `par` points to *the*
-                                             // dummy node. the dummy node is a delimiter for free
-                                             // variables. when a variable reference searches up the
-                                             // entire scope chain and does not find a declaration,
-                                             // it will create a fictitious function node at the tail
-                                             // of the scope chain to "bind" the free variable.
-                                             // consider the expression `(\x.\y.w z) z (\x.z)`:
-                                             //
-                                             // the scope chain (actually a tree) is as follows:
-                                             //   ┌─ (\z.???) binds `z`
-                                             //   ├─ (\w.???) binds `w`
-                                             //   * (dummy)
-                                             //   ├─ (\x.\y.w z) binds `x`
-                                             //   │  └─ (\y.w z) binds `y`
-                                             //   └─ (\x.z) binds `x`
-                                             //
-                                             // the "free" part of the scope chain is deliberately
-                                             // depicted as an upside-down linked list *above* the dummy.
-                                             // the effective topology is more apparent when drawn in
-                                             // the conventional manner:
-                                             //   (\z.???) binds `z`
-                                             //   └─ (\w.???) binds `w`
-                                             //      └─ * (dummy)
-                                             //         ├─ (\x.\y.w z) binds `x`
-                                             //         │  └─ (\y.w z) binds `y`
-                                             //         └─ (\x.z) binds `x`
-                                             //
-                                             // this way we are effectively operating on
-                                             // `\z.\w.((\x.\y.w z) z (\x.z)), with no free variables
+    // NodeKind_FUN
+    // this node represents scope in addition to storing
+    // ast structure. `par` points to the semantic parent scope
+    // of the function this node represents. if this node
+    // represents a top-level function, `par` points to *the*
+    // dummy node. the dummy node is a delimiter for free
+    // variables. when a variable reference searches up the
+    // entire scope chain and does not find a declaration,
+    // it will create a fictitious function node at the tail
+    // of the scope chain to "bind" the free variable.
+    // consider the expression `(\x.\y.w z) z (\x.z)`:
+    //
+    // the scope chain (actually a tree) is as follows:
+    //   ┌─ (\z.???) binds `z`
+    //   ├─ (\w.???) binds `w`
+    //   * (dummy)
+    //   ├─ (\x.\y.w z) binds `x`
+    //   │  └─ (\y.w z) binds `y`
+    //   └─ (\x.z) binds `x`
+    //
+    // the "free" part of the scope chain is deliberately
+    // depicted as an upside-down linked list *above* the dummy.
+    // the effective topology is more apparent when drawn in
+    // the conventional manner:
+    //   (\z.???) binds `z`
+    //   └─ (\w.???) binds `w`
+    //      └─ * (dummy)
+    //         ├─ (\x.\y.w z) binds `x`
+    //         │  └─ (\y.w z) binds `y`
+    //         └─ (\x.z) binds `x`
+    //
+    // this way we are effectively operating on
+    // `\z.\w.((\x.\y.w z) z (\x.z)), with no free variables
+    struct {
+      Node *par;
+      Node *var;
+      Node *body;
+    };
 
-    struct { Node *fun, *arg; };             // NodeKind_APP - application node
+    // NodeKind_APP
+    struct {
+      Node *fun;
+      Node *arg;
+    };
   };
-  StringView lexeme;
+  str_view lexeme;
 };
 
 Node *new_fun(Node *var, Node *body);
 
 Node *new_app(Node *fun, Node *arg);
-
-// print abstract syntax tree to debug
-void debug_ast(const Node *node);
 
 // print unparsed ast to debug
 void debug_unparse(const Node *node, const bool ext);

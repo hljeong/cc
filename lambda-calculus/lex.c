@@ -2,32 +2,65 @@
 
 #include <ctype.h>
 
-const char *token_kind_to_str(const TokenKind kind) {
-  if      (kind == TokenKind_IDENT)     return "ident";
-  else if (kind == TokenKind_BACKSLASH) return "\\";
-  else if (kind == TokenKind_DOT)       return ".";
-  else if (kind == TokenKind_LPAREN)    return "(";
-  else if (kind == TokenKind_RPAREN)    return ")";
-  else if (kind == TokenKind_EOF)       return "eof";
-  else                                  failf("not implemented: %u",
-                                              (uint32_t) kind);
+int fmt_token_kind(const sink s, va_list ap) {
+  const TokenKind kind = va_arg(ap, const TokenKind);
+  if      (kind == TokenKind_IDENT)     return emitf(s, "ident");
+  else if (kind == TokenKind_BACKSLASH) return emitf(s, "\\");
+  else if (kind == TokenKind_DOT)       return emitf(s, ".");
+  else if (kind == TokenKind_LPAREN)    return emitf(s, "(");
+  else if (kind == TokenKind_RPAREN)    return emitf(s, ")");
+  else if (kind == TokenKind_EOF)       return emitf(s, "eof");
+  else                                  fail("unexpected token kind: %d", kind);
 }
 
-const char *token_to_str(const Token *tok) {
-  static char buf[256] = {0};
-  const int off = snprintf(buf, sizeof(buf), "%s", token_kind_to_str(tok->kind));
+int fmt_token(const sink s, va_list ap) {
+  const Token *tok = va_arg(ap, const Token *);
+  int len = 0;
+  {
+    const int ret = emitf(s, "{token_kind}", tok->kind);
+    if (ret < 0) return ret;
+    len += ret;
+  }
+
   if (tok->kind == TokenKind_IDENT) {
-    snprintf(buf + off, sizeof(buf) - off, "("sv_fmt")", sv_arg(tok->lexeme));
+    const int ret = emitf(s, "({sv})", tok->lexeme);
+    if (ret < 0) return ret;
+    len += ret;
   }
-  return buf;
+
+  return len;
 }
 
-void debug_token_stream(const Token *tok) {
-  debugf("tokens: %s", token_to_str(tok));
-  while ((tok = tok->next)) {
-    debugf(" %s", token_to_str(tok));
+int fmt_token_stream(const sink s, va_list ap) {
+  int len = 0;
+  {
+    const int ret = emitf(s, "[");
+    if (ret < 0) return ret;
+    len += ret;
   }
-  debugf("\n");
+
+  const Token *tok = va_arg(ap, const Token *);
+  while (tok) {
+    {
+      const int ret = emitf(s, "{token}", tok);
+      if (ret < 0) return ret;
+      len += ret;
+    }
+
+    if ((tok = tok->next)) {
+      const int ret = emitf(s, " ");
+      if (ret < 0) return ret;
+      len += ret;
+    }
+  }
+
+  {
+    const int ret = emitf(s, "]");
+    if (ret < 0) return ret;
+    len += ret;
+  }
+
+  return len;
 }
 
 static int is_ident_first(int c) {
@@ -69,7 +102,7 @@ static int consume_ch(const char c) {
 static Token *new_token(const TokenKind kind, const int len) {
   Token *tok = calloc(1, sizeof(Token));
   tok->kind = kind;
-  tok->lexeme = sv(ctx.lexer.loc - len, len);
+  tok->lexeme = sv_create(ctx.lexer.loc - len, len);
   return tok;
 }
 
@@ -86,7 +119,7 @@ Token *lex() {
     else if ((len = consume_ch('.')))       cur = (cur->next = new_token(TokenKind_DOT,       len));
     else if ((len = consume_ch('(')))       cur = (cur->next = new_token(TokenKind_LPAREN,    len));
     else if ((len = consume_ch(')')))       cur = (cur->next = new_token(TokenKind_RPAREN,    len));
-    else                                    errorf_loc("invalid token");
+    else                                    error("{@cur_loc} invalid token");
   }
 
   cur = (cur->next = new_token(TokenKind_EOF, 0));

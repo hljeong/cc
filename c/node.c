@@ -73,7 +73,7 @@ void _consume_ast(const StrConsumer c, const Node *node, StringBuilder *sb, cons
   if (!node) return;
 
   consume_f(c, "%s%s%{node}\n",
-            sb->buf, last ? "└─" : "├─", node, "\n");
+            sb->buf, last ? "└─" : "├─", node);
 
   const int truncate_to = sb->size;
   sb_append(sb, last ? "  " : "│ ");

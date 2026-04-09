@@ -1,138 +1,217 @@
 #include "lc.h"
 
-const char *node_kind_to_str(const NodeKind kind) {
-  if      (kind == NodeKind_VAR) return "var";
-  else if (kind == NodeKind_FUN) return "fun";
-  else if (kind == NodeKind_APP) return "app";
-  else                           failf("node_kind_to_str(%u)",
-                                       (uint32_t) kind);
+int fmt_node_kind(const sink s, va_list ap) {
+  const NodeKind kind = va_arg(ap, NodeKind);
+  if      (kind == NodeKind_VAR) return emitf(s, "var");
+  else if (kind == NodeKind_FUN) return emitf(s, "fun");
+  else if (kind == NodeKind_APP) return emitf(s, "app");
+  else                           fail("unexpected node kind: %d", kind);
 }
 
-static void _debug_ast(const Node *node, const char *prefix, const bool last) {
-  char child_prefix[256];
-  snprintf(child_prefix, sizeof(child_prefix), "%s%s",
-           prefix, last ? "  " : "│ ");
-
-  const char *branch = last ? "└─" : "├─";
-
-  if (node->kind == NodeKind_VAR) {
-    debugf("%s%svar("sv_fmt")\n", prefix, branch, sv_arg(node->name));
-    // debugf_at_node(node, "var("sv_fmt")", sv_arg(node->name));
+int fmt_node(const sink s, va_list ap) {
+  const Node *node = va_arg(ap, Node *);
+  int len = 0;
+  {
+    const int ret = emitf(s, "{node_kind}", node->kind);
+    if (ret < 0) return ret;
+    len += ret;
   }
 
+  if (node->kind == NodeKind_VAR) {
+    const int ret = emitf(s, "({sv})", node->name);
+    if (ret < 0) return ret;
+    len += ret;
+  }
+
+  return len;
+}
+
+static int emit_ast(const sink s, const Node *node, str_builder *sb, const bool last) {
+  int len = 0;
+  {
+    const int ret = emitf(s, "%s%s{node}\n", sb->buf, last ? "└─" : "├─", node);
+    if (ret < 0) return ret;
+    len += ret;
+  }
+
+  const int truncate_to = sb->size;
+  sb_append(sb, last ? "  " : "│ ");
+
+  if (node->kind == NodeKind_VAR) {}
+
   else if (node->kind == NodeKind_FUN) {
-    debugf("%s%sfun\n", prefix, branch);
-    // debugf_at_node(node, "fun");
-    _debug_ast(node->var, child_prefix, false);
-    if (node->body) _debug_ast(node->body, child_prefix, true);
-    else debugf("%s  └─...\n", prefix);
+    int ret = -1;
+    if (node->body) ret = emit_ast(s, node->body, sb, true);
+    else ret = debug("%s  └─...\n", sb->buf);
+    if (ret < 0) return ret;
+    len += ret;
   }
 
   else if (node->kind == NodeKind_APP) {
-    debugf("%s%sapp\n", prefix, branch);
-    // debugf_at_node(node, "app");
-    _debug_ast(node->fun, child_prefix, false);
-    _debug_ast(node->arg, child_prefix, true);
+    {
+      const int ret = emit_ast(s, node->fun, sb, false);
+      if (ret < 0) return ret;
+      len += ret;
+    }
+    {
+      const int ret = len += emit_ast(s, node->arg, sb, true);
+      if (ret < 0) return ret;
+      len += ret;
+    }
   }
 
-  else failf("%s", node_kind_to_str(node->kind));
+  else fail("{node_kind}", node->kind);
+
+  sb_truncate(sb, truncate_to);
+  return len;
 }
 
-void debug_ast(const Node *node) {
-  _debug_ast(node, "", true);
+int fmt_ast(const sink s, va_list ap) {
+  str_builder sb = sb_create(256);
+  return emit_ast(s, va_arg(ap, Node *), &sb, true);
 }
 
 // print all variables climbing up scope hierarchy.
 // free variables delimited by '*'
-void debug_fun_scope(const Node *node) {
+int fmt_scope(const sink s, va_list ap) {
+  const Node *node = va_arg(ap, Node *);
   if (node->kind != NodeKind_FUN)
-    failf("bad invocation: debug_fun_scope(%s)", node_kind_to_str(node->kind));
+    fail("bad invocation: fmt_scope({node})", node);
 
-  debugf("debug_fun_scope(): ");
-  const Node *cur = node;
-  if (cur->var->name.len) debugf(sv_fmt, sv_arg(cur->var->name));
-  else                    debugf("*");
-  while ((cur = cur->par)) {
-    debugf(", ");
-    if (cur->var->name.len) debugf(sv_fmt, sv_arg(cur->var->name));
-    else                    debugf("*");
+    int len = 0;
+  {
+    const int ret = emitf(s, "{");
+    if (ret < 0) return ret;
+    len += ret;
   }
-  debugf("\n");
+
+
+  while (node) {
+    if (node->var->name.len) {
+      const int ret = emitf(s, "{sv}", node->var->name);
+      if (ret < 0) return ret;
+      len += ret;
+    }
+    else {
+      const int ret = emitf(s, "*");
+      if (ret < 0) return ret;
+      len += ret;
+    }
+
+    if ((node = node->par)) {
+      const int ret = emitf(s, ", ");
+      if (ret < 0) return ret;
+      len += ret;
+    }
+  }
+
+  {
+    const int ret = emitf(s, "}");
+    if (ret < 0) return ret;
+    len += ret;
+  }
+
+  return len;
 }
 
-static void _debug_unparse(const Node *node, const bool ext, const bool nested_fun) {
+static int _fmt_lambda(const sink s, const Node *node, const bool ext, const bool nested_fun) {
+  int len = 0;
+
   if (node->kind == NodeKind_VAR) {
-    debugf(sv_fmt, sv_arg(node->name));
+    const int ret = emitf(s, "{sv}", node->name);
+    if (ret < 0) return ret;
+    len += ret;
   }
 
   else if (node->kind == NodeKind_FUN) {
-    if (!nested_fun) debugf("(\\");
-    _debug_unparse(node->var, ext, false);
+    if (!nested_fun) {
+      const int ret = emitf(s, "(\\");
+      if (ret < 0) return ret;
+      len += ret;
+    }
+
+    {
+      const int ret = _fmt_lambda(s, node->var, ext, false);
+      if (ret < 0) return ret;
+      len += ret;
+    }
 
     if (ext && node->body->kind == NodeKind_FUN) {
-      debugf(" ");
-      _debug_unparse(node->body, ext, true);
+      {
+        const int ret = emitf(s, " ");
+        if (ret < 0) return ret;
+        len += ret;
+      }
+
+      {
+        const int ret = _fmt_lambda(s, node->body, ext, true);
+        if (ret < 0) return ret;
+        len += ret;
+      }
     }
 
     else {
-      debugf(".");
-      _debug_unparse(node->body, ext, false);
+      {
+        const int ret = emitf(s, ".");
+        if (ret < 0) return ret;
+        len += ret;
+      }
+
+      {
+        const int ret = _fmt_lambda(s, node->body, ext, false);
+        if (ret < 0) return ret;
+        len += ret;
+      }
     }
 
-    if (!nested_fun) debugf(")");
+    if (!nested_fun) {
+      const int ret = emitf(s, ")");
+      if (ret < 0) return ret;
+      len += ret;
+    }
   }
 
   else if (node->kind == NodeKind_APP) {
-    debugf("(");
-    _debug_unparse(node->fun, ext, false);
-    debugf(" ");
-    _debug_unparse(node->arg, ext, false);
-    debugf(")");
-  }
-
-  else failf("not implemented: %u", (uint32_t) node->kind);
-}
-
-void debug_unparse(const Node *node, const bool ext) {
-  _debug_unparse(node, ext, false); debugf("\n");
-}
-
-// todo: unlucky code duplication due to bad structure
-static void _print_unparse(const Node *node, const bool ext, const bool nested_fun) {
-  if (node->kind == NodeKind_VAR) {
-    printf(sv_fmt, sv_arg(node->name));
-  }
-
-  else if (node->kind == NodeKind_FUN) {
-    if (!nested_fun) printf("(\\");
-    _print_unparse(node->var, ext, false);
-
-    if (ext && node->body->kind == NodeKind_FUN) {
-      printf(" ");
-      _print_unparse(node->body, ext, true);
+    {
+      const int ret = emitf(s, "(");
+      if (ret < 0) return ret;
+      len += ret;
     }
 
-    else {
-      printf(".");
-      _print_unparse(node->body, ext, false);
+    {
+      const int ret = _fmt_lambda(s, node->fun, ext, false);
+      if (ret < 0) return ret;
+      len += ret;
     }
 
-    if (!nested_fun) printf(")");
+    {
+      const int ret = emitf(s, " ");
+      if (ret < 0) return ret;
+      len += ret;
+    }
+
+    {
+      const int ret = _fmt_lambda(s, node->arg, ext, false);
+      if (ret < 0) return ret;
+      len += ret;
+    }
+
+    {
+      const int ret = emitf(s, ")");
+      if (ret < 0) return ret;
+      len += ret;
+    }
   }
 
-  else if (node->kind == NodeKind_APP) {
-    printf("(");
-    _print_unparse(node->fun, ext, false);
-    printf(" ");
-    _print_unparse(node->arg, ext, false);
-    printf(")");
-  }
+  else fail("not implemented: %u", (uint32_t) node->kind);
 
-  else failf("%u", (uint32_t) node->kind);
+  return len;
 }
 
-void print_unparse(const Node *node, const bool ext) {
-  _print_unparse(node, ext, false); printf("\n");
+int fmt_lambda(const sink s, va_list ap) {
+  const Node *node = va_arg(ap, Node *);
+  const bool ext = va_arg(ap, int);
+  return _fmt_lambda(s, node, ext, false);
 }
 
 static bool is_atom_first(const TokenKind kind) {
@@ -147,7 +226,7 @@ static Node *new_node(const NodeKind kind) {
   return node;
 }
 
-static Node *new_var(const StringView name, Node *ref) {
+static Node *new_var(const str_view name, Node *ref) {
   Node *node = new_node(NodeKind_VAR);
   node->name = name;
   node->ref = ref ? ref : node;
@@ -155,10 +234,10 @@ static Node *new_var(const StringView name, Node *ref) {
   return node;
 }
 
-static Node *get_var(const StringView name) {
+static Node *get_var(const str_view name) {
   Node *scope = ctx.parser.scope, *prev_scope = NULL;
   while (scope) {
-    if (sv_eq(scope->var->name, name))
+    if (!sv_cmp(scope->var->name, name))
       return new_var(name, scope->var);  // found binding var node,
                                          // create a reference
     scope = (prev_scope = scope)->par;
@@ -214,9 +293,8 @@ static const Token *consume(const TokenKind kind) {
 
 static const Token *expect(const TokenKind kind) {
   const Token *tok = consume(kind);
-  if (!tok) errorf_tok("expected %s, got: %s",
-                       token_kind_to_str(kind),
-                       token_to_str(ctx.parser.tok));
+  if (!tok) error("{@cur_tok} expected {token_kind}, got: {token}",
+                   kind, ctx.parser.tok);
   return tok;
 }
 
@@ -231,7 +309,7 @@ static Node *expr(void) {
   Node *node = atom();
   while (match_pred(is_atom_first)) {
     node = new_app(node, atom());
-    node->lexeme = sv(start, sv_end(node->arg->lexeme) - start);
+    node->lexeme = sv_create(start, sv_end(node->arg->lexeme) - start);
   }
   return node;
 }
@@ -241,13 +319,13 @@ static Node *atom(void) {
   const char *start = ctx.parser.tok->lexeme.loc;
   if (consume(TokenKind_LPAREN)) {
     Node *node = expr();
-    node->lexeme = sv(start, sv_end(expect(TokenKind_RPAREN)->lexeme) - start);
+    node->lexeme = sv_create(start, sv_end(expect(TokenKind_RPAREN)->lexeme) - start);
     return node;
   }
   else if (consume(TokenKind_BACKSLASH)) return fun();
   else if (match(TokenKind_IDENT))       return var(/*binding=*/ false);
-  else                                   errorf_tok("expected expression, got %s",
-                                                    token_to_str(ctx.parser.tok));
+  else                                   error("{@cur_tok} expected expression, got {token}",
+                                               ctx.parser.tok);
 }
 
 // fun ::= ("\") var+ "." expr
@@ -266,14 +344,14 @@ static Node *fun(void) {
     node->body = expr();
 
     // populate lexeme
-    node->lexeme = sv(start, sv_end(node->body->lexeme) - start);
+    node->lexeme = sv_create(start, sv_end(node->body->lexeme) - start);
   }
 
   else {
     node->body = fun();
 
     // populate lexeme
-    node->lexeme = sv(start, sv_end(node->body->lexeme) - start);
+    node->lexeme = sv_create(start, sv_end(node->body->lexeme) - start);
   }
 
   // pop current scope off of stack
@@ -285,7 +363,7 @@ static Node *fun(void) {
 
 // var ::= ident
 static Node *var(const bool binding) {
-  const StringView name = expect(TokenKind_IDENT)->lexeme;
+  const str_view name = expect(TokenKind_IDENT)->lexeme;
   if (binding) return new_var(name, NULL); // create a binding var node
   else         return get_var(name);       // get a reference var node to an existing
                                            // bound or free var node. if the variable
@@ -293,44 +371,44 @@ static Node *var(const bool binding) {
                                            // for the free variable
 }
 
-static void debug_shadow(const StringView shadower,
-                         const StringView shadowee,
+static void debug_shadow(const str_view shadower,
+                         const str_view shadowee,
                          const char *desc) {
   // todo: colors to emphasize which one shadows which
   const bool shadower_first = shadower.loc < shadowee.loc;
-  const StringView left =  shadower_first ? shadower : shadowee;
-  const StringView right = shadower_first ? shadowee : shadower;
+  const str_view left =  shadower_first ? shadower : shadowee;
+  const str_view right = shadower_first ? shadowee : shadower;
 
-  debugf("%s\n", ctx.src);
+  debug("%s\n", ctx.src);
   {
     const int col = left.loc - ctx.src;
     if (!(0 <= col && col <= ctx.src_len))
-      failf("invalid loc: %d, src_len=%d",
+      fail("invalid loc: %d, src_len=%d",
             col, ctx.src_len);
 
-    debugf("%*s", col, "");
-    for (int i = 0; i < left.len; i++) debugf("%c", '~');
+    debug("%*s", col, "");
+    for (int i = 0; i < left.len; i++) debug("%c", '~');
   }
 
   {
     const int col = right.loc - ctx.src;
     if (!(0 <= col && col <= ctx.src_len))
-      failf("invalid loc: %d, src_len=%d",
-            col, ctx.src_len);
+      fail("invalid loc: %d, src_len=%d",
+           col, ctx.src_len);
 
     const int d_col = col - (sv_end(left) - ctx.src);
-    for (int i = 0; i < d_col; i++) debugf("%c", '.');
-    for (int i = 0; i < right.len; i++) debugf("%c", '~');
-    debugf("\n");
+    for (int i = 0; i < d_col; i++) debug("%c", '.');
+    for (int i = 0; i < right.len; i++) debug("%c", '~');
+    debug("\n");
   }
 
   {
     const int col = shadower.loc - ctx.src;
-    debugf("%*s^ warning: \""sv_fmt"\" shadows %s variable\n", col, "",
-           sv_arg(shadower), desc);
+    debug("%*s^ warning: \"{sv}\" shadows %s variable\n", col, "",
+           shadower, desc);
   }
 
-  debugf("\n");
+  debug("\n");
 }
 
 // print warnings to shadowing variable bindings, i.e.,
@@ -389,7 +467,7 @@ static void warn_shadows(const Node *node) {
         continue;
       }
 
-      if (sv_eq(cur->var->name, node->var->name)) {
+      if (!sv_cmp(cur->var->name, node->var->name)) {
         debug_shadow(node->var->lexeme, cur->var->lexeme, desc);
         break;
       }
@@ -403,7 +481,7 @@ static void warn_shadows(const Node *node) {
     warn_shadows(node->arg);
   }
 
-  else failf("%s", node_kind_to_str(node->kind));
+  else fail("{node_kind}", node->kind);
 }
 
 Node *parse(void) {
@@ -412,14 +490,14 @@ Node *parse(void) {
     .kind = NodeKind_FUN,
     .par = NULL,
   };
-  dummy_scope.lexeme = sv(ctx.lexer.loc, 0);
+  dummy_scope.lexeme = sv_create(ctx.lexer.loc, 0);
   // 0-length variable name guarantees nothing
   // will ever match the dummy var
   dummy_scope.var = new_var(dummy_scope.lexeme, NULL);
   ctx.parser.scope = &dummy_scope;
   Node *node = expr();
   if (!match(TokenKind_EOF))
-    errorf_tok("extra token");
+    error("{@cur_tok} extra token");
   warn_shadows(node);
   return node;
 }
