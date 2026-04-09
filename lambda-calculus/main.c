@@ -1,11 +1,12 @@
 #include "lc.h"
 
+#include <stdio.h>
+
 Context ctx = {};
 
 // todo: argparse
-// todo: take file as input, stdin if -
 // lambda calculus interpreter.
-// usage: lc <expr> [mode=whnf|nf|benf] [max-steps] [syntax=std|ext]
+// usage: lc <path> [mode=whnf|nf|benf] [max-steps] [syntax=std|ext]
 //
 // modes:
 //   whnf - weak head normal form
@@ -16,16 +17,33 @@ Context ctx = {};
 //   std - standard
 //   ext - extended
 //
+// <path> can be a file path or - for stdin
+//
 // reduces the expression and prints the reduced form to stdout
 // debug output (lexer output, ast, source spans, reduction trace) goes to stderr.
 //
 // example:
-//   $ lc '(\x.\y.x) a b' 2>/dev/null
-//   a                    // stdout (result)
+//   $ lc file.lc 2>/dev/null
 int main(int argc, char **argv) {
-  if (argc < 2) error("usage: %s <expr> [mode=whnf|nf|benf (default=nf)] [max-steps=100] [syntax=std|ext (default=std)]", argv[0]);
+  if (argc < 2)
+    error("usage: %s <path> [mode=whnf|nf|benf (default=nf)] [max-steps=100] [syntax=std|ext (default=std)]", argv[0]);
 
-  ctx.src = argv[1];
+  const char *path = argv[1];
+  FILE *file = !strcmp(path, "-") ? stdin : fopen(path, "r");
+  if (!file)
+    error("failed to open file: %s", path);
+
+  str_builder sb = sb_create(256);
+  {
+    char c;
+    while ((c = fgetc(file)) != EOF)
+      sb_append(&sb, "%c", c);
+  }
+
+  if (file != stdin && fclose(file))
+    error("failed to close file: %s", path);
+
+  ctx.src = sb.buf;
   ctx.src_len = strlen(ctx.src);
   const NormalForm nf = (argc >= 3) ? !strcmp(argv[2], "whnf") ? NormalForm_WEAK_HEAD
                                     : !strcmp(argv[2], "benf") ? NormalForm_BETA_ETA

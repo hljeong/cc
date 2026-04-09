@@ -11,8 +11,10 @@ check() {
   shift
   expected="$1"
   shift
+  input="$1"
+  shift
 
-  actual=$($BIN "$@" 2>/dev/null)
+  actual=$(echo "$input" | $BIN - "$@" 2>/dev/null)
   if [ "$actual" = "$expected" ]; then
     echo "pass: $desc"
     passed=$((passed + 1))
