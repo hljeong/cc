@@ -10,7 +10,7 @@ static void print_consume(const char *s, void *ctx) {
 
 static StrConsumer PRINT = { .consume = print_consume };
 
-void _print(const char *fmt, ...) {
+void print(const char *fmt, ...) {
   va_list ap; va_start(ap, fmt);
   consume_v(PRINT, fmt, ap);
   consume_f(PRINT, "\n");
@@ -24,14 +24,14 @@ static void debug_consume(const char *s, void *ctx) {
 
 static StrConsumer DEBUG = { .consume = debug_consume };
 
-void _debug(const char *fmt, ...) {
+void debug(const char *fmt, ...) {
   va_list ap; va_start(ap, fmt);
   consume_v(DEBUG, fmt, ap);
   consume_f(DEBUG, "\n");
   va_end(ap);
 }
 
-void _error(const char *fmt, ...) {
+void error(const char *fmt, ...) {
   va_list ap; va_start(ap, fmt);
   consume_v(DEBUG, fmt, ap);
   consume_f(DEBUG, "\n");

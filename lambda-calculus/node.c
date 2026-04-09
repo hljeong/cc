@@ -75,10 +75,10 @@ int fmt_ast(const sink s, va_list ap) {
 // free variables delimited by '*'
 int fmt_scope(const sink s, va_list ap) {
   const Node *node = va_arg(ap, Node *);
-  if (node->kind != NodeKind_FUN)
-    fail("bad invocation: fmt_scope({node})", node);
+  assert(node->kind == NodeKind_FUN,
+         "bad invocation: fmt_scope({node})", node);
 
-    int len = 0;
+  int len = 0;
   {
     const int ret = emitf(s, "{");
     if (ret < 0) return ret;
@@ -203,7 +203,7 @@ static int _fmt_lambda(const sink s, const Node *node, const bool ext, const boo
     }
   }
 
-  else fail("not implemented: %u", (uint32_t) node->kind);
+  else fail("{node_kind}", node->kind);
 
   return len;
 }

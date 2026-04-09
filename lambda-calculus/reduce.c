@@ -47,18 +47,18 @@ static Node *sub(Node *node, Node *var, Node *subval) {
 //perform beta-reduction on the given application node
 // return `node` as is if there is nothing to be done
 static Node *beta(Node *node) {
-  if (node->kind != NodeKind_APP)
-    fail("bad invocation: beta({node_kind})", node->kind);
-  if (node->fun->kind != NodeKind_FUN)
-    fail("bad invocation: beta(app({node_kind}, *))", node->fun->kind);
+  assert(node->kind == NodeKind_APP,
+         "bad invocation: beta({node_kind})", node->kind);
+  assert(node->fun->kind == NodeKind_FUN,
+         "bad invocation: beta(app({node_kind}, *))", node->fun->kind);
 
   return sub(node->fun->body, node->fun->var, node->arg);
 }
 
 // return `var` occurs free in `node`
 static bool is_free(Node *var, Node *node) {
-  if (var->kind != NodeKind_VAR)
-    fail("bad invocation: is_free({node_kind}, *)", var->kind);
+  assert(var->kind == NodeKind_VAR,
+         "bad invocation: is_free({node_kind}, *)", var->kind);
 
   if      (node->kind == NodeKind_VAR) return node->ref == var;
   else if (node->kind == NodeKind_FUN) return is_free(var, node->body);

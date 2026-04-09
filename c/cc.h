@@ -93,15 +93,12 @@ void *fmt_ptr_symbol(const StrConsumer c, void *ptr);
 
 // io
 
-void _print(const char *fmt, ...);
-#define print(fmt, ...) _print(fmt, ##__VA_ARGS__)
+void print(const char *fmt, ...);
 
-void _debug(const char *fmt, ...);
-#define debug(fmt, ...) _debug(fmt, ##__VA_ARGS__)
+void debug(const char *fmt, ...);
 
 [[noreturn]]
-void _error(const char *fmt, ...);
-#define error(fmt, ...) _error(fmt, ##__VA_ARGS__)
+void error(const char *fmt, ...);
 
 [[noreturn]]
 void _assert(const char *file, const int line, const char *func, const char *cond,

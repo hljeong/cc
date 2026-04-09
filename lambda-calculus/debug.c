@@ -14,8 +14,8 @@ int debug(const char *fmt, ...) {
 
 static int emit_at_loc(const sink s, const char *loc) {
   const int col = loc - ctx.src;
-  if (!(0 <= col && col <= ctx.src_len))
-    fail("invalid loc: %d, src_len=%d",
+  assert(0 <= col && col <= ctx.src_len,
+         "invalid loc: %d, src_len=%d",
          col, ctx.src_len);
 
   int len = 0;
@@ -42,8 +42,8 @@ static int fmt_at_cur_loc(const sink s, va_list ap) {
 
 static int emit_at_span(const sink s, const str_view span) {
   const int col = span.loc - ctx.src;
-  if (!(0 <= col && col <= ctx.src_len))
-    fail("invalid loc: %d, src_len=%d",
+  assert(0 <= col && col <= ctx.src_len,
+         "invalid loc: %d, src_len=%d",
          col, ctx.src_len);
 
   int len = 0;
@@ -82,7 +82,22 @@ int fmt_at_node(const sink s, va_list ap) {
   return emit_at_span(s, va_arg(ap, Node *)->lexeme);
 }
 
-[[noreturn]]
+void _assert(const char *file, const int line, const char *func,
+             const char *fmt,...) {
+  va_list ap; va_start(ap, fmt);
+
+  debug("%s:%d: assert(%s) failed", file, line, func);
+  if (fmt) {
+    debug(": ");
+    debug(fmt, ap);
+  }
+  debug("\n");
+
+  va_end(ap);
+  exit(1);
+}
+
+
 void _fail(const char *file, const int line,
            const char *fmt, ...) {
   va_list ap;

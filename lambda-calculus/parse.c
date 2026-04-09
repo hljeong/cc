@@ -121,9 +121,9 @@ static void debug_shadow(const str_view shadower,
   debug("%s\n", ctx.src);
   {
     const int col = left.loc - ctx.src;
-    if (!(0 <= col && col <= ctx.src_len))
-      fail("invalid loc: %d, src_len=%d",
-            col, ctx.src_len);
+    assert(0 <= col && col <= ctx.src_len,
+           "invalid loc: %d, src_len=%d",
+           col, ctx.src_len);
 
     debug("%*s", col, "");
     for (int i = 0; i < left.len; i++) debug("%c", '~');
@@ -131,8 +131,8 @@ static void debug_shadow(const str_view shadower,
 
   {
     const int col = right.loc - ctx.src;
-    if (!(0 <= col && col <= ctx.src_len))
-      fail("invalid loc: %d, src_len=%d",
+    assert(0 <= col && col <= ctx.src_len,
+           "invalid loc: %d, src_len=%d",
            col, ctx.src_len);
 
     const int d_col = col - (sv_end(left) - ctx.src);

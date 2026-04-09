@@ -19,7 +19,7 @@ static int is_ident_rest(int c) {
 // consume as many characters `ch` as possible where
 // `pred(ch)` returns true
 static int consume_pred(int (*pred)(int)) {
-  if (pred('\0')) fail("predicate accepts eof");
+  assert(!pred('\0'), "predicate accepts eof");
   const char *start = ctx.lexer.loc;
   while (pred(*ctx.lexer.loc)) ctx.lexer.loc++;
   return ctx.lexer.loc - start;
