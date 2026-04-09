@@ -29,25 +29,8 @@ void error(const char *fmt, ...);
 
 // todo: assert()
 // todo: fail immediately on emitf() returning <0
-// todo: token.c, node.c
 
 // token
-
-int fmt_token_kind  (const sink s, va_list ap);
-int fmt_token       (const sink s, va_list ap);
-int fmt_token_stream(const sink s, va_list ap);
-
-
-// node
-
-int fmt_node_kind(const sink s, va_list ap);
-int fmt_node     (const sink s, va_list ap);
-int fmt_ast      (const sink s, va_list ap);
-int fmt_scope    (const sink s, va_list ap);
-int fmt_lambda   (const sink s, va_list ap);
-
-
-// lexer
 
 typedef enum {
   TokenKind_IDENT,
@@ -64,18 +47,14 @@ struct Token {
   str_view lexeme;
 };
 
-const char *token_kind_to_str(const TokenKind kind);
+int fmt_token_kind  (const sink s, va_list ap);
+int fmt_token       (const sink s, va_list ap);
+int fmt_token_stream(const sink s, va_list ap);
 
-const char *token_to_str(const Token *tok);
-
-// print token stream to debug
-void debug_token_stream(const Token *tok);
-
-// parse the token stream
-Token *lex();
+Token *new_token(const TokenKind kind, const int len);
 
 
-// parser
+// node
 
 typedef enum {
   NodeKind_VAR,
@@ -150,21 +129,23 @@ struct Node {
   str_view lexeme;
 };
 
-Node *new_fun(Node *var, Node *body);
+Node *new_node(const NodeKind kind);
+Node *new_var (const str_view name, Node *ref);
+Node *get_var (const str_view name);
+Node *new_fun (Node *var, Node *body);
+Node *new_app (Node *fun, Node *arg);
 
-Node *new_app(Node *fun, Node *arg);
-
-// print unparsed ast to debug
-void debug_unparse(const Node *node, const bool ext);
-
-// print unparsed ast to stdout
-void print_unparse(const Node *node, const bool ext);
-
-// parse the ast
-Node *parse();
+int fmt_node_kind(const sink s, va_list ap);
+int fmt_node     (const sink s, va_list ap);
+int fmt_ast      (const sink s, va_list ap);
+int fmt_scope    (const sink s, va_list ap);
+int fmt_lambda   (const sink s, va_list ap);
 
 
-// reduction
+// actions
+
+Token *lex(void);
+Node  *parse(void);
 
 typedef enum {
   NormalForm_WEAK_HEAD,

@@ -1,6 +1,6 @@
 CC = gcc
 CFLAGS = -Wno-attributes -std=c11 -g
-SRCS = debug.c lex.c parse.c reduce.c main.c
+SRCS = debug.c lex.c main.c node.c parse.c reduce.c token.c
 OBJS = $(SRCS:.c=.o)
 BIN = lc
 
