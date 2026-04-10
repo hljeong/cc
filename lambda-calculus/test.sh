@@ -28,25 +28,25 @@ check() {
 
 echo "=== lambda-calculus tests ==="
 
-check "identity"                                    '(\x.x)'                '\x.x'
-check "simple beta reduction"                       '(\a.a)'                '(\x.x)(\a.a)'
-check "simple beta reduction 2"                     '(\b.b)'                '(\x.\y.y)(\a.a)(\b.b)'
-check "nested function application"                 '(\a.a)'                '(\x.\y.x)((\z.z)(\a.a))(\b.b)'
-check "whnf: identity is already in whnf"           '(\x.x)'                '(\x.x)'                          whnf
-check "whnf: stops before reducing inside lambda"   '(\y.((\z.z) y))'       '(\x.\y.((\z.z) y))(\a.a)'        whnf
-check "whnf: stops reducing at application"         '(y ((\x.x) y))'        '(\x.y x)((\x.x) y)'              whnf
-check "nf: reduces inside lambda"                   '(\y.y)'                '(\x.\y.((\z.z) y))(\a.a)'        nf
-check "nf: reduces inside value"                    '(y y)'                 '((\x.x) y)((\x.x) y)'            nf
-check "nf: does not eta-reduce"                     '(\x.(g x))'            '(\f.(\x.g (f x)))(\y.y)'         nf
-check "benf"                                        'g'                     '(\f.\x.(f x)) g'                 benf
-check "benf: beta-eta combo"                        'g'                     '(\f.(\x.g (f x)))(\y.y)'         benf
-check "benf: does not faux reduce"                  '(\x.(x x))'            '(\x.x x)'                        benf
-check "max-steps: limits reductions"                '((\y.(\a.a)) (\b.b))'  '(\x.\y.x)(\a.a)(\b.b)'           nf    1
-check "shadow: inner binding hides outer"           'b'                     '(\x.\x.x) a b'
-check "shadow: prevents free var capture"           'y'                     '(\x.\y.x) y b'
+check "identity"                                    '\x.x'                '\x.x'
+check "simple beta reduction"                       '\a.a'                '(\x.x)(\a.a)'
+check "simple beta reduction 2"                     '\b.b'                '(\x.\y.y)(\a.a)(\b.b)'
+check "nested function application"                 '\a.a'                '(\x.\y.x)((\z.z)(\a.a))(\b.b)'
+check "whnf: identity is already in whnf"           '\x.x'                '(\x.x)'                          whnf
+check "whnf: stops before reducing inside lambda"   '\y.(\z.z) y'         '(\x.\y.((\z.z) y))(\a.a)'        whnf
+check "whnf: stops reducing at application"         'y ((\x.x) y)'        '(\x.y x)((\x.x) y)'              whnf
+check "nf: reduces inside lambda"                   '\y.y'                '(\x.\y.((\z.z) y))(\a.a)'        nf
+check "nf: reduces inside value"                    'y y'                 '((\x.x) y)((\x.x) y)'            nf
+check "nf: does not eta-reduce"                     '\x.g x'              '(\f.(\x.g (f x)))(\y.y)'         nf
+check "benf"                                        'g'                   '(\f.\x.(f x)) g'                 benf
+check "benf: beta-eta combo"                        'g'                   '(\f.(\x.g (f x)))(\y.y)'         benf
+check "benf: does not faux reduce"                  '\x.x x'              '(\x.x x)'                        benf
+check "max-steps: limits reductions"                '(\y.\a.a) \b.b'      '(\x.\y.x)(\a.a)(\b.b)'           nf    1
+check "shadow: inner binding hides outer"           'b'                   '(\x.\x.x) a b'
+check "shadow: prevents free var capture"           'y'                   '(\x.\y.x) y b'
 
-check "extended syntax 0"                           '(\x.(\y.x))'           '\x y.x'
-check "extended syntax 1"                           '(\x y.x)'              '\x y.x'                          nf    100 ext
+check "extended syntax 0"                           '\x.\y.x'             '\x y.x'
+check "extended syntax 1"                           '\x y.x'              '\x y.x'                          nf    100 ext
 
 
 echo ""

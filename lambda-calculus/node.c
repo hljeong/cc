@@ -73,7 +73,12 @@ int fmt_scope(const sink s, va_list ap) {
   return len;
 }
 
-static int emit_lambda(const sink s, const Node *node, const bool ext, const bool nested_fun) {
+static int emit_lambda(const sink s,
+                       const Node *node,
+                       const bool ext,
+                       const bool lhs,
+                       const bool nested_fun,
+                       const bool right_assoc_app) {
   int len = 0;
 
   if (node->kind == NodeKind_VAR) {
@@ -81,31 +86,36 @@ static int emit_lambda(const sink s, const Node *node, const bool ext, const boo
   }
 
   else if (node->kind == NodeKind_FUN) {
-    if (!nested_fun)
-      len += check(emitf(s, "(\\"));
+    if (!nested_fun) {
+      if (lhs)
+        len += check(emitf(s, "("));
+      len += check(emitf(s, "\\"));
+    }
 
-    len += check(emit_lambda(s, node->var, ext, false));
+    len += check(emit_lambda(s, node->var, ext, false, false, false));
 
     if (ext && node->body->kind == NodeKind_FUN) {
       len += check(emitf(s, " "));
-      len += check(emit_lambda(s, node->body, ext, true));
+      len += check(emit_lambda(s, node->body, ext, false, true, false));
     }
 
     else {
       len += check(emitf(s, "."));
-      len += check(emit_lambda(s, node->body, ext, false));
+      len += check(emit_lambda(s, node->body, ext, false, false, false));
     }
 
-    if (!nested_fun)
+    if (!nested_fun && lhs)
       len += check(emitf(s, ")"));
   }
 
   else if (node->kind == NodeKind_APP) {
-    len += check(emitf(s, "("));
-    len += check(emit_lambda(s, node->fun, ext, false));
+    if (right_assoc_app)
+      len += check(emitf(s, "("));
+    len += check(emit_lambda(s, node->fun, ext, true, false, false));
     len += check(emitf(s, " "));
-    len += check(emit_lambda(s, node->arg, ext, false));
-    len += check(emitf(s, ")"));
+    len += check(emit_lambda(s, node->arg, ext, false, false, node->arg->kind == NodeKind_APP));
+    if (right_assoc_app)
+      len += check(emitf(s, ")"));
   }
 
   else fail("{node_kind}", node->kind);
@@ -116,7 +126,7 @@ static int emit_lambda(const sink s, const Node *node, const bool ext, const boo
 int fmt_lambda(const sink s, va_list ap) {
   const Node *node = va_arg(ap, Node *);
   const bool ext = va_arg(ap, int);
-  return emit_lambda(s, node, ext, false);
+  return emit_lambda(s, node, ext, false, false, false);
 }
 
 Node *new_node(const NodeKind kind) {
