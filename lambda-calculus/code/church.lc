@@ -1,0 +1,13 @@
+let true := \x y.x;
+let false := \x y.y;
+let zero := \f x.x;
+let succ := \n f x.n f (f x);
+let one := succ zero;
+let pair := \x y k.k x y;
+let first := \p.p true;
+let second := \p.p false;
+let f := \p.p (\x s.s (pair (succ x) true) (pair zero true));
+let z := pair zero false;
+let pred := \n.first (n f z);
+
+pred (succ (succ (succ zero)))
