@@ -1,6 +1,5 @@
 #include <stdbool.h>
 #include <stdint.h>
-#include <string.h>
 
 #include "cfmt.h"
 
@@ -48,6 +47,9 @@ typedef enum {
   TokenKind_DOT,
   TokenKind_LPAREN,
   TokenKind_RPAREN,
+  TokenKind_LET,
+  TokenKind_WALRUS,
+  TokenKind_SEMICOLON,
   TokenKind_EOF,
 } TokenKind;
 

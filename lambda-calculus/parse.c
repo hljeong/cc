@@ -2,6 +2,7 @@
 
 static bool is_atom_first(const TokenKind kind) {
   return (kind == TokenKind_LPAREN) ||
+         (kind == TokenKind_LET) ||
          (kind == TokenKind_BACKSLASH) ||
          (kind == TokenKind_IDENT);
 }
@@ -39,6 +40,7 @@ static const Token *expect(const TokenKind kind) {
 
 static Node *expr(void);
 static Node *atom(void);
+static Node *decl(void);
 static Node *fun(void);
 static Node *var(const bool binding);
 
@@ -53,7 +55,7 @@ static Node *expr(void) {
   return node;
 }
 
-// atom ::= "(" expr ")" | fun | var
+// atom ::= "(" expr ")" | "let" decl | "\" fun | var
 static Node *atom(void) {
   const char *start = ctx.parser.tok->lexeme.loc;
   if (consume(TokenKind_LPAREN)) {
@@ -61,13 +63,32 @@ static Node *atom(void) {
     node->lexeme = sv_create(start, sv_end(expect(TokenKind_RPAREN)->lexeme) - start);
     return node;
   }
+  else if (consume(TokenKind_LET))       return decl();
   else if (consume(TokenKind_BACKSLASH)) return fun();
   else if (match(TokenKind_IDENT))       return var(/*binding=*/ false);
   else                                   error("{@cur_tok} expected expression, got {token}",
                                                ctx.parser.tok);
 }
 
-// fun ::= ("\") var+ "." expr
+// decl ::= var ":=" expr ";" expr
+static Node *decl(void) {
+  const char *start = ctx.parser.tok->lexeme.loc;
+  Node *node = new_node(NodeKind_APP);
+  node->fun = new_node(NodeKind_FUN);
+  node->fun->par = ctx.parser.scope;
+  node->fun->var = var(/*binding=*/ true);
+  expect(TokenKind_WALRUS);
+  node->arg = expr();
+  expect(TokenKind_SEMICOLON);
+  ctx.parser.scope = node->fun;
+  node->fun->body = expr();
+  ctx.parser.scope = node->fun->par;
+  node->lexeme = sv_create(start, sv_end(node->arg->lexeme) - start);
+  node->fun->lexeme = node->lexeme;
+  return node;
+}
+
+// fun ::= var (fun | "." expr)
 static Node *fun(void) {
   const char *start = ctx.parser.tok->lexeme.loc;
   Node *node = new_node(NodeKind_FUN);

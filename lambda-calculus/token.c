@@ -7,6 +7,9 @@ int fmt_token_kind(const sink s, va_list ap) {
   else if (kind == TokenKind_DOT)       return emitf(s, ".");
   else if (kind == TokenKind_LPAREN)    return emitf(s, "(");
   else if (kind == TokenKind_RPAREN)    return emitf(s, ")");
+  else if (kind == TokenKind_LET)       return emitf(s, "let");
+  else if (kind == TokenKind_WALRUS)    return emitf(s, ":=");
+  else if (kind == TokenKind_SEMICOLON) return emitf(s, ";");
   else if (kind == TokenKind_EOF)       return emitf(s, "eof");
   else                                  fail("unexpected token kind: %d", kind);
 }

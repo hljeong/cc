@@ -38,6 +38,15 @@ static int consume_ch(const char c) {
   return 0;
 }
 
+static int consume_s(const char *s) {
+  const int len = strlen(s);
+  if (!strncmp(ctx.lexer.loc, s, len)) {
+    ctx.lexer.loc += len;
+    return len;
+  }
+  return 0;
+}
+
 Token *lex() {
   Token head = {};
   Token *cur = &head;
@@ -46,11 +55,14 @@ Token *lex() {
   char ch = '\0';
   while ((ch = *ctx.lexer.loc)) {
     if      ((len = consume_pred(isspace))) {}  // skip whitespace
-    else if ((len = consume_ident()))       cur = (cur->next = new_token(TokenKind_IDENT, len));
+    else if ((len = consume_s("let")))      cur = (cur->next = new_token(TokenKind_LET,       len));
+    else if ((len = consume_ident()))       cur = (cur->next = new_token(TokenKind_IDENT,     len));
     else if ((len = consume_ch('\\')))      cur = (cur->next = new_token(TokenKind_BACKSLASH, len));
     else if ((len = consume_ch('.')))       cur = (cur->next = new_token(TokenKind_DOT,       len));
     else if ((len = consume_ch('(')))       cur = (cur->next = new_token(TokenKind_LPAREN,    len));
     else if ((len = consume_ch(')')))       cur = (cur->next = new_token(TokenKind_RPAREN,    len));
+    else if ((len = consume_s(":=")))       cur = (cur->next = new_token(TokenKind_WALRUS,    len));
+    else if ((len = consume_ch(';')))       cur = (cur->next = new_token(TokenKind_SEMICOLON, len));
     else                                    error("{@cur_loc} invalid token");
   }
 
