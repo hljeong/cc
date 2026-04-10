@@ -143,8 +143,8 @@ Node *new_var(const str_view name, Node *ref) {
   return node;
 }
 
-Node *get_var(const str_view name) {
-  Node *scope = ctx.parser.scope, *prev_scope = NULL;
+Node *get_var(const str_view name, Node *scope) {
+  Node *prev_scope = NULL;
   while (scope) {
     if (!sv_cmp(scope->var->name, name))
       return new_var(name, scope->var);  // found binding var node,
@@ -174,4 +174,29 @@ Node *new_app(Node *fun, Node *arg) {
   node->fun = fun;
   node->arg = arg;
   return node;
+}
+
+Node *copy_node(Node *node, Node *scope) {
+  if (node->kind == NodeKind_VAR) {
+    assert(node->ref != node, "copying a binding var");
+    return get_var(node->name, scope);
+  }
+
+  else if (node->kind == NodeKind_FUN) {
+    Node *ret = new_node(NodeKind_FUN);
+    ret->var = new_var(node->var->name, NULL);
+    ret->body = copy_node(node->body, node);
+    ret->lexeme = node->lexeme;
+    return ret;
+  }
+
+  else if (node->kind == NodeKind_APP) {
+    Node *ret = new_node(NodeKind_APP);
+    ret->fun = copy_node(node->fun, scope);
+    ret->arg = copy_node(node->arg, scope);
+    ret->lexeme = node->lexeme;
+    return ret;
+  }
+
+  else error("{node_kind}", node->kind);
 }

@@ -141,11 +141,12 @@ struct Node {
   str_view lexeme;
 };
 
-Node *new_node(const NodeKind kind);
-Node *new_var (const str_view name, Node *ref);
-Node *get_var (const str_view name);
-Node *new_fun (Node *var, Node *body);
-Node *new_app (Node *fun, Node *arg);
+Node *new_node (const NodeKind kind);
+Node *new_var  (const str_view name, Node *ref);
+Node *get_var  (const str_view name, Node *scope);
+Node *new_fun  (Node *var, Node *body);
+Node *new_app  (Node *fun, Node *arg);
+Node *copy_node(Node *node, Node *scope);
 
 int fmt_node_kind(const sink s, va_list ap);
 int fmt_node     (const sink s, va_list ap);

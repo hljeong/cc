@@ -83,7 +83,7 @@ static Node *decl(void) {
   ctx.parser.scope = node->fun;
   node->fun->body = expr();
   ctx.parser.scope = node->fun->par;
-  node->lexeme = sv_create(start, sv_end(node->arg->lexeme) - start);
+  node->lexeme = sv_create(start, sv_end(node->fun->body->lexeme) - start);
   node->fun->lexeme = node->lexeme;
   return node;
 }
@@ -124,11 +124,11 @@ static Node *fun(void) {
 // var ::= ident
 static Node *var(const bool binding) {
   const str_view name = expect(TokenKind_IDENT)->lexeme;
-  if (binding) return new_var(name, NULL); // create a binding var node
-  else         return get_var(name);       // get a reference var node to an existing
-                                           // bound or free var node. if the variable
-                                           // does not exist, create a binding var node
-                                           // for the free variable
+  if (binding) return new_var(name, NULL);              // create a binding var node
+  else         return get_var(name, ctx.parser.scope);  // get a reference var node to an existing
+                                                        // bound or free var node. if the variable
+                                                        // does not exist, create a binding var node
+                                                        // for the free variable
 }
 
 static void debug_shadow(const str_view shadower,
