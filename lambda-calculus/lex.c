@@ -10,6 +10,17 @@ static int is_ident_rest(int c) {
   return isalnum(c) || (c == '_');
 }
 
+static int is_ident(int c) {
+  return !isspace(c) &&
+         (c != '\\') &&
+         (c != '.') &&
+         (c != '(') &&
+         (c != ')') &&
+         (c != ':') &&
+         (c != ';') &&
+         (c != '\0');
+}
+
 // helper semantics: consume...() attempts to
 // match some expected pattern of characters,
 // advance the cursor by the number of characters
@@ -25,10 +36,14 @@ static int consume_pred(int (*pred)(int)) {
   return ctx.lexer.loc - start;
 }
 
-static int consume_ident() {
+static int consume_canonical_ident() {
   int len = 0;
   if (!(len = consume_pred(is_ident_first))) return 0;
   return (len += consume_pred(is_ident_rest));
+}
+
+static int consume_ident() {
+  return consume_pred(is_ident);
 }
 
 static int consume_ch(const char c) {

@@ -26,7 +26,7 @@ Context ctx = {};
 //   $ lc file.lc 2>/dev/null
 int main(int argc, char **argv) {
   if (argc < 2)
-    error("usage: %s <path> [mode=whnf|nf|benf (default=nf)] [max-steps=100] [syntax=std|ext (default=std)]", argv[0]);
+    error("usage: %s <path> [mode=whnf|nf|benf (default=nf)] [max-steps=10000] [syntax=std|ext (default=ext)]", argv[0]);
 
   const char *path = argv[1];
   FILE *file = !strcmp(path, "-") ? stdin : fopen(path, "r");
@@ -49,8 +49,8 @@ int main(int argc, char **argv) {
                                     : !strcmp(argv[2], "benf") ? NormalForm_BETA_ETA
                                                                : NormalForm_BETA
                                     : NormalForm_BETA;
-  const int max_steps = (argc >= 4) ? atoi(argv[3]) : 100;
-  const bool ext = (argc >= 5) ? !strcmp(argv[4], "ext") : false;
+  const int max_steps = (argc >= 4) ? atoi(argv[3]) : 10000;
+  const bool ext = (argc >= 5) ? !strcmp(argv[4], "ext") : true;
 
   register_formatters();
 
@@ -66,7 +66,8 @@ int main(int argc, char **argv) {
     Node *nxt = step(ast, nf);
     if (ast == nxt) break;
     debug("%d: ", steps);
-    debug("{lambda}\n", ast = nxt, ext);
+    debug("{lambda}\n", ast, ext);
+    ast = nxt;
   }
 
   print("{lambda}\n", ast, ext);

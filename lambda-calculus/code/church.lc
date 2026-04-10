@@ -1,13 +1,37 @@
 let true := \x y.x;
 let false := \x y.y;
-let zero := \f x.x;
+let not := \p.p false true;
+let and := \p q x y.p (q x y) y;
+let or := \p q x y.p x (q x y);
+let xor := \p q x y.p (q y x) (q x y);
+
+let 0 := \f x.x;
 let succ := \n f x.n f (f x);
-let one := succ zero;
+let 1 := succ 0;
+let 2 := succ 1;
+let 3 := succ 2;
+let 4 := succ 3;
+let 5 := succ 4;
+let 6 := succ 5;
+let 7 := succ 6;
+let 8 := succ 7;
+let 9 := succ 8;
 let pair := \x y k.k x y;
 let first := \p.p true;
 let second := \p.p false;
-let f := \p.p (\x s.s (pair (succ x) true) (pair zero true));
-let z := pair zero false;
-let pred := \n.first (n f z);
+let pred_f := \p.p (\x s.s (pair (succ x) true) (pair 0 true));
+let pred_z := pair 0 false;
+let pred := \n.first (n pred_f pred_z);
+let + := \n m.m succ n;
+let - := \n m.m pred n;
+let * := \n m.m (+ n) 0;
+let exp := \n m.m (* n) 1;
+let =0 := \n.n (\x.false) true;
+let <= := \n m. =0 (- n m);
+let >= := \n m. <= m n;
+let = := \n m. and (>= n m) (<= n m);
+let fact_f := \p.p (\acc n. pair (* acc n) (succ n));
+let fact_z := pair 1 1;
+let fact := \n. first (n fact_f fact_z);
 
-pred (succ (succ (succ zero)))
+= (fact 4) (* 3 8)
