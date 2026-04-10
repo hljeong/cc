@@ -47,6 +47,7 @@ check "shadow: prevents free var capture"           'y'                   '(\x.\
 
 check "extended syntax 0"                           '\x.\y.x'             '\x y.x'
 check "extended syntax 1"                           '\x y.x'              '\x y.x'                          nf    100 ext
+check "extended syntax 2"                           '\f x.f (f (f x))'    'let succ:=\n f x.n f (f x); (succ (succ (succ \f x.x)))' nf 100 ext
 
 
 echo ""

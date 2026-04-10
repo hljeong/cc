@@ -10,7 +10,7 @@
 // `node` as is
 //
 // note that `node`, `var`, and `subval` must not overlap
-static Node *sub(Node *node, Node *var, Node *subval) {
+static Node *sub(Node *node, Node *var, Node *subval, Node *scope) {
   if (var->kind != NodeKind_VAR)
     fail("bad invocation: sub(*, {node_kind}, *)", var->kind);
 
@@ -19,21 +19,21 @@ static Node *sub(Node *node, Node *var, Node *subval) {
     // binds the variable so pointer equality is used,
     // effectively using the pointer value as a handle
     // of some kind
-    return node->ref == var ? subval : node;
+    return node->ref == var ? copy_node(subval, scope) : node;
   }
 
   else if (node->kind == NodeKind_FUN) {
-    Node *body = sub(node->body, var, subval);
+    Node *body = sub(node->body, var, subval, node);
     // if substitution occurs in the child node,
     // a new node must be created
-    if (body != node->body) return new_fun(node->var, body);
+    if (body != node->body) return new_fun(scope, node->var, body);
 
     return node;
   }
 
   else if (node->kind == NodeKind_APP) {
-    Node *fun = sub(node->fun, var, subval);
-    Node *arg = sub(node->arg, var, subval);
+    Node *fun = sub(node->fun, var, subval, scope);
+    Node *arg = sub(node->arg, var, subval, scope);
     // if substitution occurs in the child node,
     // a new node must be created
     if (fun != node->fun || arg != node->arg) return new_app(fun, arg);
@@ -46,13 +46,15 @@ static Node *sub(Node *node, Node *var, Node *subval) {
 
 //perform beta-reduction on the given application node
 // return `node` as is if there is nothing to be done
-static Node *beta(Node *node) {
+static Node *beta(Node *node, Node *scope) {
   assert(node->kind == NodeKind_APP,
          "bad invocation: beta({node_kind})", node->kind);
   assert(node->fun->kind == NodeKind_FUN,
          "bad invocation: beta(app({node_kind}, *))", node->fun->kind);
 
-  return sub(node->fun->body, node->fun->var, node->arg);
+  // debug("substituting {sv} in ({lambda}) for ({lambda}), scope={scope}\n",
+  //       node->fun->var->name, node->fun->body, true, node->arg, true, scope);
+  return sub(node->fun->body, node->fun->var, node->arg, scope);
 }
 
 // return `var` occurs free in `node`
@@ -77,7 +79,7 @@ static bool eta_reducible(Node *node) {
            !is_free(node->var, node->body->fun);
 }
 
-Node *step(Node *node, const NormalForm nf) {
+Node *_step(Node *node, const NormalForm nf, Node *scope) {
   if (node->kind == NodeKind_VAR) return node;
 
   else if (node->kind == NodeKind_FUN) {
@@ -87,10 +89,12 @@ Node *step(Node *node, const NormalForm nf) {
     if ((nf == NormalForm_BETA_ETA) && eta_reducible(node))
       return node->body->fun;
 
-    Node *body = step(node->body, nf);
+    Node *body = _step(node->body, nf, node);
     // if beta-reduction occurs in the child node,
     // a new node must be created
-    if (body != node->body) return new_fun(node->var, body);
+    if (body != node->body) {
+      return new_fun(scope, node->var, body);
+    }
 
     return node;
   }
@@ -107,22 +111,26 @@ Node *step(Node *node, const NormalForm nf) {
     // yields itself, immediately leading to an infinite loop.
     // normal order reduces the entire expression in one step to
     // `\y.y` since `x` is not used in the function body of `(\x.\y.y)`
-    if (node->fun->kind == NodeKind_FUN) return beta(node);
+    if (node->fun->kind == NodeKind_FUN) return beta(node, scope);
 
     // weak head normal form does not reduce applications whose
     // lhs is not a function
     if (nf == NormalForm_WEAK_HEAD) return node;
 
-    Node *fun = step(node->fun, nf);
+    Node *fun = _step(node->fun, nf, scope);
     // if beta-reduction occurs in the child node,
     // a new node must be created
     if (fun != node->fun) return new_app(fun, node->arg);
 
-    Node *arg = step(node->arg, nf);
+    Node *arg = _step(node->arg, nf, scope);
     if (arg != node->arg) return new_app(node->fun, arg);
 
     return node;
   }
 
   else fail("{node_kind}", node->kind);
+}
+
+Node *step(Node *node, const NormalForm nf) {
+  return _step(node, nf, ctx.parser.scope);
 }

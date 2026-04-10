@@ -28,9 +28,9 @@ static int emit_ast(const sink s, const Node *node, str_builder *sb, const bool 
   if (node->kind == NodeKind_VAR) {}
 
   else if (node->kind == NodeKind_FUN) {
-    int ret = -1;
+    len += check(emit_ast(s, node->var, sb, false));
     if (node->body) len += check(emit_ast(s, node->body, sb, true));
-    else len += check(emitf(s, "%s  └─...\n", sb->buf));
+    else len += check(emitf(s, "%s  └─?\n", sb->buf));
   }
 
   else if (node->kind == NodeKind_APP) {
@@ -56,7 +56,7 @@ int fmt_scope(const sink s, va_list ap) {
   assert(node->kind == NodeKind_FUN,
          "bad invocation: fmt_scope({node})", node);
 
-  int len = check(emitf(s, "{"));
+  int len = check(emitf(s, "{{"));
 
   while (node) {
     if (node->var->name.len)
@@ -68,7 +68,7 @@ int fmt_scope(const sink s, va_list ap) {
       len += check(emitf(s, ", "));
   }
 
-  len += check(emitf(s, "}"));
+  len += check(emitf(s, "}}"));
 
   return len;
 }
@@ -94,7 +94,11 @@ static int emit_lambda(const sink s,
 
     len += check(emit_lambda(s, node->var, ext, false, false, false));
 
-    if (ext && node->body->kind == NodeKind_FUN) {
+    if (!node->body) {
+      len += check(emitf(s, ".?"));
+    }
+
+    else if (ext && node->body->kind == NodeKind_FUN) {
       len += check(emitf(s, " "));
       len += check(emit_lambda(s, node->body, ext, false, true, false));
     }
@@ -162,8 +166,9 @@ Node *get_var(const str_view name, Node *scope) {
   return scope->var;
 }
 
-Node *new_fun(Node *var, Node *body) {
+Node *new_fun(Node *scope, Node *var, Node *body) {
   Node *node = new_node(NodeKind_FUN);
+  node->par = scope;
   node->var = var;
   node->body = body;
   return node;
@@ -178,14 +183,24 @@ Node *new_app(Node *fun, Node *arg) {
 
 Node *copy_node(Node *node, Node *scope) {
   if (node->kind == NodeKind_VAR) {
-    assert(node->ref != node, "copying a binding var");
-    return get_var(node->name, scope);
+    // free variable, make direct reference to avoid capturing
+    if (node->ref == node)
+      return new_var(node->name, node);
+    // if (scope)
+    //   debug("looking up {sv} in {lambda} (scope={scope})\n",
+    //         node->lexeme, scope, true, scope);
+    Node *ret = get_var(node->name, scope);
+    assert(ret->ref != ret);
+    return ret;
   }
 
   else if (node->kind == NodeKind_FUN) {
     Node *ret = new_node(NodeKind_FUN);
+    ret->par = scope;
     ret->var = new_var(node->var->name, NULL);
-    ret->body = copy_node(node->body, node);
+    // debug("copying lambda {lambda} (scope={scope})\n",
+    //       node, true, scope);
+    ret->body = copy_node(node->body, ret);
     ret->lexeme = node->lexeme;
     return ret;
   }

@@ -115,4 +115,5 @@ void register_formatters() {
   add_formatter("node",         fmt_node);
   add_formatter("ast",          fmt_ast);
   add_formatter("lambda",       fmt_lambda);
+  add_formatter("scope",        fmt_scope);
 }
